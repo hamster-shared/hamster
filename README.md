@@ -151,7 +151,7 @@ If you want to see the multi-node consensus algorithm in action, refer to
 Thank you for considering your contribution to hamster!
 
 <a href="https://github.com/hamster-shared/hamster/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=hamster-shared/hamstert" />
+  <img src="https://contrib.rocks/image?repo=hamster-shared/hamster" />
 </a>
 
 ## 8. Commercial considerations
