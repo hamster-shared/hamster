@@ -1,24 +1,60 @@
-# Substrate Node Template
+<div align=center>
+<img src="./docs/logo-300.png" width=300" height="300" />
+</div>
+<div align=center>
+<img src="https://img.shields.io/badge/rust-1.54.0--nightly-blue"/>
+<img src="https://img.shields.io/badge/substrate-3.0.0-lightBlue"/>
+</div>
 
-[![Try on playground](https://img.shields.io/badge/Playground-Node_Template-brightgreen?logo=Parity%20Substrate)](https://playground.substrate.dev/?deploy=node-template)
+[github](https://github.com/hamster-shared/hamster): https://github.com/hamster-shared/hamster
 
-A fresh FRAME-based [Substrate](https://www.substrate.io/) node, ready for hacking :rocket:
+hamster is a blockchain-based blockchain infrastructure service. Any computing device can easily access the Hamster network.
 
-## Getting Started
+# Project Guidelines
 
-Follow the steps below to get started with the Node Template, or get it up and running right from your browser
-in just a few clicks Using [Playground](https://playground.substrate.dev/) :hammer_and_wrench:
+## 1. Basic Introduction
 
-### Using Nix
+### 1.1 Project Introduction
 
-Install [nix](https://nixos.org/) and optionally [direnv](https://github.com/direnv/direnv) and [lorri](https://github.com/target/lorri) for a fully plug
-and play experience for setting up the development environment. To get all the correct dependencies activate direnv `direnv allow` and lorri `lorri shell`.
+> Hamster Nodes are the underlying chain nodes of the Hamster Network and provide services to the entire Hamster Network.Hamster node is a custom node built on Substrate framework . It provides basic functions such as provider registration, calculating market, and executing orders.
+>
 
-### Rust Setup
+### 1.2 Contributing Guide
+
+Hi! Thank you for choosing Hamster.
+
+Hamster is a blockchain that providers infrastructure service.
+
+We are excited that you are interested in contributing to Hamster. Before submitting your contribution though, please make sure to take a moment and read through the following guidelines.
+
+#### 1.2.1 Issue Guidelines
+
+- Issues are exclusively for bug reports, feature requests and design-related topics. Other questions may be closed directly.
+
+- Before submitting an issue, please check if similar problems have already been issued.
+
+#### 1.2.2 Pull Request Guidelines
+
+- Fork this repository to your own account. Do not create branches here.
+
+- Commit info should be formatted as `[File Name]: Info about commit.` (e.g. `README.md: Fix xxx bug`)
+
+- If your PR fixes a bug, please provide a description about the related bug.
+
+- Merging a PR takes two maintainers: one approves the changes after reviewing, and then the other reviews and merges.
+
+### 1.3 Version list
+
+- main: 1.0.0 code, for prod
+- develop: 2.0.0 dev code, for test
+
+## 2. Getting started
+
+### 2.1 Rust Setup
 
 First, complete the [basic Rust setup instructions](./docs/rust-setup.md).
 
-### Run
+### 2.2 Run
 
 Use Rust's native `cargo` command to build and launch the template node:
 
@@ -26,7 +62,7 @@ Use Rust's native `cargo` command to build and launch the template node:
 cargo run --release -- --dev --tmp
 ```
 
-### Build
+### 2.3 Build
 
 The `cargo run` command will perform an initial build. Use the following command to build the node
 without launching it:
@@ -35,7 +71,7 @@ without launching it:
 cargo build --release
 ```
 
-### Embedded Docs
+### 2.4 Embedded Docs
 
 Once the project has been built, the following command can be used to explore all parameters and
 subcommands:
@@ -44,7 +80,7 @@ subcommands:
 ./target/release/node-template -h
 ```
 
-## Run
+## 3. Run
 
 The provided `cargo run` command will launch a temporary node and its state will be discarded after
 you terminate the process. After the project has been built, there are other ways to launch the
@@ -80,124 +116,8 @@ to interact with your chain. [Click here](https://polkadot.js.org/apps/#/explore
 If you want to see the multi-node consensus algorithm in action, refer to
 [our Start a Private Network tutorial](https://substrate.dev/docs/en/tutorials/start-a-private-network/).
 
-## Template Structure
-
-A Substrate project such as this consists of a number of components that are spread across a few
-directories.
-
-### Node
-
-A blockchain node is an application that allows users to participate in a blockchain network.
-Substrate-based blockchain nodes expose a number of capabilities:
-
--   Networking: Substrate nodes use the [`libp2p`](https://libp2p.io/) networking stack to allow the
-    nodes in the network to communicate with one another.
--   Consensus: Blockchains must have a way to come to
-    [consensus](https://substrate.dev/docs/en/knowledgebase/advanced/consensus) on the state of the
-    network. Substrate makes it possible to supply custom consensus engines and also ships with
-    several consensus mechanisms that have been built on top of
-    [Web3 Foundation research](https://research.web3.foundation/en/latest/polkadot/NPoS/index.html).
--   RPC Server: A remote procedure call (RPC) server is used to interact with Substrate nodes.
-
-There are several files in the `node` directory - take special note of the following:
-
--   [`chain_spec.rs`](./node/src/chain_spec.rs): A
-    [chain specification](https://substrate.dev/docs/en/knowledgebase/integrate/chain-spec) is a
-    source code file that defines a Substrate chain's initial (genesis) state. Chain specifications
-    are useful for development and testing, and critical when architecting the launch of a
-    production chain. Take note of the `development_config` and `testnet_genesis` functions, which
-    are used to define the genesis state for the local development chain configuration. These
-    functions identify some
-    [well-known accounts](https://substrate.dev/docs/en/knowledgebase/integrate/subkey#well-known-keys)
-    and use them to configure the blockchain's initial state.
--   [`service.rs`](./node/src/service.rs): This file defines the node implementation. Take note of
-    the libraries that this file imports and the names of the functions it invokes. In particular,
-    there are references to consensus-related topics, such as the
-    [longest chain rule](https://substrate.dev/docs/en/knowledgebase/advanced/consensus#longest-chain-rule),
-    the [Aura](https://substrate.dev/docs/en/knowledgebase/advanced/consensus#aura) block authoring
-    mechanism and the
-    [GRANDPA](https://substrate.dev/docs/en/knowledgebase/advanced/consensus#grandpa) finality
-    gadget.
-
-After the node has been [built](#build), refer to the embedded documentation to learn more about the
-capabilities and configuration parameters that it exposes:
-
-```shell
-./target/release/node-template --help
+## 4. CodeStructure
 ```
-
-### Runtime
-
-In Substrate, the terms
-"[runtime](https://substrate.dev/docs/en/knowledgebase/getting-started/glossary#runtime)" and
-"[state transition function](https://substrate.dev/docs/en/knowledgebase/getting-started/glossary#stf-state-transition-function)"
-are analogous - they refer to the core logic of the blockchain that is responsible for validating
-blocks and executing the state changes they define. The Substrate project in this repository uses
-the [FRAME](https://substrate.dev/docs/en/knowledgebase/runtime/frame) framework to construct a
-blockchain runtime. FRAME allows runtime developers to declare domain-specific logic in modules
-called "pallets". At the heart of FRAME is a helpful
-[macro language](https://substrate.dev/docs/en/knowledgebase/runtime/macros) that makes it easy to
-create pallets and flexibly compose them to create blockchains that can address
-[a variety of needs](https://www.substrate.io/substrate-users/).
-
-Review the [FRAME runtime implementation](./runtime/src/lib.rs) included in this template and note
-the following:
-
--   This file configures several pallets to include in the runtime. Each pallet configuration is
-    defined by a code block that begins with `impl $PALLET_NAME::Config for Runtime`.
--   The pallets are composed into a single runtime by way of the
-    [`construct_runtime!`](https://crates.parity.io/frame_support/macro.construct_runtime.html)
-    macro, which is part of the core
-    [FRAME Support](https://substrate.dev/docs/en/knowledgebase/runtime/frame#support-library)
-    library.
-
-### Pallets
-
-The runtime in this project is constructed Using many FRAME pallets that ship with the
-[core Substrate repository](https://github.com/paritytech/substrate/tree/master/frame) and a
-template pallet that is [defined in the `pallets`](./pallets/template/src/lib.rs) directory.
-
-A FRAME pallet is compromised of a number of blockchain primitives:
-
--   Storage: FRAME defines a rich set of powerful
-    [storage abstractions](https://substrate.dev/docs/en/knowledgebase/runtime/storage) that makes
-    it easy to use Substrate's efficient key-value database to manage the evolving state of a
-    blockchain.
--   Dispatchables: FRAME pallets define special types of functions that can be invoked (dispatched)
-    from outside of the runtime in order to update its state.
--   Events: Substrate uses [events](https://substrate.dev/docs/en/knowledgebase/runtime/events) to
-    notify users of important changes in the runtime.
--   Errors: When a dispatchable fails, it returns an error.
--   Config: The `Config` configuration interface is used to define the types and parameters upon
-    which a FRAME pallet depends.
-
-### Run in Docker
-
-First, install [Docker](https://docs.docker.com/get-docker/) and
-[Docker Compose](https://docs.docker.com/compose/install/).
-
-Then run the following command to start a single node development chain.
-
-```bash
-./scripts/docker_run.sh
-```
-
-This command will firstly compile your code, and then start a local development network. You can
-also replace the default command (`cargo build --release && ./target/release/node-template --dev --ws-external`)
-by appending your own. A few useful ones are as follow.
-
-```bash
-# Run Substrate node without re-compiling
-./scripts/docker_run.sh ./target/release/node-template --dev --ws-external
-
-# Purge the local dev chain
-./scripts/docker_run.sh ./target/release/node-template purge-chain --dev
-
-# Check whether the code is compilable
-./scripts/docker_run.sh cargo check
-```
-
-### CodeStructure
 ├── docs                                docs
 ├── node                                substrate node module package
 │   └── src                       substrate nodesource package
@@ -212,4 +132,28 @@ by appending your own. A few useful ones are as follow.
 │   └── src                       public object source package
 ├── runtime                             substrate runtime package
 │   └── src                       substrate runtime implementation package
-└── scripts                             substrate run tool script directory           
+└── scripts                             substrate run tool script directory       
+```
+
+## 5. Features
+
+- provider: Provide functions such as registering resources, modifying the unit price of resources, adding rental hours and deleting resources
+- resource-order: Provide functions for purchasing resources, executing orders, heartbeat reporting, pledge amounts, retrieving rewards, cancelling orders, renewing orders, etc.
+
+## 6. Knowledge base
+
+### 6.1 Team blog
+
+> https://github.com/hamster-shared
+
+## 7. Contributors
+
+Thank you for considering your contribution to hamster!
+
+<a href="https://github.com/hamster-shared/hamster/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=hamster-shared/hamster" />
+</a>
+
+## 8. Commercial considerations
+
+If you use this project for commercial purposes, please comply with the Apache2.0 agreement and retain the author's technical support statement.
