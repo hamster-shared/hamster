@@ -1,28 +1,28 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::{dispatch::DispatchResult,
-                    pallet_prelude::*, traits::{Currency}};
+                    pallet_prelude::*, traits::Currency};
 use frame_support::sp_runtime::traits::Convert;
 use frame_system::pallet_prelude::*;
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
-
 
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://substrate.dev/docs/en/knowledgebase/runtime/frame>
 
 pub use pallet::*;
-pub use primitives::p_resource_order::*;
 pub use primitives::p_provider::*;
+pub use primitives::p_resource_order::*;
 
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 
 #[frame_support::pallet]
 pub mod pallet {
-    use super::*;
     use primitives::Balance;
+
+    use super::*;
 
     /// Configure the pallet by specifying the parameters and types on which it depends.
     #[pallet::config]
@@ -93,40 +93,34 @@ pub mod pallet {
         fn on_initialize(now: T::BlockNumber) -> Weight {
             //Determine whether there is a current block in the block association information
             if FutureExpiredResource::<T>::contains_key(now) {
-                let option = FutureExpiredResource::<T>::get(now);
                 //Determine whether the expired resource corresponding to the current block is empty
-                match option{
+                match FutureExpiredResource::<T>::get(now) {
                     Some(t) => {
                         t.into_iter().for_each(|resource_index| {
                             // Determine whether there is a resource in the Vec of an expired resource
-                            if Resources::<T>::contains_key(resource_index) {
-                                //get the resource corresponding to the index
-                                let resource_option = Resources::<T>::get(resource_index);
-                                if resource_option.is_some() {
-                                    let account_id = resource_option.unwrap().account_id;
-                                    // delete associated resource
-                                    if Provider::<T>::contains_key(&account_id) {
-                                        let account_resources = Provider::<T>::get(&account_id);
-                                        if account_resources.is_some() {
-                                            let resource: Vec<u64> =
-                                                account_resources.unwrap()
-                                                    .into_iter().filter(|x| *x != resource_index.clone()).collect();
-                                            Provider::<T>::insert(account_id, resource);
-                                        }
-                                    }
-
-                                    //remove resource
-                                    Resources::<T>::remove(resource_index);
-                                    // reduce count
-                                    let count = ResourceCount::<T>::get();
-                                    ResourceCount::<T>::set(count - 1);
+                            //get the resource corresponding to the index
+                            let resource_option = Resources::<T>::get(resource_index);
+                            if resource_option.is_some() {
+                                let account_id = resource_option.unwrap().account_id;
+                                // delete associated resource
+                                let account_resources = Provider::<T>::get(&account_id);
+                                if account_resources.is_some() {
+                                    let resource: Vec<u64> =
+                                        account_resources.unwrap()
+                                            .into_iter().filter(|x| *x != resource_index.clone()).collect();
+                                    Provider::<T>::insert(account_id, resource);
                                 }
+
+                                //remove resource
+                                Resources::<T>::remove(resource_index);
+                                // reduce count
+                                let count = ResourceCount::<T>::get();
+                                ResourceCount::<T>::set(count - 1);
                             }
                         });
-
                         // delete expired resource mappings
                         FutureExpiredResource::<T>::remove(now);
-                    },
+                    }
                     None => ()
                 }
             }
@@ -243,8 +237,7 @@ pub mod pallet {
 
             // query and modify
             ensure!(Resources::<T>::contains_key(index),Error::<T>::ResourceNotFound);
-            let mut resource =
-                Self::get_computing_resource_info(index.clone()).unwrap();
+            let mut resource = Resources::<T>::get(index.clone()).unwrap();
 
             ensure!(resource.account_id == who.clone(), Error::<T>::IllegalRequest);
 
@@ -257,6 +250,7 @@ pub mod pallet {
         }
 
         /// add resource rental time
+        // todo:
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn add_resource_duration(
             account_id: OriginFor<T>,
@@ -267,8 +261,8 @@ pub mod pallet {
 
             // query and modify
             ensure!(Resources::<T>::contains_key(index),Error::<T>::ResourceNotFound);
-            let mut resource =
-                Self::get_computing_resource_info(index.clone()).unwrap();
+            let mut resource = Resources::<T>::get(index.clone()).unwrap();
+
             // get current block
             let block_number = <frame_system::Pallet<T>>::block_number();
             ensure!(resource.rental_info.end_of_rent > block_number,Error::<T>::ResourcesExpired);
@@ -284,14 +278,14 @@ pub mod pallet {
                 let resource_list: Vec<u64> =
                     option.unwrap()
                         .into_iter().filter(|x| *x != resource.index.clone()).collect();
-                FutureExpiredResource::<T>::insert(resource.rental_info.end_of_rent.clone(),resource_list);
+                FutureExpiredResource::<T>::insert(resource.rental_info.end_of_rent.clone(), resource_list);
             }
 
             resource.add_resource_duration(duration_add);
             Resources::<T>::insert(&index, resource);
             // get the modified resource
-            let changed_resource =
-                Self::get_computing_resource_info(index.clone()).unwrap();
+            let changed_resource = Resources::<T>::get(index.clone()).unwrap();
+
             let rent_block = changed_resource.rental_info.end_of_rent;
             // add_new_expired_block_associated_resource
             if !FutureExpiredResource::<T>::contains_key(rent_block) {
@@ -318,23 +312,21 @@ pub mod pallet {
         ) -> DispatchResult {
             let who = ensure_signed(account_id)?;
             ensure!(Resources::<T>::contains_key(index),Error::<T>::ResourceNotFound);
-            let resource =
-                Self::get_computing_resource_info(index.clone()).unwrap();
+            let resource = Resources::<T>::get(index.clone()).unwrap();
 
             ensure!(resource.account_id == who.clone(), Error::<T>::IllegalRequest);
 
             ensure!(resource.status == ResourceStatus::Unused || resource.status == ResourceStatus::Offline, Error::<T>::CannotBeDeleted);
 
             // delete associated resource
-            if Provider::<T>::contains_key(who.clone()) {
-                let option = Provider::<T>::get(who.clone());
-                if option.is_some() {
-                    let resource_vec: Vec<u64> =
-                        option.unwrap()
-                            .into_iter().filter(|x| *x != index.clone()).collect();
-                    Provider::<T>::insert(who.clone(), resource_vec);
-                }
+            let option = Provider::<T>::get(who.clone());
+            if option.is_some() {
+                let resource_vec: Vec<u64> =
+                    option.unwrap()
+                        .into_iter().filter(|x| *x != index.clone()).collect();
+                Provider::<T>::insert(who.clone(), resource_vec);
             }
+
 
             // reduce count
             let count = ResourceCount::<T>::get();
@@ -342,14 +334,13 @@ pub mod pallet {
 
             // Delete resources associated with future expirations
             let end_of_rent = resource.rental_info.end_of_rent;
-            if FutureExpiredResource::<T>::contains_key(&end_of_rent) {
-                let option1 = FutureExpiredResource::<T>::get(&end_of_rent);
-                if option1.is_some() {
-                    let new_resource: Vec<u64> = option1.unwrap()
-                        .into_iter().filter(|x| *x != index.clone()).collect();
-                    FutureExpiredResource::<T>::insert(end_of_rent, new_resource);
-                }
+            let option = FutureExpiredResource::<T>::get(&end_of_rent);
+            if option.is_some() {
+                let new_resource: Vec<u64> = option.unwrap()
+                    .into_iter().filter(|x| *x != index.clone()).collect();
+                FutureExpiredResource::<T>::insert(end_of_rent, new_resource);
             }
+
 
             //delete resource
             Resources::<T>::remove(&index);
@@ -366,8 +357,7 @@ pub mod pallet {
                                       index: u64) -> DispatchResult {
             let who = ensure_signed(account_id)?;
             ensure!(Resources::<T>::contains_key(index),Error::<T>::ResourceNotFound);
-            let mut resource =
-                Self::get_computing_resource_info(index.clone()).unwrap();
+            let mut resource = Resources::<T>::get(index.clone()).unwrap();
 
             ensure!(resource.account_id == who.clone(), Error::<T>::IllegalRequest);
             ensure!(resource.status == ResourceStatus::Offline, Error::<T>::UnmodifiableStatusNow);
@@ -382,13 +372,6 @@ pub mod pallet {
 
 
 impl<T: Config> Pallet<T> {
-    /// query resources based on index
-    fn get_computing_resource_info(index: u64) -> Result<ComputingResource<T::BlockNumber, T::AccountId>, Error<T>> {
-        ensure!(Resources::<T>::contains_key(index),Error::<T>::ResourceNotFound);
-        let res = Resources::<T>::get(index).unwrap();
-        Ok(res)
-    }
-
     /// modify resources
     fn update_computing_resource(index: u64,
                                  resource: ComputingResource<T::BlockNumber, T::AccountId>,
