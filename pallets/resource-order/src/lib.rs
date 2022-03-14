@@ -1,10 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarking;
-
-
 use frame_support::{dispatch::DispatchResult,
                     pallet_prelude::*, PalletId, traits::{Currency, ExistenceRequirement}};
 use frame_support::sp_runtime::traits::Convert;
@@ -23,6 +19,10 @@ use sp_std::vec::Vec;
 pub use pallet::*;
 pub use primitives::p_provider::*;
 pub use primitives::p_resource_order::*;
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+
 
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
@@ -206,6 +206,8 @@ pub mod pallet {
         ProtocolDoesNotExist,
         /// agreement has been punished
         AgreementHasBeenPunished,
+        /// agreement has been finished
+        AgreementHasBeenFinished,
         /// insufficient pledge amount
         InsufficientStaking,
         /// pledge does not exist
@@ -284,7 +286,7 @@ pub mod pallet {
             // order length+1
             OrderIndex::<T>::put(order_index + 1);
             // save the order corresponding to the user
-            Self::do_insert_user_orders(who.clone(),order_index);
+            Self::do_insert_user_orders(who.clone(), order_index);
 
             Self::deposit_event(Event::CreateOrderSuccess(who, order_index, resource_index, rent_duration, public_key));
             Ok(())
@@ -348,13 +350,7 @@ pub mod pallet {
                 // Remove the corresponding protocol number from the original block
                 let new_vec = BlockWithAgreement::<T>::get(old_end)
                     .into_iter()
-                    .filter(|x| {
-                        if x == &agreement_index {
-                            false
-                        } else {
-                            true
-                        }
-                    })
+                    .filter(|x| x != &agreement_index)
                     .collect::<Vec<u64>>();
 
                 // If the protocol number is deleted, vec is not empty
@@ -552,7 +548,7 @@ pub mod pallet {
             // Whether the settlement of the agreement is completed
             if agreement.clone().is_finished() {
                 // delete agreement
-                Self::delete_agreement(agreement_index, agreement.provider.clone(),agreement.tenant_info.account_id.clone());
+                Self::delete_agreement(agreement_index, agreement.provider.clone(), agreement.tenant_info.account_id.clone());
             } else {
                 // save the agreement
                 RentalAgreements::<T>::insert(agreement_index, agreement.clone());
@@ -584,7 +580,7 @@ pub mod pallet {
             // whether the agreement is completed
             if agreement.clone().is_finished() {
                 // delete agreement
-                Self::delete_agreement(agreement_index, agreement.provider.clone(),agreement.tenant_info.account_id.clone());
+                Self::delete_agreement(agreement_index, agreement.provider.clone(), agreement.tenant_info.account_id.clone());
             } else {
                 // save the agreement
                 RentalAgreements::<T>::insert(agreement_index, agreement.clone());
@@ -659,7 +655,7 @@ pub mod pallet {
             // get agreement
             ensure!(RentalAgreements::<T>::contains_key(agreement_index),Error::<T>::ProtocolDoesNotExist);
             let agreement = RentalAgreements::<T>::get(agreement_index).unwrap();
-
+            ensure!(agreement.status == AgreementStatus::Using,Error::<T>::AgreementHasBeenFinished);
             // get resource number
             let resource_index = agreement.resource_index;
             // get resource information
@@ -673,7 +669,7 @@ pub mod pallet {
             let end_resource = resource_info.rental_info.end_of_rent;
             // get rental block
             let rent_duration = T::BlockNumberToNumber::convert(duration * 600);
-            ensure!(rent_duration + block_number < end_resource,Error::<T>::InsufficientTimeForResource);
+            ensure!(rent_duration + agreement.end < end_resource,Error::<T>::InsufficientTimeForResource);
             // calculate new order price
             let price = resource_info.rental_info.rent_unit_price * duration as u128;
 
@@ -699,7 +695,7 @@ pub mod pallet {
             ResourceOrders::<T>::insert(order_index, order.clone());
             OrderIndex::<T>::put(order_index + 1);
             // save the order corresponding to the user
-            Self::do_insert_user_orders(who.clone(),order_index);
+            Self::do_insert_user_orders(who.clone(), order_index);
 
             Self::deposit_event(Event::ReNewOrderSuccess(who.clone(), order_index, resource_index, duration));
             Ok(())
@@ -722,7 +718,7 @@ impl<T: Config> Pallet<T> {
             vec.push(agreement_count);
 
             UserAgreements::<T>::insert(who.clone(), vec);
-        }else {
+        } else {
             UserAgreements::<T>::mutate(&who, |vec| {
                 vec.push(agreement_count);
             });
@@ -737,13 +733,12 @@ impl<T: Config> Pallet<T> {
             vec.push(agreement_count);
 
             ProviderAgreements::<T>::insert(who.clone(), vec);
-        }else {
+        } else {
             ProviderAgreements::<T>::mutate(&who, |vec| {
                 vec.push(agreement_count);
             });
         }
     }
-
 
 
     // Associate the block number with the protocol number
@@ -766,21 +761,19 @@ impl<T: Config> Pallet<T> {
 
     // associate user and order number
     pub fn do_insert_user_orders(who: T::AccountId, order_index: u64) {
-
         if UserOrders::<T>::contains_key(who.clone()) {
-            UserOrders::<T>::mutate(who,|vec|{
+            UserOrders::<T>::mutate(who, |vec| {
                 vec.push(order_index)
             })
-        }else {
+        } else {
             let mut vec = Vec::new();
             vec.push(order_index);
-            UserOrders::<T>::insert(who.clone(),vec);
+            UserOrders::<T>::insert(who.clone(), vec);
         }
-
     }
 
     // delete agreement
-    pub fn delete_agreement(agreement_index: u64, provider: T::AccountId,user: T::AccountId) {
+    pub fn delete_agreement(agreement_index: u64, provider: T::AccountId, user: T::AccountId) {
         let new_vec = UserAgreements::<T>::get(user.clone())
             .into_iter()
             .filter(|x| {
@@ -845,7 +838,6 @@ impl<T: Config> Pallet<T> {
         let agreements = RentalAgreements::<T>::iter();
 
         for (i, mut agreement) in agreements {
-
             if agreement.status == AgreementStatus::Using {
                 // get resource number
                 let resource_index = agreement.resource_index;
@@ -866,7 +858,6 @@ impl<T: Config> Pallet<T> {
                     // get pledge
                     let mut staking = Staking::<T>::get(agreement.provider.clone()).unwrap();
                     staking.penalty_amount(price);
-
                     T::Currency::transfer(&Self::staking_pool(), &agreement.tenant_info.account_id, T::NumberToBalance::convert(price), ExistenceRequirement::AllowDeath)?;
 
                     // number of resource failures+1
@@ -878,7 +869,7 @@ impl<T: Config> Pallet<T> {
 
 
                     // Delete the protocol number in the corresponding block
-                    Self::delete_block_with_agreement(i,agreement.end.clone());
+                    Self::delete_block_with_agreement(i, agreement.end.clone());
                     // save the pledge
                     Staking::<T>::insert(agreement.provider.clone(), staking);
                     // save the agreement
@@ -889,7 +880,6 @@ impl<T: Config> Pallet<T> {
                     Self::deposit_event(Event::PenaltyAgreementExcutionSuccess(i));
                 }
             }
-
         }
 
         Ok(())
@@ -922,7 +912,7 @@ impl<T: Config> Pallet<T> {
             // save resource state
             T::OrderInterface::update_computing_resource(resource_index, resource);
             // save the agreement
-            RentalAgreements::<T>::insert(i,agreement.clone());
+            RentalAgreements::<T>::insert(i, agreement.clone());
             // save the pledge
             Staking::<T>::insert(agreement.provider, staking);
             Self::deposit_event(Event::ExpiredResourceStatusUpdatedSuccess(resource_index));
