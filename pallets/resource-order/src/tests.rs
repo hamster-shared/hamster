@@ -7,7 +7,7 @@ fn it_works_for_default_value() {
     new_test_ext().execute_with(|| {
         // Dispatch a signed extrinsic.
         // Read pallet storage and assert an expected result.
-        assert_eq!(ResourceOrder::OrderIndex(), 0);
+        assert_eq!(ResourceOrder::order_index(), 0);
     });
 }
 
