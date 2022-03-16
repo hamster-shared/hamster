@@ -20,6 +20,12 @@ pub use pallet::*;
 pub use primitives::p_provider::*;
 pub use primitives::p_resource_order::*;
 
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
+
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
