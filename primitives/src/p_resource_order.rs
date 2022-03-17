@@ -13,6 +13,7 @@ use sp_core::sp_std::time::Duration;
 
 /// resourceOrder
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ResourceOrder<AccountId, BlockNumber> {
     /// OrderIdIndex
     pub index: u64,
@@ -36,6 +37,7 @@ pub struct ResourceOrder<AccountId, BlockNumber> {
 
 /// TenantInformation
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct TenantInfo<AccountId> {
     /// TenantInformation
     pub account_id: AccountId,
@@ -45,6 +47,7 @@ pub struct TenantInfo<AccountId> {
 
 /// LeaseAgreement
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct RentalAgreement<AccountId, BlockNumber>
     where BlockNumber: Parameter + AtLeast32BitUnsigned
 {
@@ -84,6 +87,7 @@ pub struct RentalAgreement<AccountId, BlockNumber>
 
 /// StakingAmount
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct StakingAmount {
     /// StakingAmount
     pub amount: u128,

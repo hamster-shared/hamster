@@ -1,3 +1,4 @@
+use crate::*;
 use crate as pallet_resource_order;
 use sp_core::H256;
 use frame_support::{
@@ -7,8 +8,6 @@ use sp_runtime::{
     traits::{BlakeTwo256,ConvertInto, IdentityLookup}, testing::Header,
 };
 use frame_system as system;
-use sp_runtime::traits::Convert;
-
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -124,4 +123,27 @@ impl pallet_resource_order::Config for Test {
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
     system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
+}
+
+pub fn new_test_pub() -> sp_io::TestExternalities {
+    let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+    pallet_balances::GenesisConfig::<Test> {
+        balances: vec![(1, 100), (2, 100), (3, 100), (4, 100), (5, 100)],
+    }.assimilate_storage(&mut t).unwrap();
+
+    pallet_resource_order::GenesisConfig::<Test> {
+        order_index: 1,
+        resource_orders: Default::default(),
+        agreement_index: Default::default(),
+        rental_agreements: Default::default(),
+        user_agreements: Default::default(),
+        provider_agreements: Default::default(),
+        staking: Default::default(),
+        block_agreement: Default::default(),
+        user_orders: Default::default(),
+    }.assimilate_storage(&mut t).unwrap();
+
+    let mut ext = sp_io::TestExternalities::new(t);
+    ext.execute_with(|| System::set_block_number(1));
+    ext
 }

@@ -1,3 +1,4 @@
+use crate::*;
 use crate as pallet_provider;
 use sp_core::H256;
 use frame_support::parameter_types;
@@ -98,4 +99,23 @@ impl pallet_provider::Config for Test {
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
+}
+
+pub fn new_test_pub() -> sp_io::TestExternalities {
+	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	pallet_balances::GenesisConfig::<Test> {
+		balances: vec![(1, 100), (2, 100), (3, 100), (4, 100), (5, 100)],
+	}.assimilate_storage(&mut t).unwrap();
+
+	pallet_provider::GenesisConfig::<Test> {
+		resource: vec![],
+		resource_index: 0,
+		resource_count: 0,
+		future_expired_resource: vec![],
+		provider: vec![],
+	}.assimilate_storage(&mut t).unwrap();
+
+	let mut ext = sp_io::TestExternalities::new(t);
+	ext.execute_with(|| System::set_block_number(1));
+	ext
 }
