@@ -107,15 +107,88 @@ pub fn new_test_pub() -> sp_io::TestExternalities {
 		balances: vec![(1, 100), (2, 100), (3, 100), (4, 100), (5, 100)],
 	}.assimilate_storage(&mut t).unwrap();
 
+	let start_block_number:u64 = 1;
+
+	let resource_index:u64 = 1;
+
+	let peer_id = "abcd";
+	let cpu:u64 = 1;
+	let memory:u64 = 1;
+	let system = "ubuntu";
+	let cpu_model = "Intel 8700k";
+	let price = 1000;
+	let rent_duration_hour:u64 = 1;
+	let rent_start_block = 0;
+	let resource_config =
+		ResourceConfig::new(cpu.clone(), memory.clone(),
+							system.as_bytes().to_vec(), cpu_model.as_bytes().to_vec());
+	let statistics =
+		ResourceRentalStatistics::new(0, 0, 0, 0);
+	let resource_rental_info =
+		ResourceRentalInfo::new(price,rent_duration_hour * 600,rent_duration_hour * 600 + rent_start_block);
+
+	let computing_resource = ComputingResource::new(
+		resource_index, 1, peer_id.as_bytes().to_vec(),
+		resource_config,
+		statistics, resource_rental_info,
+		ResourceStatus::Unused,
+	);
+
 	pallet_provider::GenesisConfig::<Test> {
-		resource: vec![],
-		resource_index: 0,
-		resource_count: 0,
-		future_expired_resource: vec![],
-		provider: vec![],
+		resource: vec![(resource_index,computing_resource)],
+		resource_index: 1,
+		resource_count: 1,
+		future_expired_resource: vec![(rent_duration_hour * 600 + rent_start_block,vec![resource_index])],
+		provider: vec![(1,vec![resource_index])],
 	}.assimilate_storage(&mut t).unwrap();
 
 	let mut ext = sp_io::TestExternalities::new(t);
-	ext.execute_with(|| System::set_block_number(1));
+	ext.execute_with(|| System::set_block_number(start_block_number));
+	ext
+}
+
+pub fn new_test_with_resource_offline() -> sp_io::TestExternalities {
+	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	pallet_balances::GenesisConfig::<Test> {
+		balances: vec![(1, 100), (2, 100), (3, 100), (4, 100), (5, 100)],
+	}.assimilate_storage(&mut t).unwrap();
+
+	let start_block_number:u64 = 1;
+
+	let resource_index:u64 = 1;
+
+	let peer_id = "abcd";
+	let cpu:u64 = 1;
+	let memory:u64 = 1;
+	let system = "ubuntu";
+	let cpu_model = "Intel 8700k";
+	let price = 1000;
+	let rent_duration_hour:u64 = 1;
+	let rent_start_block = 0;
+	let resource_config =
+		ResourceConfig::new(cpu.clone(), memory.clone(),
+							system.as_bytes().to_vec(), cpu_model.as_bytes().to_vec());
+	let statistics =
+		ResourceRentalStatistics::new(0, 0, 0, 0);
+	let resource_rental_info =
+		ResourceRentalInfo::new(price,rent_duration_hour * 600,rent_duration_hour * 600 + rent_start_block);
+
+	let computing_resource = ComputingResource::new(
+		resource_index, 1, peer_id.as_bytes().to_vec(),
+		resource_config,
+		statistics, resource_rental_info,
+		ResourceStatus::Offline,
+	);
+
+	pallet_provider::GenesisConfig::<Test> {
+		resource: vec![(resource_index,computing_resource)],
+		resource_index: 1,
+		resource_count: 1,
+		future_expired_resource: vec![(rent_duration_hour * 600 + rent_start_block,vec![resource_index])],
+		provider: vec![(1,vec![resource_index])],
+	}.assimilate_storage(&mut t).unwrap();
+
+	let mut ext = sp_io::TestExternalities::new(t);
+	ext.execute_with(|| System::set_block_number(start_block_number));
 	ext
 }

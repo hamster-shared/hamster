@@ -2,7 +2,7 @@ use crate as pallet_template;
 use sp_core::H256;
 use frame_support::parameter_types;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup}, testing::Header,
+	traits::{BlakeTwo256,ConvertInto, IdentityLookup}, testing::Header,
 };
 use frame_system as system;
 
@@ -54,6 +54,8 @@ impl system::Config for Test {
 
 impl pallet_template::Config for Test {
 	type Event = Event;
+	type WeightInfo = pallet_template::SubstrateWeight<Test>;
+	type BlockNumberToNumber = ConvertInto;
 }
 
 // Build genesis storage according to the mock runtime.
