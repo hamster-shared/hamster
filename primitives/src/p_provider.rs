@@ -1,7 +1,7 @@
 use codec::{Decode, Encode};
+use sp_debug_derive::RuntimeDebug;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use sp_debug_derive::RuntimeDebug;
 use sp_std::vec::Vec;
 use frame_support::Parameter;
 use sp_runtime::traits::AtLeast32BitUnsigned;
@@ -9,6 +9,7 @@ use sp_runtime::traits::AtLeast32BitUnsigned;
 
 /// ComputingResources
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ComputingResource<BlockNumber, AccountId>
     where BlockNumber: Parameter + AtLeast32BitUnsigned {
     /// computing power resource index
@@ -83,6 +84,7 @@ pub enum ResourceStatus {
 
 /// resource configuration
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ResourceConfig {
     pub cpu: u64,
     pub memory: u64,
@@ -104,6 +106,7 @@ impl ResourceConfig {
 
 /// resource statistics
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ResourceRentalStatistics {
     /// number of leases
     pub rental_count: u32,
@@ -155,6 +158,7 @@ impl ResourceRentalStatistics {
 
 /// resource rental information
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ResourceRentalInfo<BlockNumber> {
     /// rental unit price
     pub rent_unit_price: u128,
