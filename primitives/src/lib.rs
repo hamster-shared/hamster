@@ -3,6 +3,7 @@
 pub mod p_resource_order;
 pub mod p_provider;
 pub mod constants;
+pub mod p_gateway;
 
 use sp_runtime::{
     traits::{IdentifyAccount, Verify},

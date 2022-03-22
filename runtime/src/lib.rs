@@ -572,6 +572,10 @@ parameter_types! {
 	pub const ResourceInterval: BlockNumber = 3 * HOURS;
 	// health check interval
 	pub const HealthCheckInterval: BlockNumber = 10 * MINUTES;
+	// gateway node timed removal interval
+	pub const GatewayNodeTimedRemovalInterval: BlockNumber = 30 * MINUTES;
+	//gateway node heartbeat reporting interval
+	pub const GatewayNodeHeartbeatInterval: BlockNumber = 10 * MINUTES;
 }
 
 /// ResourceOrder
@@ -591,6 +595,14 @@ impl pallet_provider::Config for Runtime {
 	type Currency = Balances;
 	type BalanceToNumber = ConvertInto;
 	type ResourceInterval = ResourceInterval;
+}
+
+impl pallet_gateway::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type BalanceToNumber = ConvertInto;
+	type GatewayNodeTimedRemovalInterval = GatewayNodeTimedRemovalInterval;
+	type GatewayNodeHeartbeatInterval = GatewayNodeHeartbeatInterval;
 }
 
 parameter_types! {
@@ -625,6 +637,7 @@ construct_runtime!(
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
 		ResourceOrder: pallet_resource_order::{Pallet, Call, Storage, Event<T>},
 		Provider: pallet_provider::{Pallet, Call, Storage, Event<T>},
+		Gateway: pallet_gateway::{Pallet, Call, Storage, Event<T>},
 
 
 	}
@@ -819,6 +832,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
 			add_benchmark!(params, batches, pallet_template, TemplateModule);
 			add_benchmark!(params, batches, pallet_resource_order, ResourceOrder);
+			add_benchmark!(params, batches, pallet_gateway, Gateway);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
