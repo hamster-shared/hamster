@@ -51,12 +51,7 @@ pub mod pallet {
     /// gateway node information
     #[pallet::storage]
     #[pallet::getter(fn gateway)]
-    pub(super) type GatewayNodes<T: Config> = StorageMap<_,Twox64Concat,u64, GatewayNode<T::BlockNumber, T::AccountId>, OptionQuery>;
-
-    /// gateway node index
-    #[pallet::storage]
-    #[pallet::getter(fn gateway_node_index)]
-    pub(super) type GatewayNodeIndex<T: Config> = StorageValue<_, u64, ValueQuery>;
+    pub(super) type GatewayNodes<T: Config> = StorageMap<_,Twox64Concat,Vec<u8>, GatewayNode<T::BlockNumber, T::AccountId>, OptionQuery>;
 
     /// number of resources
     #[pallet::storage]
@@ -70,10 +65,10 @@ pub mod pallet {
     #[pallet::generate_deposit(pub (super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// successfully registered resources
-        /// [accountId, registration_time,index, peerId, ]
-        RegisterGatewayNodeSuccess(T::AccountId, T::BlockNumber,u64, Vec<u8>),
-        /// health check successfully [accountId, index, registration_time]
-        HealthCheckSuccess(T::AccountId, u64, T::BlockNumber),
+        /// [accountId, registration_time, peerId, ]
+        RegisterGatewayNodeSuccess(T::AccountId, T::BlockNumber, Vec<u8>),
+        /// health check successfully [accountId, registration_time]
+        HealthCheckSuccess(T::AccountId, T::BlockNumber),
     }
 
 
@@ -103,7 +98,7 @@ pub mod pallet {
                     // Check if heartbeat interval is exceeded
                     if duration > T::GatewayNodeHeartbeatInterval::get() {
                         //remove gateway node
-                        GatewayNodes::<T>::remove(gateway_node.index);
+                        GatewayNodes::<T>::remove(gateway_node.peer_id);
                         // reduce count
                         let count = GatewayNodeCount::<T>::get();
                         GatewayNodeCount::<T>::set(count - 1);
@@ -126,26 +121,22 @@ pub mod pallet {
             peer_id: Vec<u8>,
         ) -> DispatchResult {
             let who = ensure_signed(account_id)?;
-            // get gateway node index
-            let index = GatewayNodeIndex::<T>::get();
 
             // get the current block height
             let block_number = <frame_system::Pallet<T>>::block_number();
 
             // gateway node information
             let gateway_node = GatewayNode::new(
-                index, who.clone(), peer_id.clone(),block_number,
+                who.clone(), peer_id.clone(),block_number,
             );
 
             // increase gateway nodes
-            GatewayNodes::<T>::insert(index, gateway_node.clone());
+            GatewayNodes::<T>::insert(peer_id, gateway_node.clone());
             // increase the total
             let count = GatewayNodeCount::<T>::get();
             GatewayNodeCount::<T>::set(count + 1);
-            // index auto increment
-            GatewayNodeIndex::<T>::set(index + 1);
 
-            Self::deposit_event(Event::RegisterGatewayNodeSuccess(who,block_number,index, peer_id));
+            Self::deposit_event(Event::RegisterGatewayNodeSuccess(who,block_number, gateway_node.peer_id));
             Ok(())
         }
 
@@ -153,13 +144,12 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn heartbeat(
             origin: OriginFor<T>,
-            gateway_node_index: u64,
+            peer_id: Vec<u8>,
         )-> DispatchResult {
             let who = ensure_signed(origin)?;
-
             // get gateway node
-            ensure!(GatewayNodes::<T>::contains_key(gateway_node_index),Error::<T>::GatewayNodeNotFound);
-            let mut gateway_node = GatewayNodes::<T>::get(gateway_node_index).unwrap();
+            ensure!(GatewayNodes::<T>::contains_key(peer_id.clone()),Error::<T>::GatewayNodeNotFound);
+            let mut gateway_node = GatewayNodes::<T>::get(peer_id.clone()).unwrap();
             // determine whether it is me
             ensure!(who.clone() == gateway_node.account_id,Error::<T>::GatewayNodeNotOwnedByYou);
             // get the current block height
@@ -169,9 +159,9 @@ pub mod pallet {
             gateway_node.registration_time = block_number;
 
             // save the gateway node
-            GatewayNodes::<T>::insert(gateway_node_index.clone(), gateway_node.clone());
+            GatewayNodes::<T>::insert(peer_id, gateway_node.clone());
 
-            Self::deposit_event(Event::HealthCheckSuccess(who.clone(), gateway_node_index.clone(), block_number));
+            Self::deposit_event(Event::HealthCheckSuccess(who.clone(), block_number));
             Ok(())
         }
     }
