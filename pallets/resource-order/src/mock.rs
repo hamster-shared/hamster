@@ -1,13 +1,14 @@
+use frame_support::parameter_types;
+use frame_system as system;
+use sp_core::H256;
+use sp_runtime::{
+    testing::Header, traits::{BlakeTwo256, ConvertInto, IdentityLookup},
+};
+
+use primitives::p_resource_order::ResourceOrder as order;
+
 use crate::*;
 use crate as pallet_resource_order;
-use sp_core::H256;
-use frame_support::{
-    parameter_types,
-};
-use sp_runtime::{
-    traits::{BlakeTwo256,ConvertInto, IdentityLookup}, testing::Header,
-};
-use frame_system as system;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -128,22 +129,226 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 pub fn new_test_pub() -> sp_io::TestExternalities {
     let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
     pallet_balances::GenesisConfig::<Test> {
-        balances: vec![(1, 100), (2, 100), (3, 100), (4, 100), (5, 100)],
+        balances: vec![(1, 100), (2, 100), (3, 100), (4, 100), (5, 100), (PALLET_ID.into_sub_account(b"order"), 1000)],
     }.assimilate_storage(&mut t).unwrap();
 
     pallet_resource_order::GenesisConfig::<Test> {
-        order_index: 1,
+        order_index: 0,
         resource_orders: Default::default(),
         agreement_index: Default::default(),
         rental_agreements: Default::default(),
         user_agreements: Default::default(),
         provider_agreements: Default::default(),
-        staking: Default::default(),
+        staking: vec![(2, StakingAmount { amount: 200, active_amount: 100, lock_amount: 100 })],
         block_agreement: Default::default(),
         user_orders: Default::default(),
     }.assimilate_storage(&mut t).unwrap();
 
+
+    let resource_index: u64 = 1;
+
+    let peer_id = "abcd";
+    let cpu: u64 = 1;
+    let memory: u64 = 1;
+    let system = "ubuntu";
+    let cpu_model = "Intel 8700k";
+    let price = 1;
+    let rent_duration_hour: u64 = 1000;
+    let rent_start_block = 0;
+    let resource_config =
+        ResourceConfig::new(cpu.clone(), memory.clone(),
+                            system.as_bytes().to_vec(), cpu_model.as_bytes().to_vec());
+    let statistics =
+        ResourceRentalStatistics::new(0, 0, 0, 0);
+    let resource_rental_info =
+        ResourceRentalInfo::new(price, rent_duration_hour * 600, rent_duration_hour * 600 + rent_start_block);
+
+    let computing_resource = ComputingResource::new(
+        resource_index, 1, peer_id.as_bytes().to_vec(),
+        resource_config.clone(),
+        statistics.clone(), resource_rental_info.clone(),
+        ResourceStatus::Unused,
+    );
+
+    let computing_resource_used = ComputingResource::new(
+        resource_index, 1, peer_id.as_bytes().to_vec(),
+        resource_config,
+        statistics, resource_rental_info,
+        ResourceStatus::Locked,
+    );
+
+    pallet_provider::GenesisConfig::<Test> {
+        resource: vec![(resource_index, computing_resource), (resource_index + 1, computing_resource_used)],
+        resource_index: 1,
+        resource_count: 1,
+        future_expired_resource: vec![(rent_duration_hour * 600 + rent_start_block, vec![resource_index])],
+        provider: vec![(1, vec![resource_index])],
+    }.assimilate_storage(&mut t).unwrap();
+
+
     let mut ext = sp_io::TestExternalities::new(t);
     ext.execute_with(|| System::set_block_number(1));
+    ext
+}
+
+pub fn new_test_order() -> sp_io::TestExternalities {
+    let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+    pallet_balances::GenesisConfig::<Test> {
+        balances: vec![(1, 100), (2, 100), (3, 100), (4, 100), (5, 100), (PALLET_ID.into_sub_account(b"order"), 1000)],
+    }.assimilate_storage(&mut t).unwrap();
+
+    let order = order::new(
+        0,
+        TenantInfo { account_id: 1, public_key: Bytes(vec![1, 2, 3]) },
+        100,
+        1,
+        0,
+        100,
+        Default::default(),
+    );
+
+    pallet_resource_order::GenesisConfig::<Test> {
+        order_index: 1,
+        resource_orders: vec![(0, order)],
+        agreement_index: Default::default(),
+        rental_agreements: Default::default(),
+        user_agreements: Default::default(),
+        provider_agreements: Default::default(),
+        staking: vec![(2, StakingAmount { amount: 2000, active_amount: 2000, lock_amount: 0 })],
+        block_agreement: Default::default(),
+        user_orders: vec![(1, vec![0])],
+    }.assimilate_storage(&mut t).unwrap();
+
+
+    let resource_index: u64 = 1;
+
+    let peer_id = "abcd";
+    let cpu: u64 = 1;
+    let memory: u64 = 1;
+    let system = "ubuntu";
+    let cpu_model = "Intel 8700k";
+    let price = 1;
+    let rent_duration_hour: u64 = 1000;
+    let rent_start_block = 0;
+    let resource_config =
+        ResourceConfig::new(cpu.clone(), memory.clone(),
+                            system.as_bytes().to_vec(), cpu_model.as_bytes().to_vec());
+    let statistics =
+        ResourceRentalStatistics::new(0, 0, 0, 0);
+    let resource_rental_info =
+        ResourceRentalInfo::new(price, rent_duration_hour * 600, rent_duration_hour * 600 + rent_start_block);
+
+    let computing_resource = ComputingResource::new(
+        resource_index, 2, peer_id.as_bytes().to_vec(),
+        resource_config.clone(),
+        statistics.clone(), resource_rental_info.clone(),
+        ResourceStatus::Locked,
+    );
+
+    pallet_provider::GenesisConfig::<Test> {
+        resource: vec![(resource_index, computing_resource)],
+        resource_index: 1,
+        resource_count: 1,
+        future_expired_resource: vec![(rent_duration_hour * 600 + rent_start_block, vec![resource_index])],
+        provider: vec![(2, vec![resource_index])],
+    }.assimilate_storage(&mut t).unwrap();
+
+
+    let mut ext = sp_io::TestExternalities::new(t);
+    ext.execute_with(|| System::set_block_number(1));
+    ext
+}
+
+pub fn new_test_agreement() -> sp_io::TestExternalities {
+    let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+    pallet_balances::GenesisConfig::<Test> {
+        balances: vec![(1, 100), (2, 100), (3, 100), (4, 100), (5, 100), (PALLET_ID.into_sub_account(b"order"), 1000)],
+    }.assimilate_storage(&mut t).unwrap();
+
+    let order = order::new(
+        0,
+        TenantInfo { account_id: 1, public_key: Bytes(vec![1, 2, 3]) },
+        100,
+        1,
+        0,
+        100,
+        Default::default(),
+    );
+
+    let agreement = RentalAgreement::new(
+        0,
+        2,
+        TenantInfo { account_id: 1, public_key: Bytes(vec![1, 2, 3]) },
+        vec![],
+        1,
+        ResourceConfig {
+            cpu: 0,
+            memory: 0,
+            system: vec![],
+            cpu_model: vec![]
+        },
+        ResourceRentalInfo {
+            rent_unit_price: 1,
+            rent_duration: 100,
+            end_of_rent: 101
+        },
+        100,
+        100,
+        0,
+        0,
+        1,
+        101,
+        1,
+        Default::default(),
+    );
+    pallet_resource_order::GenesisConfig::<Test> {
+        order_index: 1,
+        resource_orders: vec![(0, order)],
+        agreement_index: 1,
+        rental_agreements: vec![(0,agreement)],
+        user_agreements: vec![(1,vec![0])],
+        provider_agreements: vec![(2,vec![0])],
+        staking: vec![(2, StakingAmount { amount: 2000, active_amount: 1900, lock_amount: 100 })],
+        block_agreement: Default::default(),
+        user_orders: vec![(1, vec![0])],
+    }.assimilate_storage(&mut t).unwrap();
+
+
+    let resource_index: u64 = 1;
+
+    let peer_id = "abcd";
+    let cpu: u64 = 1;
+    let memory: u64 = 1;
+    let system = "ubuntu";
+    let cpu_model = "Intel 8700k";
+    let price = 1;
+    let rent_duration_hour: u64 = 1000;
+    let rent_start_block = 0;
+    let resource_config =
+        ResourceConfig::new(cpu.clone(), memory.clone(),
+                            system.as_bytes().to_vec(), cpu_model.as_bytes().to_vec());
+    let statistics =
+        ResourceRentalStatistics::new(0, 0, 0, 0);
+    let resource_rental_info =
+        ResourceRentalInfo::new(price, rent_duration_hour * 600, rent_duration_hour * 600 + rent_start_block);
+
+    let computing_resource = ComputingResource::new(
+        resource_index, 2, peer_id.as_bytes().to_vec(),
+        resource_config.clone(),
+        statistics.clone(), resource_rental_info.clone(),
+        ResourceStatus::Locked,
+    );
+
+    pallet_provider::GenesisConfig::<Test> {
+        resource: vec![(resource_index, computing_resource)],
+        resource_index: 1,
+        resource_count: 1,
+        future_expired_resource: vec![(rent_duration_hour * 600 + rent_start_block, vec![resource_index])],
+        provider: vec![(2, vec![resource_index])],
+    }.assimilate_storage(&mut t).unwrap();
+
+
+    let mut ext = sp_io::TestExternalities::new(t);
+    ext.execute_with(|| System::set_block_number(50));
     ext
 }
