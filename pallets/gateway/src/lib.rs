@@ -1,5 +1,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
+
 use frame_support::{dispatch::DispatchResult,
                     pallet_prelude::*, traits::Currency};
 use frame_support::sp_runtime::traits::Convert;
@@ -57,6 +63,35 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn gateway_node_count)]
     pub(super) type GatewayNodeCount<T: Config> = StorageValue<_, u64, ValueQuery>;
+
+    // The genesis config type.
+    #[pallet::genesis_config]
+    pub struct GenesisConfig<T: Config> {
+        pub gateway: Vec<(Vec<u8>,GatewayNode<T::BlockNumber, T::AccountId>)>,
+        pub gateway_node_count: u64,
+    }
+
+    // The default value for the genesis config type.
+    #[cfg(feature = "std")]
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            Self {
+                gateway: Default::default(),
+                gateway_node_count: Default::default(),
+            }
+        }
+    }
+
+    // The build of genesis for the pallet.
+    #[pallet::genesis_build]
+    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+        fn build(&self) {
+            <GatewayNodeCount<T>>::put(&self.gateway_node_count);
+            for (a, b) in &self.gateway {
+                <GatewayNodes<T>>::insert(a, b);
+            }
+        }
+    }
 
     // Pallets use events to inform users when important changes are made.
     // https://substrate.dev/docs/en/knowledgebase/runtime/events

@@ -8,6 +8,7 @@ use sp_runtime::traits::AtLeast32BitUnsigned;
 
 /// Gateway node
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct GatewayNode<BlockNumber, AccountId>
     where BlockNumber: Parameter + AtLeast32BitUnsigned {
     /// gateway node account
