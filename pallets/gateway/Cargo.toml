@@ -99,3 +99,6 @@ version = '3.0.0'
 [dependencies]
 log = { version = "0.4.14", default-features = false }
 
+[dev-dependencies]
+pallet-balances = { version = "3.0.0", git = 'https://gitee.com/mohaijiang/substrate.git',tag = 'monthly-2021-07' }
+
