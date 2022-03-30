@@ -53,7 +53,13 @@ pub mod pallet {
     #[pallet::getter(fn gateway)]
     pub(super) type GatewayNodes<T: Config> = StorageMap<_,Twox64Concat,Vec<u8>, GatewayNode<T::BlockNumber, T::AccountId>, OptionQuery>;
 
-    /// number of resources
+    ///list of gateway nodes
+    #[pallet::storage]
+    #[pallet::getter(fn gateways)]
+    pub(super) type Gateways<T: Config> = StorageValue<_, Vec<Vec<u8>>, ValueQuery>;
+
+
+    /// number of gateway nodes
     #[pallet::storage]
     #[pallet::getter(fn gateway_node_count)]
     pub(super) type GatewayNodeCount<T: Config> = StorageValue<_, u64, ValueQuery>;
@@ -97,11 +103,18 @@ pub mod pallet {
                     let duration = now - gateway_node.registration_time;
                     // Check if heartbeat interval is exceeded
                     if duration > T::GatewayNodeHeartbeatInterval::get() {
+                        let peer_id = gateway_node.peer_id;
+                        let mut peerIds = Gateways::<T>::get();
+                        if let Ok(index) = peerIds.binary_search(&peer_id){
+                            peerIds.remove(index);
+                            Gateways::<T>::put(peerIds);
+                        }
                         //remove gateway node
-                        GatewayNodes::<T>::remove(gateway_node.peer_id);
+                        GatewayNodes::<T>::remove(peer_id);
                         // reduce count
                         let count = GatewayNodeCount::<T>::get();
                         GatewayNodeCount::<T>::set(count - 1);
+
                     }
                 }
             }
@@ -131,10 +144,17 @@ pub mod pallet {
             );
 
             // increase gateway nodes
-            GatewayNodes::<T>::insert(peer_id, gateway_node.clone());
+            GatewayNodes::<T>::insert(peer_id.clone(), gateway_node.clone());
+
+            let mut peerIds = Gateways::<T>::get();
+            if let Err(index) = peerIds.binary_search(&peer_id){
+                peerIds.insert(index,peer_id.clone());
+                Gateways::<T>::put(peerIds);
+            }
             // increase the total
             let count = GatewayNodeCount::<T>::get();
             GatewayNodeCount::<T>::set(count + 1);
+
 
             Self::deposit_event(Event::RegisterGatewayNodeSuccess(who,block_number, gateway_node.peer_id));
             Ok(())
