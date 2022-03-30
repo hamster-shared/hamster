@@ -1,17 +1,15 @@
 version: "3.2"
 
 services:
-  dev:
-    container_name: node-template
-    image: paritytech/ci-linux:974ba3ac-20201006
-    working_dir: /var/www/node-template
-    ports:
-      - "9944:9944"
-    environment:
-      - CARGO_HOME=/var/www/node-template/.cargo
+
+  hamster:
+    container_name: hamster
+    image: "hamstershare/hamster:v1.0.0"
+    restart: always
     volumes:
-      - .:/var/www/node-template
-      - type: bind
-        source: ./.local
-        target: /root/.local
-    command: bash -c "cargo build --release && ./target/release/node-template --dev --ws-external"
+      - "./hamster/data/:/tmp/db/"
+    ports:
+      - "9933:9933"
+      - "9944:9944"
+      - "30333:30333"
+    command: "/opt/ttchain/node-template --dev --name YourNodeName --ws-external --rpc-external --rpc-cors all --unsafe-rpc-external --rpc-methods unsafe --unsafe-ws-external --no-mdns"
