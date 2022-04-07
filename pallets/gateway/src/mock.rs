@@ -6,7 +6,7 @@ use sp_runtime::{
     traits::{BlakeTwo256,ConvertInto, IdentityLookup}, testing::Header,
 };
 use frame_system as system;
-
+use primitives::p_gateway::GatewayNode as node;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -107,3 +107,53 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
 }
 
+pub fn test_heartbeart_ext() -> sp_io::TestExternalities {
+    let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap().into();
+    
+    let peer_id = "abcd".as_bytes().to_vec();
+    let gateway_node : GatewayNode<u64, u64> = node::new(
+        1, 
+        peer_id.clone(), 
+        1
+    );
+
+    pallet_gateway::GenesisConfig::<Test> {
+        gateway: vec![(peer_id, gateway_node)],
+
+        gateway_node_count: 1,
+    }.assimilate_storage(&mut t).unwrap();
+    
+    let mut ext = sp_io::TestExternalities::new(t);
+	ext.execute_with(|| System::set_block_number(1));
+	ext
+
+}
+
+pub fn test_punlish_ext() -> sp_io::TestExternalities {
+    let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap().into();
+
+
+    let peer_id1 = "abcd".as_bytes().to_vec();
+    let gateway_node1 : GatewayNode<u64, u64>= node::new(
+        1, 
+        peer_id1.clone(),
+        1,
+    );
+    
+    let peer_id2 = "bcde".as_bytes().to_vec();
+    let gateway_node2 = node::new(
+        2,
+        peer_id2.clone(),
+        1,
+    );
+
+    pallet_gateway::GenesisConfig::<Test> {
+        gateway: vec![(peer_id1, gateway_node1), (peer_id2, gateway_node2)],
+
+        gateway_node_count: 2,
+    }.assimilate_storage(&mut t).unwrap();
+   
+    let mut ext = sp_io::TestExternalities::new(t);
+	ext.execute_with(|| System::set_block_number(1));
+	ext
+}
