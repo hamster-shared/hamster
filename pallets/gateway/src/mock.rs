@@ -27,7 +27,6 @@ parameter_types! {
 	pub const HealthCheckInterval: BlockNumber = 10 * MINUTES;
 }
 
-
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
 	pub enum Test where
@@ -49,7 +48,6 @@ parameter_types! {
 	// health check interval
 	pub const GatewayNodeHeartbeatInterval: BlockNumber = 10 * MINUTES;
 }
-
 
 impl system::Config for Test {
     type BaseCallFilter = ();
@@ -93,7 +91,6 @@ impl pallet_balances::Config for Test {
     type ReserveIdentifier = [u8; 8];
 }
 
-
 impl pallet_gateway::Config for Test {
     type Event = Event;
     type Currency = Balances;
@@ -131,7 +128,6 @@ pub fn test_heartbeart_ext() -> sp_io::TestExternalities {
 
 pub fn test_punlish_ext() -> sp_io::TestExternalities {
     let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap().into();
-
 
     let peer_id1 = "abcd".as_bytes().to_vec();
     let gateway_node1 : GatewayNode<u64, u64>= node::new(
