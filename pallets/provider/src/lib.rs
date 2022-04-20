@@ -15,6 +15,13 @@ pub use pallet::*;
 pub use primitives::p_provider::*;
 pub use primitives::p_resource_order::*;
 
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
+
+
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 
@@ -70,6 +77,49 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn provider)]
     pub(super) type Provider<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, Vec<u64>, OptionQuery>;
+
+
+    // The genesis config type.
+    #[pallet::genesis_config]
+    pub struct GenesisConfig<T: Config> {
+        pub resource: Vec<(u64,ComputingResource<T::BlockNumber, T::AccountId>)>,
+        pub resource_index: u64,
+        pub resource_count: u64,
+        pub future_expired_resource: Vec<(T::BlockNumber,Vec<u64>)>,
+        pub provider: Vec<(T::AccountId, Vec<u64>)>,
+    }
+
+    // The default value for the genesis config type.
+    #[cfg(feature = "std")]
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            Self {
+                resource: Default::default(),
+                resource_index: Default::default(),
+                resource_count: Default::default(),
+                future_expired_resource: Default::default(),
+                provider: Default::default(),
+            }
+        }
+    }
+
+    // The build of genesis for the pallet.
+    #[pallet::genesis_build]
+    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+        fn build(&self) {
+            <ResourceCount<T>>::put(&self.resource_count);
+            <ResourceIndex<T>>::put(&self.resource_index);
+            for (a, b) in &self.resource {
+                <Resources<T>>::insert(a, b);
+            }
+            for(a,b) in &self.future_expired_resource {
+                <FutureExpiredResource<T>>::insert(a,b);
+            }
+            for(a,b) in &self.provider {
+                <Provider<T>>::insert(a,b);
+            }
+        }
+    }
 
     // Pallets use events to inform users when important changes are made.
     // https://substrate.dev/docs/en/knowledgebase/runtime/events

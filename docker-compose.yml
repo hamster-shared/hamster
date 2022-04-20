@@ -1,0 +1,15 @@
+version: "3.2"
+
+services:
+
+  hamster:
+    container_name: hamster
+    image: "hamstershare/hamster:v1.0.0"
+    restart: always
+    volumes:
+      - "./hamster/data/:/tmp/db/"
+    ports:
+      - "9933:9933"
+      - "9944:9944"
+      - "30333:30333"
+    command: "/opt/ttchain/node-template --dev --name YourNodeName --ws-external --rpc-external --rpc-cors all --unsafe-rpc-external --rpc-methods unsafe --unsafe-ws-external --no-mdns"

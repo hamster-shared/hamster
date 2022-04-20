@@ -20,6 +20,12 @@ pub use pallet::*;
 pub use primitives::p_provider::*;
 pub use primitives::p_resource_order::*;
 
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
+
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
@@ -109,6 +115,67 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn user_orders)]
     pub(super) type UserOrders<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, Vec<u64>, ValueQuery>;
+
+    // The genesis config type.
+    #[pallet::genesis_config]
+    pub struct GenesisConfig<T: Config> {
+        pub order_index: u64,
+        pub resource_orders: Vec<(u64,ResourceOrder<T::AccountId, T::BlockNumber>)>,
+        pub agreement_index: u64,
+        pub rental_agreements: Vec<(u64,RentalAgreement<T::AccountId, T::BlockNumber>)>,
+        pub user_agreements: Vec<(T::AccountId, Vec<u64>)>,
+        pub provider_agreements: Vec<(T::AccountId, Vec<u64>)>,
+        pub staking: Vec<(T::AccountId, StakingAmount)>,
+        pub block_agreement: Vec<(T::BlockNumber, Vec<u64>)>,
+        pub user_orders: Vec<(T::AccountId, Vec<u64>)>,
+    }
+
+    // The default value for the genesis config type.
+    #[cfg(feature = "std")]
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            Self {
+                order_index: Default::default(),
+                resource_orders: Default::default(),
+                agreement_index: Default::default(),
+                rental_agreements: Default::default(),
+                user_agreements: Default::default(),
+                provider_agreements: Default::default(),
+                staking: Default::default(),
+                block_agreement: Default::default(),
+                user_orders: Default::default(),
+            }
+        }
+    }
+
+    // The build of genesis for the pallet.
+    #[pallet::genesis_build]
+    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+        fn build(&self) {
+            <OrderIndex<T>>::put(&self.order_index);
+            for (a, b) in &self.resource_orders {
+                <ResourceOrders<T>>::insert(a, b);
+            }
+            <AgreementIndex<T>>::put(&self.agreement_index);
+            for(a,b) in &self.rental_agreements {
+                <RentalAgreements<T>>::insert(a,b);
+            }
+            for(a,b) in &self.user_agreements {
+                <UserAgreements<T>>::insert(a,b);
+            }
+            for(a,b) in &self.provider_agreements {
+                <ProviderAgreements<T>>::insert(a,b);
+            }
+            for(a,b) in &self.staking {
+                <Staking<T>>::insert(a,b);
+            }
+            for(a,b) in &self.user_orders {
+                <UserOrders<T>>::insert(a,b);
+            }
+        }
+    }
+
+
 
     // Pallets use events to inform users when important changes are made.
     // https://substrate.dev/docs/en/knowledgebase/runtime/events
