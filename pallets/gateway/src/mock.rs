@@ -107,7 +107,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 pub fn test_heartbeart_ext() -> sp_io::TestExternalities {
     let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap().into();
     
-    let peer_id = "abcd".as_bytes().to_vec();
+    let peer_id = "some_peerid".as_bytes().to_vec();
     let gateway_node : GatewayNode<u64, u64> = node::new(
         1, 
         peer_id.clone(), 
@@ -129,14 +129,14 @@ pub fn test_heartbeart_ext() -> sp_io::TestExternalities {
 pub fn test_punlish_ext() -> sp_io::TestExternalities {
     let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap().into();
 
-    let peer_id1 = "abcd".as_bytes().to_vec();
+    let peer_id1 = "some_peerid".as_bytes().to_vec();
     let gateway_node1 : GatewayNode<u64, u64>= node::new(
         1, 
         peer_id1.clone(),
         1,
     );
     
-    let peer_id2 = "bcde".as_bytes().to_vec();
+    let peer_id2 = "another_peerid".as_bytes().to_vec();
     let gateway_node2 = node::new(
         2,
         peer_id2.clone(),
