@@ -79,15 +79,15 @@ fn session_keys(
 
 fn staging_testnet_config_genesis() -> GenesisConfig {
 	#[rustfmt::skip]
-	// stash, controller, session-key
-	// generated with secret:
-	// for i in 1 2 3 4 ; do for j in stash controller; do subkey inspect "$secret"/fir/$j/$i; done; done
-	//
-	// and
-	//
-	// for i in 1 2 3 4 ; do for j in session; do subkey --ed25519 inspect "$secret"//fir//$j//$i; done; done
+		// stash, controller, session-key
+		// generated with secret:
+		// for i in 1 2 3 4 ; do for j in stash controller; do subkey inspect "$secret"/fir/$j/$i; done; done
+		//
+		// and
+		//
+		// for i in 1 2 3 4 ; do for j in session; do subkey --ed25519 inspect "$secret"//fir//$j//$i; done; done
 
-	let initial_authorities: Vec<(
+		let initial_authorities: Vec<(
 		AccountId,
 		AccountId,
 		GrandpaId,
@@ -174,7 +174,7 @@ fn staging_testnet_config_genesis() -> GenesisConfig {
 		// 5Ff3iXP75ruzroPWRP2FYBHWnmGGBSb63857BgnzCoXNxfPo
 		"9ee5e5bdc0ec239eb164f865ecc345ce4c88e76ee002e0f7e318097347471809"
 	]
-	.into();
+		.into();
 
 	let endowed_accounts: Vec<AccountId> = vec![root_key.clone()];
 
@@ -210,8 +210,8 @@ pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Pu
 
 /// Helper function to generate an account ID from seed
 pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
-where
-	AccountPublic: From<<TPublic::Pair as Pair>::Public>,
+	where
+		AccountPublic: From<<TPublic::Pair as Pair>::Public>,
 {
 	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
@@ -415,6 +415,271 @@ pub fn local_testnet_config() -> ChainSpec {
 		Default::default(),
 	)
 }
+
+fn newtouch_testnet_config_genesis() -> GenesisConfig {
+	#[rustfmt::skip]
+		// stash, controller,
+		// generated with secret:
+		// for i in 1 2 3 4; do for j in stash controller; do subkey inspect "$SECRET//$i//$j"; done; done
+		//
+		// and  grandpa
+		//
+		// for i in 1 2 3 4; do for j in grandpa; do subkey inspect "$SECRET//$i//$j" --scheme ed25519; done; done
+		//
+		// and babe
+		//
+		// for i in 1 2 3 4; do for j in babe; do subkey  inspect "$SECRET//$i//$j" --scheme sr25519; done; done
+
+		let initial_authorities: Vec<(
+		AccountId,
+		AccountId,
+		GrandpaId,
+		BabeId,
+		ImOnlineId,
+		AuthorityDiscoveryId,
+	)> = vec![
+		(
+			// 5CSiv83zQWREzRrWxCLqAgYr9j1mhKYAzTdPMEFvbSW5cRta
+			hex!["10caf734771f1675f29da75928b4fec8a908ee8b7dbd87df440004ccc98fbd43"].into(),
+			// 5FNeTf6kWmaVZoiuKGgFgL8B2qV6L18K5pkES6WJdbps39Av
+			hex!["9263aee51ec2aa1e0410793a61ca6dc799993d203c88833308e5d88a70e7673d"].into(),
+			// 5HFfkEX3Hf3r9icdg7hLF4ZkTSz8jfqASpr9XPU5TMyyYQPa
+			hex!["e589c2b8fd9052ebafcce4aadb20f4bd0c9a269bf21eda475dfa808371c39116"]
+				.unchecked_into(),
+			// 5FNeTf6kWmaVZoiuKGgFgL8B2qV6L18K5pkES6WJdbps39Av
+			hex!["9263aee51ec2aa1e0410793a61ca6dc799993d203c88833308e5d88a70e7673d"]
+				.unchecked_into(),
+			// 5FNeTf6kWmaVZoiuKGgFgL8B2qV6L18K5pkES6WJdbps39Av
+			hex!["9263aee51ec2aa1e0410793a61ca6dc799993d203c88833308e5d88a70e7673d"]
+				.unchecked_into(),
+			// 5FNeTf6kWmaVZoiuKGgFgL8B2qV6L18K5pkES6WJdbps39Av
+			hex!["9263aee51ec2aa1e0410793a61ca6dc799993d203c88833308e5d88a70e7673d"]
+				.unchecked_into(),
+		),
+		(
+			// 5CStWdi3tCTtr8TwES6dVwYAAcnXET21rBQ8WXqkqgMyPgEj
+			hex!["10eb43ef463c98d26e913e6b98d24bae7f47d8c89892c4c6ffa6c5f0675a7c2b"].into(),
+			// 5HSmQpRBQhogHedFCzZCNZfiJAcfDyUey7vugRbqkB4XmajH
+			hex!["ee0087f07259f60f45400d2f59751da9a548cca8e255290c3295c5017f4b5a27"].into(),
+			// 5EdWZ2v53YtqJaj3GHZ94raY3EHoMDWB7TLjp4ab53P4eCWX
+			hex!["717d832e4065bd28389cfcf9a7d5a18474491acd69bce3d0a0cf174cc11ea33f"]
+				.unchecked_into(),
+			// 5HSmQpRBQhogHedFCzZCNZfiJAcfDyUey7vugRbqkB4XmajH
+			hex!["ee0087f07259f60f45400d2f59751da9a548cca8e255290c3295c5017f4b5a27"]
+				.unchecked_into(),
+			// 5HSmQpRBQhogHedFCzZCNZfiJAcfDyUey7vugRbqkB4XmajH
+			hex!["ee0087f07259f60f45400d2f59751da9a548cca8e255290c3295c5017f4b5a27"]
+				.unchecked_into(),
+			// 5HSmQpRBQhogHedFCzZCNZfiJAcfDyUey7vugRbqkB4XmajH
+			hex!["ee0087f07259f60f45400d2f59751da9a548cca8e255290c3295c5017f4b5a27"]
+				.unchecked_into(),
+		),
+		(
+			// 5FXEfC7FZtgHRhF3RmiGfdv7thymcfzaN1R1JRUjDPrR4dq7
+			hex!["98f0c5246db83ae3570412d16e580ee8d941f62dcee7627f27266dfd8dfe5b5a"].into(),
+			// 5C5G7Rhj8vxTiqQYB1P6bYGQN9Q6W9uY6FWWXSVuwhj7AaqA
+			hex!["006c94019cc88c8404cf14c93c0135436ef9cce85c0afc3f4c007ba811213210"].into(),
+			// 5HHmKVu7iLtqadcJPcvEMiWYMoNoe9j9vqBiUB7A9mxwnPKM
+			hex!["e723037e2e9d3daebeedc8f78d19adf62ec781645eff27a74a29e19c3a2c583a"]
+				.unchecked_into(),
+			// 5C5G7Rhj8vxTiqQYB1P6bYGQN9Q6W9uY6FWWXSVuwhj7AaqA
+			hex!["006c94019cc88c8404cf14c93c0135436ef9cce85c0afc3f4c007ba811213210"]
+				.unchecked_into(),
+			// 5C5G7Rhj8vxTiqQYB1P6bYGQN9Q6W9uY6FWWXSVuwhj7AaqA
+			hex!["006c94019cc88c8404cf14c93c0135436ef9cce85c0afc3f4c007ba811213210"]
+				.unchecked_into(),
+			// 5C5G7Rhj8vxTiqQYB1P6bYGQN9Q6W9uY6FWWXSVuwhj7AaqA
+			hex!["006c94019cc88c8404cf14c93c0135436ef9cce85c0afc3f4c007ba811213210"]
+				.unchecked_into(),
+		),
+		(
+			// 5Ci5xnNgZdRtNYXjmAN1qinEDLq7sDyeBK22bZvkXRUTwpDQ
+			hex!["1c827e520685da36fb9657bf583f09d7e6e062e07892d4fbcbcb1ab024e00464"].into(),
+			// 5Ci4vFccdgDZzypyK3UsDob6R9vubXDGGeAV7NzVPHXhmLSa
+			hex!["1c7efaf38edc4c836352af11edd67e769998ae0680c63a08f1916581dabd4d54"].into(),
+			// 5Hj6xutHPyPrvusyTs1LdJxQkSZXArLJnxJXzuFULgTjAFAH
+			hex!["fa7647a9184d06f29a630ada50b11ee14cd7b784ee74ea7297fc5f1e64a44dbd"]
+				.unchecked_into(),
+			// 5Ci4vFccdgDZzypyK3UsDob6R9vubXDGGeAV7NzVPHXhmLSa
+			hex!["1c7efaf38edc4c836352af11edd67e769998ae0680c63a08f1916581dabd4d54"]
+				.unchecked_into(),
+			// 5Ci4vFccdgDZzypyK3UsDob6R9vubXDGGeAV7NzVPHXhmLSa
+			hex!["1c7efaf38edc4c836352af11edd67e769998ae0680c63a08f1916581dabd4d54"]
+				.unchecked_into(),
+			// 5Ci4vFccdgDZzypyK3UsDob6R9vubXDGGeAV7NzVPHXhmLSa
+			hex!["1c7efaf38edc4c836352af11edd67e769998ae0680c63a08f1916581dabd4d54"]
+				.unchecked_into(),
+		),
+	];
+
+	// generated with secret:  subkey inspect "$SECRET"
+	let root_key: AccountId = hex![
+		// 5H8iJfLPRLfNo7iX6EWcNu3gCWG1VVoLFmbrwBqGd5GXCHBH
+		"e03ba8526388be0809b2bffd0321287fb94fc1d1618d1878ac41fe6ca17d790a"
+	]
+		.into();
+
+	let endowed_accounts: Vec<AccountId> = vec![root_key.clone()];
+
+	newtouch_genesis(initial_authorities, vec![], root_key, Some(endowed_accounts))
+}
+
+/// newtouch testnet config.
+pub fn newtouch_testnet_config() -> ChainSpec {
+	let boot_nodes = vec![
+		"/dnsaddr/bootstrap.xn1.authright.newtouch.com/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp".parse().unwrap(),
+		"/dnsaddr/bootstrap.xn2.authright.newtouch.com/p2p/12D3KooWSCufgHzV4fCwRijfH2k3abrpAJxTKxEvN1FDuRXA2U9x".parse().unwrap()
+	];
+	ChainSpec::from_genesis(
+		"Newtouch Testnet",
+		"newtouch_testnet",
+		ChainType::Live,
+		newtouch_testnet_config_genesis,
+		boot_nodes,
+		Some(
+			TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
+				.expect("Staging telemetry url is valid; qed"),
+		),
+		None,
+		None,
+		None,
+		Default::default(),
+	)
+}
+
+/// Helper function to create GenesisConfig for testing
+pub fn newtouch_genesis(
+	initial_authorities: Vec<(
+		AccountId,
+		AccountId,
+		GrandpaId,
+		BabeId,
+		ImOnlineId,
+		AuthorityDiscoveryId,
+	)>,
+	initial_nominators: Vec<AccountId>,
+	root_key: AccountId,
+	endowed_accounts: Option<Vec<AccountId>>,
+) -> GenesisConfig {
+	let mut endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(|| {
+		vec![
+			hex!["e03ba8526388be0809b2bffd0321287fb94fc1d1618d1878ac41fe6ca17d790a"].into(),
+			hex!["10caf734771f1675f29da75928b4fec8a908ee8b7dbd87df440004ccc98fbd43"].into(),
+			hex!["9263aee51ec2aa1e0410793a61ca6dc799993d203c88833308e5d88a70e7673d"].into(),
+			hex!["10eb43ef463c98d26e913e6b98d24bae7f47d8c89892c4c6ffa6c5f0675a7c2b"].into(),
+			hex!["ee0087f07259f60f45400d2f59751da9a548cca8e255290c3295c5017f4b5a27"].into(),
+			hex!["98f0c5246db83ae3570412d16e580ee8d941f62dcee7627f27266dfd8dfe5b5a"].into(),
+			hex!["006c94019cc88c8404cf14c93c0135436ef9cce85c0afc3f4c007ba811213210"].into(),
+			hex!["1c827e520685da36fb9657bf583f09d7e6e062e07892d4fbcbcb1ab024e00464"].into(),
+			hex!["1c7efaf38edc4c836352af11edd67e769998ae0680c63a08f1916581dabd4d54"].into(),
+		]
+	});
+	// endow all authorities and nominators.
+	initial_authorities
+		.iter()
+		.map(|x| &x.0)
+		.chain(initial_nominators.iter())
+		.for_each(|x| {
+			if !endowed_accounts.contains(x) {
+				endowed_accounts.push(x.clone())
+			}
+		});
+
+	// stakers: all validators and nominators.
+	let mut rng = rand::thread_rng();
+	let stakers = initial_authorities
+		.iter()
+		.map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))
+		.chain(initial_nominators.iter().map(|x| {
+			use rand::{seq::SliceRandom, Rng};
+			let limit = (MaxNominations::get() as usize).min(initial_authorities.len());
+			let count = rng.gen::<usize>() % limit;
+			let nominations = initial_authorities
+				.as_slice()
+				.choose_multiple(&mut rng, count)
+				.into_iter()
+				.map(|choice| choice.0.clone())
+				.collect::<Vec<_>>();
+			(x.clone(), x.clone(), STASH, StakerStatus::Nominator(nominations))
+		}))
+		.collect::<Vec<_>>();
+
+	let num_endowed_accounts = endowed_accounts.len();
+
+	const ENDOWMENT: Balance = 10_000_000 * DOLLARS;
+	const STASH: Balance = ENDOWMENT / 1000;
+
+	GenesisConfig {
+		system: SystemConfig { code: wasm_binary_unwrap().to_vec() },
+		balances: BalancesConfig {
+			balances: endowed_accounts.iter().cloned().map(|x| (x, ENDOWMENT)).collect(),
+		},
+		indices: IndicesConfig { indices: vec![] },
+		session: SessionConfig {
+			keys: initial_authorities
+				.iter()
+				.map(|x| {
+					(
+						x.0.clone(),
+						x.0.clone(),
+						session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()),
+					)
+				})
+				.collect::<Vec<_>>(),
+		},
+		staking: StakingConfig {
+			validator_count: initial_authorities.len() as u32,
+			minimum_validator_count: initial_authorities.len() as u32,
+			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
+			slash_reward_fraction: Perbill::from_percent(10),
+			stakers,
+			..Default::default()
+		},
+		democracy: DemocracyConfig::default(),
+		elections: ElectionsConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.map(|member| (member, STASH))
+				.collect(),
+		},
+		council: CouncilConfig::default(),
+		technical_committee: TechnicalCommitteeConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			phantom: Default::default(),
+		},
+		sudo: SudoConfig { key: Some(root_key) },
+		babe: BabeConfig {
+			authorities: vec![],
+			epoch_config: Some(node_runtime::BABE_GENESIS_EPOCH_CONFIG),
+		},
+		im_online: ImOnlineConfig { keys: vec![] },
+		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
+		grandpa: GrandpaConfig { authorities: vec![] },
+		technical_membership: Default::default(),
+		treasury: Default::default(),
+		society: SocietyConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			pot: 0,
+			max_members: 999,
+		},
+		vesting: Default::default(),
+		assets: Default::default(),
+		gilt: Default::default(),
+		transaction_storage: Default::default(),
+		transaction_payment: Default::default(),
+	}
+}
+
 
 #[cfg(test)]
 pub(crate) mod tests {
