@@ -161,12 +161,12 @@ pub mod pallet {
 			ensure!(!AuthRight::<T>::contains_key(hash.clone()), Error::<T>::HashAlreadyExist);
 
 			//This organization has't exist in the chain, return Error
-			// ensure!(Org::<T>::contains_key(org_code.clone()), Error::<T>::NoSuchOrg);
+			ensure!(Org::<T>::contains_key(org_code.clone()), Error::<T>::NoSuchOrg);
 
-			// let org = Org::<T>::get(org_code.clone()).unwrap();
+			let org = Org::<T>::get(org_code.clone()).unwrap();
 
 			//This organization's status not allow to define rights
-			// ensure!(org.status == 1, Error::<T>::StatusNotAllow);
+			ensure!(org.status == 1, Error::<T>::StatusNotAllow);
 
 			// get the current block height
 			let block_number = <frame_system::Pallet<T>>::block_number();
