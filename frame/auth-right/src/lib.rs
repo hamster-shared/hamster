@@ -49,6 +49,10 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	#[pallet::storage]
+	pub(super) type OrgAuthRight<T: Config> = StorageDoubleMap<_, Blake2_128Concat, Vec<u8>, Blake2_128Concat, T::AccountId, Vec<Vec<u8>>, ValueQuery>;
+
+
 	//The information of organization
 	#[pallet::storage]
 	#[pallet::getter(fn org)]
@@ -69,6 +73,8 @@ pub mod pallet {
 		OrgRegSuccess(T::AccountId, Vec<u8>, Vec<u8>),
 		// orgApprove(orgCode, status)
 		OrgApproveSuccess(Vec<u8>, u8),
+		/// (source, dest )
+		Transfer(T::AccountId,T::AccountId),
 	}
 
 	#[pallet::error]
@@ -80,6 +86,10 @@ pub mod pallet {
 		StatusNotAllow,
 
 		HashAlreadyExist,
+		/// hash 不存在
+		HashNotExits,
+		/// 归属人错误
+		OwnerError,
 	}
 
 	#[pallet::call]
@@ -151,12 +161,12 @@ pub mod pallet {
 			ensure!(!AuthRight::<T>::contains_key(hash.clone()), Error::<T>::HashAlreadyExist);
 
 			//This organization has't exist in the chain, return Error
-			ensure!(Org::<T>::contains_key(org_code.clone()), Error::<T>::NoSuchOrg);
+			// ensure!(Org::<T>::contains_key(org_code.clone()), Error::<T>::NoSuchOrg);
 
-			let org = Org::<T>::get(org_code.clone()).unwrap();
+			// let org = Org::<T>::get(org_code.clone()).unwrap();
 
 			//This organization's status not allow to define rights
-			ensure!(org.status == 1, Error::<T>::StatusNotAllow);
+			// ensure!(org.status == 1, Error::<T>::StatusNotAllow);
 
 			// get the current block height
 			let block_number = <frame_system::Pallet<T>>::block_number();
@@ -173,9 +183,64 @@ pub mod pallet {
 			AuthRight::<T>::insert(hash.clone(), who.clone());
 			AuthDetail::<T>::insert(hash.clone(), new_auth_info);
 
+			if OrgAuthRight::<T>::contains_key(org_code.clone(), who.clone()) {
+				let mut v = OrgAuthRight::<T>::get(org_code.clone(), who.clone());
+				v.push(hash.clone());
+				OrgAuthRight::<T>::insert(org_code.clone(),who.clone(),v);
+			}else {
+				let mut v = Vec::new();
+				v.push(hash.clone());
+				OrgAuthRight::<T>::insert(org_code.clone(),who.clone(),v);
+			}
+
+
+
 			//Send the success event
 			Self::deposit_event(Event::<T>::AuthRightSuccessed(who.clone(), hash.clone(), org_code.clone()));
 
+			Ok(())
+		}
+
+
+		#[frame_support::transactional]
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		pub fn transfer(
+			origin: OriginFor<T>,
+			hash: Vec<u8>,
+			dest: T::AccountId,
+		)-> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			ensure!(AuthRight::<T>::contains_key(hash.clone()), Error::<T>::HashNotExits);
+
+			ensure!(AuthRight::<T>::get(hash.clone()).unwrap() == who.clone(), Error::<T>::OwnerError);
+
+			let mut auth_info = AuthDetail::<T>::get(hash.clone()).unwrap();
+
+			auth_info.accountld = dest.clone();
+
+			let org_code = auth_info.orgcode.clone();
+
+			AuthDetail::<T>::insert(auth_info.hash.clone(), auth_info);
+			AuthRight::<T>::insert(hash.clone(), dest.clone());
+
+			if OrgAuthRight::<T>::contains_key(org_code.clone(), who.clone()) {
+				let mut v = OrgAuthRight::<T>::get(org_code.clone(), who.clone());
+				v.retain(| x| *x != hash.clone());
+				OrgAuthRight::<T>::insert(org_code.clone(),who.clone(),v);
+			}
+
+			if OrgAuthRight::<T>::contains_key(org_code.clone(), dest.clone()) {
+				let mut v = OrgAuthRight::<T>::get(org_code.clone(), dest.clone());
+				v.push(hash.clone());
+				OrgAuthRight::<T>::insert(org_code.clone(),dest.clone(),v);
+			}else {
+				let mut v = Vec::new();
+				v.push(hash.clone());
+				OrgAuthRight::<T>::insert(org_code.clone(),dest.clone(),v);
+			}
+
+			Self::deposit_event(Event::<T>::Transfer(who.clone(),dest));
 			Ok(())
 		}
 	}

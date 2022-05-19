@@ -527,8 +527,8 @@ fn newtouch_testnet_config_genesis() -> GenesisConfig {
 /// newtouch testnet config.
 pub fn newtouch_testnet_config() -> ChainSpec {
 	let boot_nodes = vec![
-		"/dnsaddr/bootstrap.xn1.authright.newtouch.com/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp".parse().unwrap(),
-		"/dnsaddr/bootstrap.xn2.authright.newtouch.com/p2p/12D3KooWSCufgHzV4fCwRijfH2k3abrpAJxTKxEvN1FDuRXA2U9x".parse().unwrap()
+		// "/dnsaddr/bootstrap.xn1.authright.newtouch.com/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp".parse().unwrap(),
+		// "/dnsaddr/bootstrap.xn2.authright.newtouch.com/p2p/12D3KooWSCufgHzV4fCwRijfH2k3abrpAJxTKxEvN1FDuRXA2U9x".parse().unwrap()
 	];
 	ChainSpec::from_genesis(
 		"Newtouch Testnet",
