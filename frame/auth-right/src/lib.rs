@@ -50,6 +50,7 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn orgauthright)]
 	pub(super) type OrgAuthRight<T: Config> = StorageDoubleMap<_, Blake2_128Concat, Vec<u8>, Blake2_128Concat, T::AccountId, Vec<Vec<u8>>, ValueQuery>;
 
 
