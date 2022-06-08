@@ -64,11 +64,27 @@ pub mod pallet {
     #[pallet::getter(fn gateways)]
     pub(super) type Gateways<T: Config> = StorageValue<_, Vec<Vec<u8>>, ValueQuery>;
 
-
     /// number of gateway nodes
     #[pallet::storage]
     #[pallet::getter(fn gateway_node_count)]
     pub(super) type GatewayNodeCount<T: Config> = StorageValue<_, u64, ValueQuery>;
+
+    /// The current era
+    #[pallet::storage]
+    #[pallet::getter(fn currenct_era)]
+    pub(super) type CurrentEra<T: Config> = StorageValue<_, u64, ValueQuery>;
+
+  
+    /// Online time per era, per gateway node
+    #[pallet::storage]
+    #[pallet::getter(fn online_time_era_gateway)]
+    pub(super) type OnlineTimeEraGateway<T: Config> = StorageDoubleMap<
+        _,
+        Twox64Concat, u64,
+        Twox64Concat, T::AccountId,
+        u64,
+        OptionQuery,
+        >;
 
     // The genesis config type.
     #[pallet::genesis_config]
@@ -215,6 +231,9 @@ pub mod pallet {
 
             // save the gateway node
             GatewayNodes::<T>::insert(peer_id, gateway_node.clone());
+
+
+            
 
             Self::deposit_event(Event::HealthCheckSuccess(who.clone(), block_number));
             Ok(())
