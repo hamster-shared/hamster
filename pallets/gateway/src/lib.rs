@@ -10,6 +10,7 @@ use frame_support::{dispatch::DispatchResult,
                     pallet_prelude::*, traits::Currency};
 use frame_support::sp_runtime::traits::Convert;
 use frame_system::pallet_prelude::*;
+use primitives::EraIndex;
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
 use sp_runtime::traits::Zero;
@@ -27,7 +28,6 @@ type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Con
 #[frame_support::pallet]
 pub mod pallet {
     use primitives::Balance;
-
     use super::*;
 
     /// Configure the pallet by specifying the parameters and types on which it depends.
@@ -64,6 +64,11 @@ pub mod pallet {
     #[pallet::getter(fn gateways)]
     pub(super) type Gateways<T: Config> = StorageValue<_, Vec<Vec<u8>>, ValueQuery>;
 
+    #[pallet::storage]
+    #[pallet::getter(fn era)]
+    pub(super) type Era<T: Config> = StorageValue<_, u32, ValueQuery>;
+
+
     /// number of gateway nodes
     #[pallet::storage]
     #[pallet::getter(fn gateway_node_count)]
@@ -74,13 +79,23 @@ pub mod pallet {
     #[pallet::getter(fn currenct_era)]
     pub(super) type CurrentEra<T: Config> = StorageValue<_, u64, ValueQuery>;
 
-  
+    /// gateway node online time 
+    #[pallet::storage]
+    #[pallet::getter(fn gateway_node_online_time)]
+    pub(super) type GatewayNodeOnlineTime<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        GatewayNode<T::BlockNumber, T::AccountId>,
+        u64,
+        OptionQuery,
+        >;
+
     /// Online time per era, per gateway node
     #[pallet::storage]
     #[pallet::getter(fn online_time_era_gateway)]
     pub(super) type OnlineTimeEraGateway<T: Config> = StorageDoubleMap<
         _,
-        Twox64Concat, u64,
+        Twox64Concat, EraIndex,
         Twox64Concat, T::AccountId,
         u64,
         OptionQuery,
@@ -128,7 +143,6 @@ pub mod pallet {
         HealthCheckSuccess(T::AccountId, T::BlockNumber),
     }
 
-
     // Errors inform users that something went wrong.
     #[pallet::error]
     pub enum Error<T> {
@@ -143,6 +157,21 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_initialize(now: T::BlockNumber) -> Weight {
+            // get a list of gateway nodes
+            let gateway_nodes = GatewayNodes::<T>::iter();
+            
+            for(_, ref gateway_node) in gateway_nodes {
+                // Determine when the gateway node has been recorded
+                if GatewayNodeOnlineTime::<T>::contains_key(gateway_node) {
+                    let mut onlinetime = GatewayNodeOnlineTime::<T>::get(gateway_node.clone()).unwrap();
+                    onlinetime = onlinetime + 1;
+                    GatewayNodeOnlineTime::<T>::insert(gateway_node.clone(), onlinetime);
+                    continue;
+                } 
+                // Time statistics for new gateway nodes
+                GatewayNodeOnlineTime::<T>::insert(gateway_node.clone(), 1);
+            }
+
             // health examination
             if (now % T::GatewayNodeTimedRemovalInterval::get()).is_zero() {
 
@@ -171,6 +200,8 @@ pub mod pallet {
             }
             0
         }
+
+       
     }
 
     // Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -232,12 +263,28 @@ pub mod pallet {
             // save the gateway node
             GatewayNodes::<T>::insert(peer_id, gateway_node.clone());
 
-
-            
-
             Self::deposit_event(Event::HealthCheckSuccess(who.clone(), block_number));
             Ok(())
         }
+
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn get_era_index(origin: OriginFor<T>) -> DispatchResult {
+
+            Ok(())
+        }
+
     }
 }
 
+impl <T: Config> GatewayInterface for Pallet<T> {
+
+    fn calculate_online_time(index : EraIndex) {
+        let gateway_nodes_online_times = GatewayNodeOnlineTime::<T>::iter();
+        // Push GatewayNodeOnlineTime data to the OnlineTimeEraGateway
+        for (gateway_node, online_time) in gateway_nodes_online_times {
+            OnlineTimeEraGateway::<T>::insert(index, gateway_node.account_id.clone(), online_time);
+            // Remove the data of GatewayNodeOnlineTime
+            GatewayNodeOnlineTime::<T>::remove(gateway_node.clone());
+        }  
+    }
+}

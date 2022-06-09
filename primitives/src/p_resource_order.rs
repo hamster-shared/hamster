@@ -97,7 +97,6 @@ pub struct StakingAmount {
     pub lock_amount: u128,
 }
 
-
 #[derive(Encode, Decode, RuntimeDebug, PartialEq, Eq, Copy, Clone)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum OrderStatus {
