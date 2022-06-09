@@ -266,13 +266,6 @@ pub mod pallet {
             Self::deposit_event(Event::HealthCheckSuccess(who.clone(), block_number));
             Ok(())
         }
-
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn get_era_index(origin: OriginFor<T>) -> DispatchResult {
-
-            Ok(())
-        }
-
     }
 }
 
