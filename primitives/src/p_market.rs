@@ -71,3 +71,7 @@ impl StakingAmount {
 
 }
 
+pub trait MarketInterface<AccountId> {
+    // Check the accountid have staking accoutid
+    fn staking_accountid_exit(who: AccountId) -> bool;
+}

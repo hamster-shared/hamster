@@ -75,6 +75,8 @@ pub mod pallet {
         OptionQuery,
         >;
 
+    
+
     // Pallets use events to inform users when important changes are made.
     // https://substrate.dev/docs/en/knowledgebase/runtime/events
     #[pallet::event]
@@ -193,3 +195,10 @@ impl<T: Config> Pallet<T> {
     pub fn staking_pool() -> T::AccountId { PALLET_ID.into_sub_account(b"staking") }
 }
 
+impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pallet<T> {
+
+    fn staking_accountid_exit(who: <T as frame_system::Config>::AccountId) -> bool {
+        StakingAccontId::<T>::contains_key(who.clone())
+    }
+
+}
