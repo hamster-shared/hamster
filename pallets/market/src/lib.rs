@@ -21,7 +21,6 @@ pub use primitives::p_provider::*;
 pub use primitives::p_resource_order::*;
 pub use primitives::p_market::*;
 
-
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 const PALLET_ID: PalletId = PalletId(*b"ttchain!");
@@ -76,8 +75,6 @@ pub mod pallet {
         OptionQuery,
         >;
 
-    
-
     // Pallets use events to inform users when important changes are made.
     // https://substrate.dev/docs/en/knowledgebase/runtime/events
     #[pallet::event]
@@ -89,6 +86,9 @@ pub mod pallet {
 
         // Successful charge to staking account
         ChargeStakingAccountSuccessful(T::AccountId),
+
+        // User success withdraw the price
+        WithdrawStakingSuccess(T::AccountId, BalanceOf<T>),
     }
 
     #[pallet::hooks]
@@ -99,10 +99,14 @@ pub mod pallet {
     // Errors inform users that something went wrong.
     #[pallet::error]
     pub enum Error<T> {
-
+        // the staking accoutid is already exit in the market
         StakingAccontIdAlreadyExit,
 
+        // the staking accoutid is not exit int the market
         StakingAccontIdNotExit,
+
+        // the staking accoutid has not enough amount to Withdraw
+        NotEnoughActiveAmount,
     }
 
     // Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -188,6 +192,40 @@ pub mod pallet {
             Ok(())
         }
 
+        // Withdraw amount from staking account 
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn withdraw_amount(
+            origin: OriginFor<T>,
+            price: BalanceOf<T>,
+        ) ->DispatchResult {
+
+            let who = ensure_signed(origin)?;
+
+            // 判断accoutid 是否存在staking 帐号
+            ensure!(
+                StakingAccontId::<T>::contains_key(who.clone()),
+                Error::<T>::StakingAccontIdNotExit,
+            );
+
+            let mut staking_info = StakingAccontId::<T>::get(who.clone()).unwrap();
+
+            ensure!(
+                staking_info.withdraw_amount(T::BalanceToNumber::convert(price)),
+                Error::<T>::NotEnoughActiveAmount,
+            );
+
+            T::Currency::transfer(
+                &Self::staking_pool(), 
+                &who.clone(), 
+                price, 
+                ExistenceRequirement::AllowDeath,
+            )?;
+
+            StakingAccontId::<T>::insert(who.clone(), staking_info);
+
+            Self::deposit_event(Event::WithdrawStakingSuccess(who.clone(), price));
+            Ok(())
+        }
     }
 }
 
