@@ -500,7 +500,6 @@ pub mod pallet {
                 // save resource state
                 T::OrderInterface::update_computing_resource(resource_index, resource_info.clone());
 
-
                 Self::deposit_event(Event::OrderExecSuccess(who.clone(), order_index, resource_index, agreement_index));
             }
 
@@ -718,7 +717,7 @@ pub mod pallet {
             duration: u32,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
-
+            
             // get agreement
             ensure!(RentalAgreements::<T>::contains_key(agreement_index),Error::<T>::ProtocolDoesNotExist);
             let agreement = RentalAgreements::<T>::get(agreement_index).unwrap();

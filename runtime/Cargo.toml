@@ -67,7 +67,8 @@ std = [
     "pallet-utility/std",
     "pallet-resource-order/std",
     "pallet-provider/std",
-    "pallet-gateway/std"
+    "pallet-gateway/std",
+    "pallet-market/std",
 ]
 [dependencies.codec]
 default-features = false
@@ -328,4 +329,9 @@ version = '3.0.0'
 [dependencies.pallet-gateway]
 default-features = false
 path = '../pallets/gateway'
+version = '3.0.0'
+
+[dependencies.pallet-market]
+default-features = false
+path = '../pallets/market'
 version = '3.0.0'

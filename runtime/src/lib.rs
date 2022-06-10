@@ -60,6 +60,9 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 /// Import the template pallet.
 pub use pallet_template;
 
+/// Import the market pallet
+pub use pallet_market;
+
 use pallet_authority_discovery;
 
 /// An index to a block.
@@ -380,6 +383,18 @@ impl pallet_template::Config for Runtime {
 	type BlockNumberToNumber = ConvertInto;
 }
 
+/// Configure the pallet-template in pallets/market.
+impl pallet_market::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type OrderInterface = Provider;
+	type BlockNumberToNumber = ConvertInto;
+	type NumberToBalance = ConvertInto;
+	type BalanceToNumber = ConvertInto;
+	type HealthCheckInterval = HealthCheckInterval;
+	type UnixTime = Timestamp;
+}
+
 parameter_types! {
 	pub const UncleGenerations: BlockNumber = 5;
 }
@@ -638,7 +653,7 @@ construct_runtime!(
 		ResourceOrder: pallet_resource_order::{Pallet, Call, Storage, Event<T>},
 		Provider: pallet_provider::{Pallet, Call, Storage, Event<T>},
 		Gateway: pallet_gateway::{Pallet, Call, Storage, Event<T>},
-
+		Market: pallet_market::{Pallet, Call, Storage, Event<T>},
 
 	}
 );
