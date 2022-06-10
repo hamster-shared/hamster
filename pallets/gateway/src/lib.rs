@@ -21,7 +21,7 @@ use sp_runtime::traits::Zero;
 
 pub use pallet::*;
 pub use primitives::p_gateway::*;
-
+pub use pallet_market::MarketInterface;
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 
@@ -48,6 +48,8 @@ pub mod pallet {
         /// gateway node heartbeat reporting interval
         #[pallet::constant]
         type GatewayNodeHeartbeatInterval: Get<Self::BlockNumber>;
+
+        type MarketInterface: MarketInterface<Self::AccountId>;
     }
 
     #[pallet::pallet]
@@ -216,6 +218,8 @@ pub mod pallet {
             peer_id: Vec<u8>,
         ) -> DispatchResult {
             let who = ensure_signed(account_id)?;
+
+    
 
             // get the current block height
             let block_number = <frame_system::Pallet<T>>::block_number();

@@ -618,6 +618,7 @@ impl pallet_gateway::Config for Runtime {
 	type BalanceToNumber = ConvertInto;
 	type GatewayNodeTimedRemovalInterval = GatewayNodeTimedRemovalInterval;
 	type GatewayNodeHeartbeatInterval = GatewayNodeHeartbeatInterval;
+	type MarketInterface = Market;
 }
 
 parameter_types! {
