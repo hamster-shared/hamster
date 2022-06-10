@@ -527,12 +527,32 @@ fn newtouch_testnet_config_genesis() -> GenesisConfig {
 /// newtouch testnet config.
 pub fn newtouch_testnet_config() -> ChainSpec {
 	let boot_nodes = vec![
-		// "/dnsaddr/bootstrap.xn1.authright.newtouch.com/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp".parse().unwrap(),
-		// "/dnsaddr/bootstrap.xn2.authright.newtouch.com/p2p/12D3KooWSCufgHzV4fCwRijfH2k3abrpAJxTKxEvN1FDuRXA2U9x".parse().unwrap()
 	];
 	ChainSpec::from_genesis(
 		"Newtouch Testnet",
 		"newtouch_testnet",
+		ChainType::Live,
+		newtouch_testnet_config_genesis,
+		boot_nodes,
+		Some(
+			TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
+				.expect("Staging telemetry url is valid; qed"),
+		),
+		None,
+		None,
+		None,
+		Default::default(),
+	)
+}
+
+
+/// newtouch testnet config.
+pub fn newtouch_mainnet_config() -> ChainSpec {
+	let boot_nodes = vec![
+	];
+	ChainSpec::from_genesis(
+		"Newtouch MainNet",
+		"newtouch_mainnet",
 		ChainType::Live,
 		newtouch_testnet_config_genesis,
 		boot_nodes,
