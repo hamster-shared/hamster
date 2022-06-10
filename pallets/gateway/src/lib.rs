@@ -70,7 +70,6 @@ pub mod pallet {
     #[pallet::getter(fn era)]
     pub(super) type Era<T: Config> = StorageValue<_, u32, ValueQuery>;
 
-
     /// number of gateway nodes
     #[pallet::storage]
     #[pallet::getter(fn gateway_node_count)]
@@ -154,6 +153,10 @@ pub mod pallet {
         TryAgain,
         /// the owner of the gateway node does not belong to you
         GatewayNodeNotOwnedByYou,
+
+        GatewayNodeNotStakingAccoutId,
+
+        NotEnoughAmount,
     }
 
     #[pallet::hooks]
@@ -202,8 +205,7 @@ pub mod pallet {
             }
             0
         }
-
-       
+    
     }
 
     // Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -219,8 +221,22 @@ pub mod pallet {
         ) -> DispatchResult {
             let who = ensure_signed(account_id)?;
 
-    
+            // The gateway must have a staking account in order to register
+            ensure!(
+                T::MarketInterface::staking_accountid_exit(who.clone()),
+                Error::<T>::GatewayNodeNotStakingAccoutId,
+            ); 
 
+            // get the staking info 
+            let mut staking_info = T::MarketInterface::staking_info(who.clone());
+            // gateway Pledge  
+            // Todo，the amount now is 100
+            ensure!(
+                staking_info.lock_amount(100),
+                Error::<T>::NotEnoughAmount,
+            );
+            // update staking info
+            T::MarketInterface::updata_staking_info(who.clone(), staking_info);
             // get the current block height
             let block_number = <frame_system::Pallet<T>>::block_number();
 
@@ -240,7 +256,6 @@ pub mod pallet {
             // increase the total
             let count = GatewayNodeCount::<T>::get();
             GatewayNodeCount::<T>::set(count + 1);
-
 
             Self::deposit_event(Event::RegisterGatewayNodeSuccess(who,block_number, gateway_node.peer_id));
             Ok(())

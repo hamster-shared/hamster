@@ -5,6 +5,7 @@ use frame_support::{dispatch::DispatchResult,
 use frame_support::sp_runtime::traits::Convert;
 use frame_support::traits::UnixTime;
 use frame_system::pallet_prelude::*;
+use primitives::p_market;
 use sp_core::Bytes;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::Zero;
@@ -196,9 +197,19 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pallet<T> {
-
+    
+    // Check the accountid have staking accoutid
     fn staking_accountid_exit(who: <T as frame_system::Config>::AccountId) -> bool {
         StakingAccontId::<T>::contains_key(who.clone())
     }
 
+    // Return the staking info
+    fn staking_info(who: <T as frame_system::Config>::AccountId) -> p_market::StakingAmount {
+        StakingAccontId::<T>::get(who.clone()).unwrap().clone()
+    }
+
+    // updata staking info 
+    fn updata_staking_info(who: <T as frame_system::Config>::AccountId, staking_info: p_market::StakingAmount) {
+        StakingAccontId::<T>::insert(who.clone(), staking_info);
+    }
 }
