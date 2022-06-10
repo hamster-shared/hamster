@@ -566,7 +566,6 @@ pub mod pallet {
             Ok(())
         }
 
-
         /// get back the pledge
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn withdraw_amount(

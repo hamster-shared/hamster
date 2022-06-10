@@ -18,24 +18,18 @@ use sp_std::vec::Vec;
 pub use pallet::*;
 pub use primitives::p_provider::*;
 pub use primitives::p_resource_order::*;
-
-#[cfg(test)]
-mod mock;
-
-#[cfg(test)]
-mod tests;
-
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarking;
+pub use primitives::p_market::*;
 
 
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 const PALLET_ID: PalletId = PalletId(*b"ttchain!");
 
-
 #[frame_support::pallet]
 pub mod pallet {
+    use frame_system::Origin;
+    use primitives::p_market;
+
     use super::*;
 
     /// Configure the pallet by specifying the parameters and types on which it depends.
@@ -70,8 +64,16 @@ pub mod pallet {
     #[pallet::generate_store(pub (super) trait Store)]
     pub struct Pallet<T>(_);
 
-
-
+    /// Store the pledge account number corresponding to the AccountId
+    #[pallet::storage]
+    #[pallet::getter(fn staking)]
+    pub(super) type StakingAccontId<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        p_market::StakingAmount,
+        OptionQuery,
+        >;
 
     // Pallets use events to inform users when important changes are made.
     // https://substrate.dev/docs/en/knowledgebase/runtime/events
@@ -79,7 +81,11 @@ pub mod pallet {
     #[pallet::metadata(T::AccountId = "AccountId")]
     #[pallet::generate_deposit(pub (super) fn deposit_event)]
     pub enum Event<T: Config> {
-        
+        // Create of staking account successful
+        CreateStakingAccountSuccessful(T::AccountId),
+
+        // Successful charge to staking account
+        ChargeStakingAccountSuccessful(T::AccountId),
     }
 
     #[pallet::hooks]
@@ -91,6 +97,9 @@ pub mod pallet {
     #[pallet::error]
     pub enum Error<T> {
 
+        StakingAccontIdAlreadyExit,
+
+        StakingAccontIdNotExit,
     }
 
     // Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -103,15 +112,81 @@ pub mod pallet {
         /*
         +amount:Balance 质押的金额
         +lockAmount:Balance 锁定的金额
-
+        
         +stakingAmount(price) 质押金额
         +lockAmount() 锁定金额
         +unLockAmount() 解锁金额
         + withdrawAmount() 取回金额
         */
+
+        // 为accountId绑定 stakingAmount， 即注册
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn crate_staking_amount(
+            origin: OriginFor<T>,
+            bond_price: BalanceOf<T>,
+        ) ->DispatchResult {
+            
+            let who = ensure_signed(origin)?;
+
+            // 看 who 是否已经在 StakingAccontId 中
+            ensure!(
+                StakingAccontId::<T>::contains_key(who.clone()), 
+                Error::<T>::StakingAccontIdAlreadyExit,
+            );
+
+            // 不存在则创建
+            StakingAccontId::<T>::insert( who.clone(), p_market::StakingAmount{
+                amount: T::BalanceToNumber::convert(bond_price),
+                active_amount: T::BalanceToNumber::convert(bond_price),
+                lock_amount: 0,
+                }
+            );
+
+            Self::deposit_event(Event::CreateStakingAccountSuccessful(who.clone()));
+            Ok(())
+        }
+
+        // charge for account 
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn charge_for_account(
+            origin: OriginFor<T>,
+            bond_price: BalanceOf<T>,
+        ) ->DispatchResult {
+
+            let who = ensure_signed(origin)?;
+
+            // 判断是否存在，不存在报错
+            ensure!(
+                !StakingAccontId::<T>::contains_key(who.clone()), 
+                Error::<T>::StakingAccontIdNotExit,
+            );
+            
+            // transfer accountid token to staking pot
+            T::Currency::transfer(
+                &who.clone(), 
+                &Self::staking_pool(), 
+                bond_price, 
+                ExistenceRequirement::AllowDeath,
+            )?;
+            
+            // get pledge details
+            let mut staking_info = StakingAccontId::<T>::get(who.clone()).unwrap();
+            // calculate the new total pledge amount
+            let price = T::BalanceToNumber::convert(bond_price);
+            // charge for account
+            staking_info.charge_for_account(price);
+            // save the account amount 
+            StakingAccontId::<T>::insert(
+                who.clone(),
+                staking_info,
+            );
+
+            Self::deposit_event(Event::ChargeStakingAccountSuccessful(who.clone()));
+            Ok(())
+        }
+
     }
 }
-
 
 impl<T: Config> Pallet<T> {
     /// StakingPod: use to storage the market people's stake amount 
