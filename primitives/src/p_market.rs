@@ -8,6 +8,8 @@ use sp_runtime::traits::AtLeast32BitUnsigned;
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
 
+use crate::EraIndex;
+
 /// StakingAmount： Pledge account number for market
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -69,6 +71,15 @@ impl StakingAmount {
         self.lock_amount = 0 ;
     }
 
+}
+
+#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct Income {
+    // EraIndex of last collection 
+    pub last_eraindex: EraIndex,
+    // Benefits to be received
+    pub total_income: u128,
 }
 
 pub trait MarketInterface<AccountId> {

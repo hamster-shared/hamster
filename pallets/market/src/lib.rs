@@ -20,6 +20,7 @@ pub use pallet::*;
 pub use primitives::p_provider::*;
 pub use primitives::p_resource_order::*;
 pub use primitives::p_market::*;
+use primitives::EraIndex;
 
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
@@ -73,7 +74,23 @@ pub mod pallet {
         T::AccountId,
         p_market::StakingAmount,
         OptionQuery,
-        >;
+    >;
+
+    /// Storage account revenue
+    #[pallet::storage]
+    #[pallet::getter(fn gateway_revenue)]
+    pub(super) type GatewayRevenue<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        Income,
+        OptionQuery,
+    >;
+
+    /// Storage overdue proceeds
+    #[pallet::storage]
+    #[pallet::getter(fn overdue_proceeds)]
+    pub(super) type OverdueProceeds<T: Config> = StorageValue<_, u128, ValueQuery>;
 
     // Pallets use events to inform users when important changes are made.
     // https://substrate.dev/docs/en/knowledgebase/runtime/events
@@ -226,12 +243,41 @@ pub mod pallet {
             Self::deposit_event(Event::WithdrawStakingSuccess(who.clone(), price));
             Ok(())
         }
+
     }
 }
 
 impl<T: Config> Pallet<T> {
     /// StakingPod: use to storage the market people's stake amount 
     pub fn staking_pool() -> T::AccountId { PALLET_ID.into_sub_account(b"staking") }
+
+    // Calculate score by gateway online time
+    // points = blocknums * 10
+    // Todo
+    pub fn compute_gateways_points(index: EraIndex) {
+        // 获取gateway index的所有gateway在线时长
+
+        // 计算分数
+
+        // 保存index 所指的分数
+    }
+
+    // 将逾期未取的钱推送到国库里面
+    pub fn clearance_overdue_property(index: EraIndex) {
+        let gateway_revenues = GatewayRevenue::<T>::iter();
+        for (who, gateway_income) in gateway_revenues {
+            if gateway_income.last_eraindex - index > 60 {
+                // 删除该id的信息
+                // 因为奖励时从staking 池子里面的发放的
+                // 所以只要删除了信息，就相当于 把逾期的钱会回归给池子了
+                GatewayRevenue::<T>::remove(who.clone());
+                // 更新池子中，获得拿到逾期的钱
+                let mut op = OverdueProceeds::<T>::get();
+                op += gateway_income.total_income;
+                OverdueProceeds::<T>::set(op);
+            }
+        }
+    }
 }
 
 impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pallet<T> {
