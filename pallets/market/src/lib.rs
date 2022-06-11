@@ -87,6 +87,23 @@ pub mod pallet {
         OptionQuery,
     >;
 
+    /// Storage gateway points
+    #[pallet::storage]
+    #[pallet::getter(fn gateway_points)]
+    pub(super) type GatewayPoints<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        u128,
+        OptionQuery,
+    >;
+
+    /// storage gateway total points
+    #[pallet::storage]
+    #[pallet::getter(fn gateway_total_points)]
+    pub(super) type GatewayTotalPoints<T: Config> = StorageValue<_, u128, ValueQuery>;
+
+    /// 存储用户对应的金额
     /// Storage overdue proceeds
     #[pallet::storage]
     #[pallet::getter(fn overdue_proceeds)]
@@ -106,6 +123,12 @@ pub mod pallet {
 
         // User success withdraw the price
         WithdrawStakingSuccess(T::AccountId, BalanceOf<T>),
+
+        // Reward issued successfully
+        RewardIssuedSucces(u128),
+
+        // compute_gateways_rewards
+        ComputeGatewaysRewardSuccess,
     }
 
     #[pallet::hooks]
@@ -124,6 +147,10 @@ pub mod pallet {
 
         // the staking accoutid has not enough amount to Withdraw
         NotEnoughActiveAmount,
+
+        // Users are not rewarded enough
+        NotEnoughReward,
+
     }
 
     // Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -142,7 +169,7 @@ pub mod pallet {
         +unLockAmount() 解锁金额
         + withdrawAmount() 取回金额
         */
-
+        
         // 为accountId绑定 stakingAmount， 即注册
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn crate_staking_amount(
@@ -179,7 +206,7 @@ pub mod pallet {
 
             let who = ensure_signed(origin)?;
 
-            // 判断是否存在，不存在报错
+            // Determine if a user exist staking account
             ensure!(
                 !StakingAccontId::<T>::contains_key(who.clone()), 
                 Error::<T>::StakingAccontIdNotExit,
@@ -188,7 +215,7 @@ pub mod pallet {
             // transfer accountid token to staking pot
             T::Currency::transfer(
                 &who.clone(), 
-                &Self::staking_pool(), 
+                &Self::staking_pot(), 
                 bond_price, 
                 ExistenceRequirement::AllowDeath,
             )?;
@@ -232,7 +259,7 @@ pub mod pallet {
             );
 
             T::Currency::transfer(
-                &Self::staking_pool(), 
+                &Self::staking_pot(), 
                 &who.clone(), 
                 price, 
                 ExistenceRequirement::AllowDeath,
@@ -243,26 +270,108 @@ pub mod pallet {
             Self::deposit_event(Event::WithdrawStakingSuccess(who.clone(), price));
             Ok(())
         }
+        
+        // 任何用户都可以使用这个函数，去发送用户的奖励
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn payout(
+            origin: OriginFor<T>,
+        ) ->DispatchResult {
+            
+            ensure_signed(origin)?;
+
+            // 轮询GatewayRevenue
+            let gateway_nodes = GatewayRevenue::<T>::iter();
+
+            let mut total_revenue = 0;
+
+            for (accoutid, income) in gateway_nodes {
+                // 从 storage 中 转income钱到 accountid 中
+                T::Currency::transfer(
+                    &Self::storage_pot(), 
+                    &accoutid, 
+                    income.total_income.try_into().ok().unwrap(), 
+                    ExistenceRequirement::AllowDeath,
+                )?;
+
+                total_revenue += income.total_income;
+
+                // remove the revenue info
+                GatewayRevenue::<T>::remove(accoutid.clone());
+            }
+            
+            // Send the amount which total payout this time 
+            Self::deposit_event(Event::RewardIssuedSucces(total_revenue));
+            Ok(())
+        }
 
     }
 }
 
 impl<T: Config> Pallet<T> {
     /// StakingPod: use to storage the market people's stake amount 
-    pub fn staking_pool() -> T::AccountId { PALLET_ID.into_sub_account(b"staking") }
+    pub fn staking_pot() -> T::AccountId { PALLET_ID.into_sub_account(b"stak") }
 
-    // Calculate score by gateway online time
-    // points = blocknums * 10
+    pub fn storage_pot() -> T::AccountId { PALLET_ID.into_sub_account(b"stor") }
+
+    
     // Todo
+    // The function score calculation by online time
+    // score = blocknums * 10
+    // input:
+    //  -index: EraIndex 
     pub fn compute_gateways_points(index: EraIndex) {
         // 获取gateway index的所有gateway在线时长
-
+        // 通过gatewa传过来一组accountid 对应的
         // 计算分数
-
+        
         // 保存index 所指的分数
     }
 
+    // Todo 
+    // 计算奖励金额，将奖励金额更新到用户上面
+    // 通过这个时期在线的gateway的在线时长去计算
+    // input：
+    //  - index： EraIndex
+    pub fn compute_gateways_rewards(index: EraIndex, total_reward: u128) {
+        // 计算每个gateway获得的分数占比
+        let gateway_points = GatewayPoints::<T>::iter();
+
+        for (who, point) in gateway_points {
+            // 计算该分数的占比
+            let ratio = point / GatewayTotalPoints::<T>::get();
+            // 该账号获得的奖励
+            let reward = total_reward * ratio;
+
+            // 将奖励计算到 账户上
+            // 判断 奖励账号是否存在该账号
+            if GatewayRevenue::<T>::contains_key(who.clone()) {
+                // 存在该账户，修改income信息
+                let mut income = GatewayRevenue::<T>::get(who.clone()).unwrap();
+                income.total_income += reward;
+                GatewayRevenue::<T>::insert(who.clone(), income);
+                // 进入下一轮循环
+                continue;
+            }
+
+            // create the income struct 
+            let income = Income {
+                last_eraindex: index,
+                total_income: reward,
+            };
+
+            GatewayRevenue::<T>::insert(who.clone(), income);
+        }
+        
+        Self::deposit_event(Event::ComputeGatewaysRewardSuccess);
+    }
+
+
+
     // 将逾期未取的钱推送到国库里面
+    // The function will transfer the overdue amount to the treasury
+    // The The period is 60 Era
+    // input:
+    //  -index: EraIndex
     pub fn clearance_overdue_property(index: EraIndex) {
         let gateway_revenues = GatewayRevenue::<T>::iter();
         for (who, gateway_income) in gateway_revenues {
