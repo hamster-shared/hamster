@@ -24,7 +24,6 @@ pub use primitives::p_gateway::*;
 pub use pallet_market::MarketInterface;
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
-
 #[frame_support::pallet]
 pub mod pallet {
     use primitives::Balance;
@@ -87,9 +86,9 @@ pub mod pallet {
         _,
         Twox64Concat,
         GatewayNode<T::BlockNumber, T::AccountId>,
-        u64,
+        u128,
         OptionQuery,
-        >;
+    >;
 
     /// Online time per era, per gateway node
     #[pallet::storage]
@@ -98,9 +97,9 @@ pub mod pallet {
         _,
         Twox64Concat, EraIndex,
         Twox64Concat, T::AccountId,
-        u64,
+        u128,
         OptionQuery,
-        >;
+    >;
 
     // The genesis config type.
     #[pallet::genesis_config]
@@ -205,7 +204,6 @@ pub mod pallet {
             }
             0
         }
-    
     }
 
     // Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -284,6 +282,19 @@ pub mod pallet {
 
             Self::deposit_event(Event::HealthCheckSuccess(who.clone(), block_number));
             Ok(())
+        }
+    }
+}
+
+impl<T: Config> Pallet<T> {
+    
+    fn compute_gateways_points() {
+        let gateway_node_onlinetime = GatewayNodeOnlineTime::<T>::iter();
+        for (gateway_node, onlintime) in gateway_node_onlinetime {
+            T::MarketInterface::compute_gateways_points(
+                gateway_node.clone().account_id, 
+                onlintime,
+            );
         }
     }
 }

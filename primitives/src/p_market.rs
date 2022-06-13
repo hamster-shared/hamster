@@ -91,4 +91,7 @@ pub trait MarketInterface<AccountId> {
 
     // updata the staking info 
     fn updata_staking_info(who: AccountId, staking_info: StakingAmount);
+
+    // Compute the gateway nodes points 
+    fn compute_gateways_points(accout: AccountId, blocknums: u128);
 }

@@ -313,20 +313,6 @@ impl<T: Config> Pallet<T> {
 
     pub fn storage_pot() -> T::AccountId { PALLET_ID.into_sub_account(b"stor") }
 
-    
-    // Todo
-    // The function score calculation by online time
-    // score = blocknums * 10
-    // input:
-    //  -index: EraIndex 
-    pub fn compute_gateways_points(index: EraIndex) {
-        // 获取gateway index的所有gateway在线时长
-        // 通过gatewa传过来一组accountid 对应的
-        // 计算分数
-        
-        // 保存index 所指的分数
-    }
-
     // Todo 
     // 计算奖励金额，将奖励金额更新到用户上面
     // 通过这个时期在线的gateway的在线时长去计算
@@ -365,8 +351,6 @@ impl<T: Config> Pallet<T> {
         Self::deposit_event(Event::ComputeGatewaysRewardSuccess);
     }
 
-
-
     // 将逾期未取的钱推送到国库里面
     // The function will transfer the overdue amount to the treasury
     // The The period is 60 Era
@@ -404,5 +388,24 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
     // updata staking info 
     fn updata_staking_info(who: <T as frame_system::Config>::AccountId, staking_info: p_market::StakingAmount) {
         StakingAccontId::<T>::insert(who.clone(), staking_info);
+    }
+
+    // The function score calculation by online time
+    // score = blocknums * 10
+    // input:
+    //  - account: AccoutId
+    //  - blocknums: u128
+    fn compute_gateways_points(account: <T as frame_system::Config>::AccountId, blocknums: u128) {
+        // 每在线一个区块 算10分
+        let points = blocknums * 10;
+        // 保存得分
+        if GatewayPoints::<T>::contains_key(account.clone()) {
+            let mut _points = GatewayPoints::<T>::get(account.clone()).unwrap();
+            _points = points;
+            GatewayPoints::<T>::insert(account.clone(), points);
+            return;
+        }
+        // 不存在 直接插入
+        GatewayPoints::<T>::insert(account.clone(), points);
     }
 }
