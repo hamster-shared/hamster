@@ -116,6 +116,21 @@ pub mod pallet {
     #[pallet::getter(fn user_orders)]
     pub(super) type UserOrders<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, Vec<u64>, ValueQuery>;
 
+    /// the free resource apply info
+    #[pallet::storage]
+    #[pallet::getter(fn apply_info)]
+    pub(super) type ApplyInfo<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u64, ValueQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn apply_process)]
+    pub(super) type ApplyProcess<T: Config> = StorageMap<_, Twox64Concat, u64, Vec<u8>, ValueQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn apply_process_user)]
+    pub(super) type ApplyProcessUser<T: Config> = StorageMap<_, Twox64Concat, u64, T::AccountId, ValueQuery>;
+
+
+
     // The genesis config type.
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
@@ -228,6 +243,14 @@ pub mod pallet {
         /// penalty agreement executed successfully
         PenaltyAgreementExcutionSuccess(u64),
 
+
+        /// free resource applied
+        /// [accountId, order_index, cpu, memory, duration, deploy_type]
+        FreeResourceApplied(T::AccountId, u64, u64, u64, u32, u32),
+
+        /// free resource processed
+        /// [order_index, peer_id]
+        FreeResourceProcessed(u64,Vec<u8>),
     }
 
     #[pallet::hooks]
@@ -285,6 +308,10 @@ pub mod pallet {
         FailedToWithdraw,
         /// The protocol under the current block exceeds the maximum number
         ExceedsMaximumQuantity,
+        /// free resource have applied
+        FreeResourceApplied,
+        /// free resource has be deal
+        FreeResourceHasBeDeal,
     }
 
     // Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -767,6 +794,64 @@ pub mod pallet {
             Self::deposit_event(Event::ReNewOrderSuccess(who.clone(), order_index, resource_index, duration));
             Ok(())
         }
+
+
+        /// apply free resource
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn apply_free_resource(origin: OriginFor<T>,
+                                   cpu: u64,
+                                   memory: u64,
+                                   duration: u32,
+                                   deploy_type: u32) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+            ensure!(!ApplyInfo::<T>::contains_key(who.clone()),Error::<T>::FreeResourceApplied);
+            let vec: Vec<u8> = Vec::new();
+
+            let order_index = OrderIndex::<T>::get();
+            ApplyInfo::<T>::insert(who.clone(),order_index);
+            OrderIndex::<T>::put(order_index + 1);
+            Self::deposit_event(Event::FreeResourceApplied(who,order_index,cpu,memory,duration,deploy_type));
+
+            Ok(())
+        }
+
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn process_apply_free_resource(origin: OriginFor<T>, order_index: u64, peer_id: Vec<u8>) -> DispatchResult{
+
+            let who = ensure_signed(origin)?;
+
+
+            ensure!(!ApplyProcess::<T>::contains_key(order_index), Error::<T>::FreeResourceHasBeDeal);
+            ensure!(!ApplyProcessUser::<T>::contains_key(order_index), Error::<T>::FreeResourceHasBeDeal);
+
+
+            ApplyProcess::<T>::insert(order_index,peer_id.clone());
+            ApplyProcessUser::<T>::insert(order_index, who);
+
+            Self::deposit_event(Event::FreeResourceProcessed(order_index,peer_id));
+
+            Ok(())
+        }
+
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn release_apply_free_resource(origin: OriginFor<T>, order_index: u64) -> DispatchResult{
+
+            let who = ensure_signed(origin)?;
+
+            let apply_index = ApplyInfo::<T>::get(who.clone());
+
+            if order_index == apply_index {
+                ApplyProcess::<T>::remove(order_index);
+            }
+
+            let processer = ApplyProcessUser::<T>::get(order_index);
+
+            if processer.clone() == who.clone() {
+                ApplyProcess::<T>::remove(order_index);
+            }
+            Ok(())
+        }
+
     }
 }
 
