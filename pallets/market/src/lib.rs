@@ -23,8 +23,6 @@ pub use primitives::p_market::*;
 use primitives::EraIndex;
 
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-
-
 const PALLET_ID: PalletId = PalletId(*b"ttchain!");
 
 #[frame_support::pallet]
@@ -99,24 +97,20 @@ pub mod pallet {
         OptionQuery,
     >;
 
-    /// Curren total amount in the staking_pot
+    /// Current total amount in the staking_pot
     #[pallet::storage]
     #[pallet::getter(fn current_total_staking)]
     pub(super) type CurrentTotalStaking<T: Config> = StorageValue<_, u128, ValueQuery>;
+
+    /// Current total amount in the market_reward_pot
+    #[pallet::storage]
+    #[pallet::getter(fn current_total_reward)]
+    pub(super) type CurrentTotalReward<T: Config> = StorageValue<_, u128, ValueQuery>;
 
     /// storage gateway total points
     #[pallet::storage]
     #[pallet::getter(fn gateway_total_points)]
     pub(super) type GatewayTotalPoints<T: Config> = StorageValue<_, u128, ValueQuery>;
-
-     /// storage gateway total points
-     #[pallet::storage]
-     #[pallet::getter(fn pot)]
-     pub(super) type Pot<T: Config> = StorageValue<_, T::AccountId, ValueQuery>;
-
-     #[pallet::storage]
-     #[pallet::getter(fn test_staking_pot)]
-     pub(super) type TestStakingPot<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
     /// 存储用户对应的金额
     /// Storage overdue proceeds
@@ -190,29 +184,6 @@ pub mod pallet {
         pub fn crate_staking_amount(
             origin: OriginFor<T>,
         ) ->DispatchResult {
-            
-            // let who = ensure_signed(origin)?;
- 
-            // // 看 who 是否已经在 StakingAccontId 中
-            // // ensure!(
-            // //     StakingAccontId::<T>::contains_key(who.clone()), 
-            // //     Error::<T>::StakingAccontIdAlreadyExit,
-            // // );
-            // if StakingAccontId::<T>::contains_key(who.clone()) {
-            //     return Ok(())
-            // }
-            
-            // // 不存在则创建
-            // StakingAccontId::<T>::insert( who.clone(), p_market::StakingAmount{
-            //     amount: T::BalanceToNumber::convert(bond_price),
-            //     active_amount: T::BalanceToNumber::convert(bond_price),
-            //     lock_amount: 0,
-            //     }
-            // );
-
-            // Self::deposit_event(Event::CreateStakingAccountSuccessful(who.clone()));
-            // Ok(())
-
             // mut be singed 
             let who = ensure_signed(origin)?;
 
@@ -254,11 +225,8 @@ pub mod pallet {
                 bond_price, 
                 ExistenceRequirement::KeepAlive,
             )?;
-            
-            // let mut total_staking = TotalBond::<T>::get();
-            // total_staking += bond_price;
-            // TotalBond::<T>::set(total_staking);
 
+            // Update the current total staking amount
             let mut staking = CurrentTotalStaking::<T>::get();
             staking += T::BalanceToNumber::convert(bond_price);
             CurrentTotalStaking::<T>::set(staking);
@@ -276,6 +244,7 @@ pub mod pallet {
             );
 
             Self::deposit_event(Event::ChargeStakingAccountSuccessful(who.clone()));
+
             Ok(())
         }
 
@@ -288,19 +257,23 @@ pub mod pallet {
 
             let who = ensure_signed(origin)?;
 
-            // 判断accoutid 是否存在staking 帐号
+            // Determine if a user exist staking account
             ensure!(
                 StakingAccontId::<T>::contains_key(who.clone()),
                 Error::<T>::StakingAccountIdNotExit,
             );
 
+            // Get the staking info from user
             let mut staking_info = StakingAccontId::<T>::get(who.clone()).unwrap();
 
+            // Update staking infformation
+            // And determine if the user have enough active amount
             ensure!(
                 staking_info.withdraw_amount(T::BalanceToNumber::convert(price)),
                 Error::<T>::NotEnoughActiveAmount,
             );
 
+            // Transfer the price from staking pot to user
             T::Currency::transfer(
                 &Self::staking_pot(), 
                 &who.clone(), 
@@ -319,12 +292,14 @@ pub mod pallet {
             Ok(())
         }
         
-        // 任何用户都可以使用这个函数，去发送用户的奖励
+        /// payout
+        /// Every user can run this function
+        /// Get all the history reward to gateway whose has reward
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn payout(
             origin: OriginFor<T>,
         ) ->DispatchResult {
-            
+            // Just check the signed
             ensure_signed(origin)?;
 
             // 轮询GatewayRevenue
@@ -335,18 +310,23 @@ pub mod pallet {
             for (accoutid, income) in gateway_nodes {
                 // 从 storage 中 转income钱到 accountid 中
                 T::Currency::transfer(
-                    &Self::storage_pot(), 
+                    &Self::market_reward_pot(),
                     &accoutid, 
                     income.total_income.try_into().ok().unwrap(), 
-                    ExistenceRequirement::AllowDeath,
+                    ExistenceRequirement::KeepAlive,
                 )?;
-
+                // Update all the amount has payout this time
                 total_revenue += income.total_income;
 
                 // remove the revenue info
                 GatewayRevenue::<T>::remove(accoutid.clone());
             }
-            
+
+            // Update the current total reward amount
+            let mut current_total_reward = CurrentTotalReward::<T>::get();
+            current_total_reward -= total_revenue;
+            CurrentTotalReward::<T>::set(current_total_reward);
+
             // Send the amount which total payout this time 
             Self::deposit_event(Event::RewardIssuedSucces(total_revenue));
             Ok(())
@@ -380,7 +360,6 @@ impl<T: Config> Pallet<T> {
             }
         }
     }
-    
 }
 
 impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pallet<T> {
@@ -462,7 +441,12 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
 
             GatewayRevenue::<T>::insert(who.clone(), income);
         }
-        
+
+        // Update the current total reward
+        let mut _total_reward = CurrentTotalReward::<T>::get();
+        _total_reward += total_reward;
+        CurrentTotalReward::<T>::set(_total_reward);
+
         Self::deposit_event(Event::ComputeGatewaysRewardSuccess);
     }
 
