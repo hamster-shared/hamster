@@ -162,21 +162,22 @@ pub mod pallet {
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_initialize(now: T::BlockNumber) -> Weight {
             // get a list of gateway nodes
-            let gateway_nodes = GatewayNodes::<T>::iter();
+            // let gateway_nodes = GatewayNodes::<T>::iter();
             
-            for(_, ref gateway_node) in gateway_nodes {
-                // Determine when the gateway node has been recorded
-                if GatewayNodeOnlineTime::<T>::contains_key(gateway_node) {
-                    let mut onlinetime = GatewayNodeOnlineTime::<T>::get(gateway_node.clone()).unwrap();
-                    onlinetime = onlinetime + 1;
-                    GatewayNodeOnlineTime::<T>::insert(gateway_node.clone(), onlinetime);
-                    continue;
-                } 
-                // Time statistics for new gateway nodes
-                GatewayNodeOnlineTime::<T>::insert(gateway_node.clone(), 1);
-            }
+            // for(_, ref gateway_node) in gateway_nodes {
+            //     // Determine when the gateway node has been recorded
+            //     if GatewayNodeOnlineTime::<T>::contains_key(gateway_node) {
+            //         let mut onlinetime = GatewayNodeOnlineTime::<T>::get(gateway_node.clone()).unwrap();
+            //         onlinetime = onlinetime + 1;
+            //         GatewayNodeOnlineTime::<T>::insert(gateway_node.clone(), onlinetime);
+            //         continue;
+            //     } 
+            //     // Time statistics for new gateway nodes
+            //     GatewayNodeOnlineTime::<T>::insert(gateway_node.clone(), 1);
+            // }
 
             // health examination
+            
             if (now % T::GatewayNodeTimedRemovalInterval::get()).is_zero() {
 
                 // get a list of gateway nodes
@@ -219,22 +220,22 @@ pub mod pallet {
         ) -> DispatchResult {
             let who = ensure_signed(account_id)?;
 
-            // The gateway must have a staking account in order to register
-            ensure!(
-                T::MarketInterface::staking_accountid_exit(who.clone()),
-                Error::<T>::GatewayNodeNotStakingAccoutId,
-            ); 
+            // // The gateway must have a staking account in order to register
+            // ensure!(
+            //     T::MarketInterface::staking_accountid_exit(who.clone()),
+            //     Error::<T>::GatewayNodeNotStakingAccoutId,
+            // ); 
 
-            // get the staking info 
-            let mut staking_info = T::MarketInterface::staking_info(who.clone());
-            // gateway Pledge  
-            // Todo，the amount now is 100
-            ensure!(
-                staking_info.lock_amount(100),
-                Error::<T>::NotEnoughAmount,
-            );
-            // update staking info
-            T::MarketInterface::updata_staking_info(who.clone(), staking_info);
+            // // get the staking info 
+            // let mut staking_info = T::MarketInterface::staking_info(who.clone());
+            // // gateway Pledge  
+            // // Todo，the amount now is 100
+            // ensure!(
+            //     staking_info.lock_amount(100),
+            //     Error::<T>::NotEnoughAmount,
+            // );
+            // // update staking info
+            // T::MarketInterface::updata_staking_info(who.clone(), staking_info);
             // get the current block height
             let block_number = <frame_system::Pallet<T>>::block_number();
 
@@ -258,7 +259,7 @@ pub mod pallet {
             Self::deposit_event(Event::RegisterGatewayNodeSuccess(who,block_number, gateway_node.peer_id));
             Ok(())
         }
-
+        
         /// gateway node heartbeat
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn heartbeat(
@@ -286,21 +287,9 @@ pub mod pallet {
     }
 }
 
-impl<T: Config> Pallet<T> {
-    
-    fn compute_gateways_points() {
-        let gateway_node_onlinetime = GatewayNodeOnlineTime::<T>::iter();
-        for (gateway_node, onlintime) in gateway_node_onlinetime {
-            T::MarketInterface::compute_gateways_points(
-                gateway_node.clone().account_id, 
-                onlintime,
-            );
-        }
-    }
-}
-
 impl <T: Config> GatewayInterface for Pallet<T> {
 
+    // 计算gateway在线时间，并且记录在OnlineTimeEraGateway上面
     fn calculate_online_time(index : EraIndex) {
         let gateway_nodes_online_times = GatewayNodeOnlineTime::<T>::iter();
         // Push GatewayNodeOnlineTime data to the OnlineTimeEraGateway
@@ -309,5 +298,16 @@ impl <T: Config> GatewayInterface for Pallet<T> {
             // Remove the data of GatewayNodeOnlineTime
             GatewayNodeOnlineTime::<T>::remove(gateway_node.clone());
         }  
+    }
+
+    // 计算gateway 当前时代每个结点的得分
+    fn compute_gateways_points() {
+        let gateway_node_onlinetime = GatewayNodeOnlineTime::<T>::iter();
+        for (gateway_node, onlintime) in gateway_node_onlinetime {
+            T::MarketInterface::compute_gateways_points(
+                gateway_node.clone().account_id, 
+                onlintime,
+            );
+        }
     }
 }

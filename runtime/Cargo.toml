@@ -254,11 +254,18 @@ default-features = false
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
+
+# [dependencies.pallet-staking]
+# default-features = false
+# git = 'https://gitee.com/mohaijiang/substrate.git'
+# tag = 'monthly-2021-07'
+# version = '3.0.0'
+
 [dependencies.pallet-staking]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
-tag = 'monthly-2021-07'
+path = '../pallets/staking'
 version = '3.0.0'
+
 [dependencies.frame-election-provider-support]
 default-features = false
 git = 'https://gitee.com/mohaijiang/substrate.git'

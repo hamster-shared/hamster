@@ -280,6 +280,10 @@ pub mod slashing;
 pub mod inflation;
 pub mod weights;
 
+
+use pallet_gateway::GatewayInterface;
+use pallet_market::MarketInterface;
+
 use sp_std::{
 	result,
 	prelude::*,
@@ -839,6 +843,10 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
 		/// The staking balance.
+		type GatewayInterface : GatewayInterface;
+
+		type MarketInterface: MarketInterface<Self::AccountId>;
+		
 		type Currency: LockableCurrency<Self::AccountId, Moment = Self::BlockNumber>;
 
 		/// Time used for computing era duration.
@@ -922,6 +930,11 @@ pub mod pallet {
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
+
+		/// digital transfer amount
+        type NumberToBalance: Convert<u128, BalanceOf<Self>>;
+        /// amount converted to numbers
+        type BalanceToNumber: Convert<BalanceOf<Self>, u128>;
 	}
 
 	#[pallet::extra_constants]
@@ -2682,11 +2695,36 @@ impl<T: Config> Pallet<T> {
 			let issuance = T::Currency::total_issuance();
 			let (validator_payout, rest) = T::EraPayout::era_payout(staked, issuance, era_duration);
 
+			let max_payout = rest.saturating_add(validator_payout.clone());
+			// let rest = max_payout.saturating_sub(validator_payout.clone());
+			// 将资金推送到storage_pot上面
+			
+			// 将收入转换成number
+			let market_reward = T::BalanceToNumber::convert(max_payout);
+			let market_reward = market_reward / 5;
+			let market_reward = T::NumberToBalance::convert(market_reward);
+
+			T::Currency::deposit_into_existing(&T::MarketInterface::storage_pot(), market_reward).ok();
+			// 计算网关分数
+			T::GatewayInterface::calculate_online_time(active_era.index);
+			T::GatewayInterface::compute_gateways_points();
+			// 计算gateway奖励
+			T::MarketInterface::compute_gateways_rewards(
+				active_era.index,
+				T::BalanceToNumber::convert(market_reward),
+			);
+			
+			// 将20%的总奖励送到 storage_pot 上
+			// 函数：T::Currency::deposit_into_existing(storage_pot, 20 * rest).ok();
+			// 统计gateway奖励，并且在market中记录
+			// 调用 GatewayInterfade：：函数
+			
 			Self::deposit_event(Event::<T>::EraPayout(active_era.index, validator_payout, rest));
 
 			// Set ending era reward.
-			<ErasValidatorReward<T>>::insert(&active_era.index, validator_payout);
-			T::RewardRemainder::on_unbalanced(T::Currency::issue(rest));
+			//<ErasValidatorReward<T>>::insert(&active_era.index, validator_payout);
+			<ErasValidatorReward<T>>::insert(&active_era.index, market_reward);
+			T::RewardRemainder::on_unbalanced(T::Currency::issue(market_reward));
 		}
 	}
 

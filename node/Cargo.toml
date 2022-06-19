@@ -263,9 +263,14 @@ git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
 version = '0.9.0'
 
+# [dependencies.pallet-staking]
+# git = 'https://gitee.com/mohaijiang/substrate.git'
+# tag = 'monthly-2021-07'
+# version = '3.0.0'
+
 [dependencies.pallet-staking]
-git = 'https://gitee.com/mohaijiang/substrate.git'
-tag = 'monthly-2021-07'
+default-features = false
+path = '../pallets/staking'
 version = '3.0.0'
 
 [[bin]]

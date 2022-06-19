@@ -539,7 +539,7 @@ pub mod pallet {
             bond_price: BalanceOf<T>,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
-
+            
             // transfer
             T::Currency::transfer(&who.clone(), &Self::staking_pool(), bond_price, ExistenceRequirement::AllowDeath)?;
 

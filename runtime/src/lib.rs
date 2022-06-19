@@ -56,7 +56,6 @@ use frame_system::{
 };
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 
-
 /// Import the template pallet.
 pub use pallet_template;
 
@@ -505,6 +504,10 @@ impl pallet_staking::Config for Runtime {
 	type GenesisElectionProvider = 	onchain::OnChainSequentialPhragmen<
 		pallet_election_provider_multi_phase::OnChainConfig<Self>,
 	>;
+	type GatewayInterface = Gateway;
+	type MarketInterface = Market;
+	type NumberToBalance = ConvertInto;
+	type BalanceToNumber = ConvertInto;
 }
 
 parameter_types! {

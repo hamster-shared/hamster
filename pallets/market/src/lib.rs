@@ -24,6 +24,7 @@ use primitives::EraIndex;
 
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
+
 const PALLET_ID: PalletId = PalletId(*b"ttchain!");
 
 #[frame_support::pallet]
@@ -98,10 +99,24 @@ pub mod pallet {
         OptionQuery,
     >;
 
+    /// Curren total amount in the staking_pot
+    #[pallet::storage]
+    #[pallet::getter(fn current_total_staking)]
+    pub(super) type CurrentTotalStaking<T: Config> = StorageValue<_, u128, ValueQuery>;
+
     /// storage gateway total points
     #[pallet::storage]
     #[pallet::getter(fn gateway_total_points)]
     pub(super) type GatewayTotalPoints<T: Config> = StorageValue<_, u128, ValueQuery>;
+
+     /// storage gateway total points
+     #[pallet::storage]
+     #[pallet::getter(fn pot)]
+     pub(super) type Pot<T: Config> = StorageValue<_, T::AccountId, ValueQuery>;
+
+     #[pallet::storage]
+     #[pallet::getter(fn test_staking_pot)]
+     pub(super) type TestStakingPot<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
     /// 存储用户对应的金额
     /// Storage overdue proceeds
@@ -118,6 +133,9 @@ pub mod pallet {
         // Create of staking account successful
         CreateStakingAccountSuccessful(T::AccountId),
 
+        // Staking account has exit 
+        StakingAccountArealdyExit(T::AccountId),
+
         // Successful charge to staking account
         ChargeStakingAccountSuccessful(T::AccountId),
 
@@ -132,9 +150,7 @@ pub mod pallet {
     }
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-
-    }
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
     // Errors inform users that something went wrong.
     #[pallet::error]
@@ -143,14 +159,13 @@ pub mod pallet {
         StakingAccontIdAlreadyExit,
 
         // the staking accoutid is not exit int the market
-        StakingAccontIdNotExit,
+        StakingAccountIdNotExit,
 
         // the staking accoutid has not enough amount to Withdraw
         NotEnoughActiveAmount,
 
         // Users are not rewarded enough
         NotEnoughReward,
-
     }
 
     // Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -174,26 +189,47 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn crate_staking_amount(
             origin: OriginFor<T>,
-            bond_price: BalanceOf<T>,
         ) ->DispatchResult {
             
+            // let who = ensure_signed(origin)?;
+ 
+            // // 看 who 是否已经在 StakingAccontId 中
+            // // ensure!(
+            // //     StakingAccontId::<T>::contains_key(who.clone()), 
+            // //     Error::<T>::StakingAccontIdAlreadyExit,
+            // // );
+            // if StakingAccontId::<T>::contains_key(who.clone()) {
+            //     return Ok(())
+            // }
+            
+            // // 不存在则创建
+            // StakingAccontId::<T>::insert( who.clone(), p_market::StakingAmount{
+            //     amount: T::BalanceToNumber::convert(bond_price),
+            //     active_amount: T::BalanceToNumber::convert(bond_price),
+            //     lock_amount: 0,
+            //     }
+            // );
+
+            // Self::deposit_event(Event::CreateStakingAccountSuccessful(who.clone()));
+            // Ok(())
+
+            // mut be singed 
             let who = ensure_signed(origin)?;
 
-            // 看 who 是否已经在 StakingAccontId 中
-            ensure!(
-                StakingAccontId::<T>::contains_key(who.clone()), 
-                Error::<T>::StakingAccontIdAlreadyExit,
-            );
+            // Is already registered
+            if StakingAccontId::<T>::contains_key(who.clone()) {
+                return Err(Error::<T>::StakingAccontIdAlreadyExit.into());
+            }
 
-            // 不存在则创建
-            StakingAccontId::<T>::insert( who.clone(), p_market::StakingAmount{
-                amount: T::BalanceToNumber::convert(bond_price),
-                active_amount: T::BalanceToNumber::convert(bond_price),
+            // Binding stakingamount to Account
+            StakingAccontId::<T>::insert(who.clone(), p_market::StakingAmount {
+                amount: 0,
+                active_amount: 0,
                 lock_amount: 0,
-                }
-            );
+            });
 
             Self::deposit_event(Event::CreateStakingAccountSuccessful(who.clone()));
+
             Ok(())
         }
 
@@ -207,19 +243,26 @@ pub mod pallet {
             let who = ensure_signed(origin)?;
 
             // Determine if a user exist staking account
-            ensure!(
-                !StakingAccontId::<T>::contains_key(who.clone()), 
-                Error::<T>::StakingAccontIdNotExit,
-            );
-            
+            if !StakingAccontId::<T>::contains_key(who.clone()) {
+                return Err(Error::<T>::StakingAccountIdNotExit.into());
+            }
+
             // transfer accountid token to staking pot
             T::Currency::transfer(
                 &who.clone(), 
                 &Self::staking_pot(), 
                 bond_price, 
-                ExistenceRequirement::AllowDeath,
+                ExistenceRequirement::KeepAlive,
             )?;
             
+            // let mut total_staking = TotalBond::<T>::get();
+            // total_staking += bond_price;
+            // TotalBond::<T>::set(total_staking);
+
+            let mut staking = CurrentTotalStaking::<T>::get();
+            staking += T::BalanceToNumber::convert(bond_price);
+            CurrentTotalStaking::<T>::set(staking);
+
             // get pledge details
             let mut staking_info = StakingAccontId::<T>::get(who.clone()).unwrap();
             // calculate the new total pledge amount
@@ -248,7 +291,7 @@ pub mod pallet {
             // 判断accoutid 是否存在staking 帐号
             ensure!(
                 StakingAccontId::<T>::contains_key(who.clone()),
-                Error::<T>::StakingAccontIdNotExit,
+                Error::<T>::StakingAccountIdNotExit,
             );
 
             let mut staking_info = StakingAccontId::<T>::get(who.clone()).unwrap();
@@ -266,6 +309,11 @@ pub mod pallet {
             )?;
 
             StakingAccontId::<T>::insert(who.clone(), staking_info);
+
+            // update the current total staking amount
+            let mut totalstaking = CurrentTotalStaking::<T>::get();
+            totalstaking -= T::BalanceToNumber::convert(price);
+            CurrentTotalStaking::<T>::set(totalstaking);
 
             Self::deposit_event(Event::WithdrawStakingSuccess(who.clone(), price));
             Ok(())
@@ -303,60 +351,21 @@ pub mod pallet {
             Self::deposit_event(Event::RewardIssuedSucces(total_revenue));
             Ok(())
         }
-
     }
 }
 
 impl<T: Config> Pallet<T> {
     /// StakingPod: use to storage the market people's stake amount 
     pub fn staking_pot() -> T::AccountId { PALLET_ID.into_sub_account(b"stak") }
-
-    pub fn storage_pot() -> T::AccountId { PALLET_ID.into_sub_account(b"stor") }
-
-    // Todo 
-    // 计算奖励金额，将奖励金额更新到用户上面
-    // 通过这个时期在线的gateway的在线时长去计算
-    // input：
-    //  - index： EraIndex
-    pub fn compute_gateways_rewards(index: EraIndex, total_reward: u128) {
-        // 计算每个gateway获得的分数占比
-        let gateway_points = GatewayPoints::<T>::iter();
-
-        for (who, point) in gateway_points {
-            // 计算该分数的占比
-            let ratio = point / GatewayTotalPoints::<T>::get();
-            // 该账号获得的奖励
-            let reward = total_reward * ratio;
-
-            // 将奖励计算到 账户上
-            // 判断 奖励账号是否存在该账号
-            if GatewayRevenue::<T>::contains_key(who.clone()) {
-                // 存在该账户，修改income信息
-                let mut income = GatewayRevenue::<T>::get(who.clone()).unwrap();
-                income.total_income += reward;
-                GatewayRevenue::<T>::insert(who.clone(), income);
-                // 进入下一轮循环
-                continue;
-            }
-
-            // create the income struct 
-            let income = Income {
-                last_eraindex: index,
-                total_income: reward,
-            };
-
-            GatewayRevenue::<T>::insert(who.clone(), income);
-        }
-        
-        Self::deposit_event(Event::ComputeGatewaysRewardSuccess);
-    }
+    /// market_reward_pot: use to storage the market's reward from end_era
+    pub fn market_reward_pot() -> T::AccountId { PALLET_ID.into_sub_account(b"reward") }
 
     // 将逾期未取的钱推送到国库里面
     // The function will transfer the overdue amount to the treasury
     // The The period is 60 Era
     // input:
     //  -index: EraIndex
-    pub fn clearance_overdue_property(index: EraIndex) {
+    fn clearance_overdue_property(index: EraIndex) {
         let gateway_revenues = GatewayRevenue::<T>::iter();
         for (who, gateway_income) in gateway_revenues {
             if gateway_income.last_eraindex - index > 60 {
@@ -371,10 +380,15 @@ impl<T: Config> Pallet<T> {
             }
         }
     }
+    
 }
 
 impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pallet<T> {
     
+    fn storage_pot() -> <T as frame_system::Config>::AccountId {
+        Self::storage_pot()
+    }
+
     // Check the accountid have staking accoutid
     fn staking_accountid_exit(who: <T as frame_system::Config>::AccountId) -> bool {
         StakingAccontId::<T>::contains_key(who.clone())
@@ -408,4 +422,49 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         // 不存在 直接插入
         GatewayPoints::<T>::insert(account.clone(), points);
     }
+
+
+    // Todo 
+    // 检查有无逾期未取的钱
+    // 计算奖励金额，将奖励金额更新到用户上面
+    // 通过这个时期在线的gateway的在线时长去计算
+    // input：
+    //  - index： EraIndex
+    fn compute_gateways_rewards(index: EraIndex, total_reward: u128) {
+        
+        // 先检查一遍是否有过期未取的钱
+        Self::clearance_overdue_property(index);
+        // 计算每个gateway获得的分数占比
+        let gateway_points = GatewayPoints::<T>::iter();
+
+        for (who, point) in gateway_points {
+            // 计算该分数的占比
+            let ratio = point / GatewayTotalPoints::<T>::get();
+            // 该账号获得的奖励
+            let reward = total_reward * ratio;
+
+            // 将奖励计算到 账户上
+            // 判断 奖励账号是否存在该账号
+            if GatewayRevenue::<T>::contains_key(who.clone()) {
+                // 存在该账户，修改income信息
+                let mut income = GatewayRevenue::<T>::get(who.clone()).unwrap();
+                income.total_income += reward;
+                GatewayRevenue::<T>::insert(who.clone(), income);
+                // 进入下一轮循环
+                continue;
+            }
+
+            // create the income struct 
+            let income = Income {
+                last_eraindex: index,
+                total_income: reward,
+            };
+
+            GatewayRevenue::<T>::insert(who.clone(), income);
+        }
+        
+        Self::deposit_event(Event::ComputeGatewaysRewardSuccess);
+    }
+
+    
 }

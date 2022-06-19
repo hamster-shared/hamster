@@ -38,4 +38,5 @@ impl<BlockNumber, AccountId> GatewayNode<BlockNumber, AccountId>
 
 pub trait GatewayInterface {
     fn calculate_online_time(index : EraIndex); 
+    fn compute_gateways_points();
 }
