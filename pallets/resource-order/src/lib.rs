@@ -122,6 +122,10 @@ pub mod pallet {
     pub(super) type ApplyInfo<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u64, ValueQuery>;
 
     #[pallet::storage]
+    #[pallet::getter(fn apply_order)]
+    pub(super) type ApplyOrder<T: Config> = StorageMap<_, Twox64Concat,u64, T::AccountId, ValueQuery>;
+
+    #[pallet::storage]
     #[pallet::getter(fn apply_process)]
     pub(super) type ApplyProcess<T: Config> = StorageMap<_, Twox64Concat, u64, Vec<u8>, ValueQuery>;
 
@@ -245,8 +249,8 @@ pub mod pallet {
 
 
         /// free resource applied
-        /// [accountId, order_index, cpu, memory, duration, deploy_type]
-        FreeResourceApplied(T::AccountId, u64, u64, u64, u32, u32),
+        /// [accountId, order_index, cpu, memory, duration, deploy_type,public_key]
+        FreeResourceApplied(T::AccountId, u64, u64, u64, u32, u32,Vec<u8>),
 
         /// free resource processed
         /// [order_index, peer_id]
@@ -802,15 +806,16 @@ pub mod pallet {
                                    cpu: u64,
                                    memory: u64,
                                    duration: u32,
+                                   public_key: Vec<u8>,
                                    deploy_type: u32) -> DispatchResult {
             let who = ensure_signed(origin)?;
             ensure!(!ApplyInfo::<T>::contains_key(who.clone()),Error::<T>::FreeResourceApplied);
-            let vec: Vec<u8> = Vec::new();
 
             let order_index = OrderIndex::<T>::get();
             ApplyInfo::<T>::insert(who.clone(),order_index);
+            ApplyOrder::<T>::insert(order_index,who.clone());
             OrderIndex::<T>::put(order_index + 1);
-            Self::deposit_event(Event::FreeResourceApplied(who,order_index,cpu,memory,duration,deploy_type));
+            Self::deposit_event(Event::FreeResourceApplied(who,order_index,cpu,memory,duration,deploy_type,public_key));
 
             Ok(())
         }
@@ -828,6 +833,7 @@ pub mod pallet {
             ApplyProcess::<T>::insert(order_index,peer_id.clone());
             ApplyProcessUser::<T>::insert(order_index, who);
 
+
             Self::deposit_event(Event::FreeResourceProcessed(order_index,peer_id));
 
             Ok(())
@@ -842,13 +848,22 @@ pub mod pallet {
 
             if order_index == apply_index {
                 ApplyProcess::<T>::remove(order_index);
+                ApplyProcessUser::<T>::remove(order_index);
+                let applyer = ApplyOrder::<T>::get(order_index);
+                ApplyOrder::<T>::remove(order_index);
+                ApplyInfo::<T>::remove(applyer);
+            }else {
+                let processer = ApplyProcessUser::<T>::get(order_index);
+
+                if processer.clone() == who.clone() {
+                    ApplyProcess::<T>::remove(order_index);
+                    ApplyProcessUser::<T>::remove(order_index);
+                    let applyer = ApplyOrder::<T>::get(order_index);
+                    ApplyOrder::<T>::remove(order_index);
+                    ApplyInfo::<T>::remove(applyer);
+                }
             }
 
-            let processer = ApplyProcessUser::<T>::get(order_index);
-
-            if processer.clone() == who.clone() {
-                ApplyProcess::<T>::remove(order_index);
-            }
             Ok(())
         }
 
