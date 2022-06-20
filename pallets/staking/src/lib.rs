@@ -323,6 +323,7 @@ use frame_election_provider_support::{ElectionProvider, VoteWeight, Supports, da
 pub use weights::WeightInfo;
 pub use pallet::*;
 
+
 const STAKING_ID: LockIdentifier = *b"staking ";
 pub(crate) const LOG_TARGET: &'static str = "runtime::staking";
 
@@ -1318,6 +1319,10 @@ pub mod pallet {
 		/// the remainder from the maximum amount of reward.
 		/// \[era_index, validator_payout, remainder\]
 		EraPayout(EraIndex, BalanceOf<T>, BalanceOf<T>),
+
+		/// [market_payout, validator_payout, remainder]
+		EraTotalPayout(BalanceOf<T>, BalanceOf<T>, BalanceOf<T>),
+
 		/// The staker has been rewarded by this amount. \[stash, amount\]
 		Reward(T::AccountId, BalanceOf<T>),
 		/// One validator (and its nominators) has been slashed by the given amount.
@@ -2695,41 +2700,66 @@ impl<T: Config> Pallet<T> {
 			let issuance = T::Currency::total_issuance();
 			let (validator_payout, rest) = T::EraPayout::era_payout(staked, issuance, era_duration);
 
-			// 这个时代获取的总收益
+			// 1.Get the total reward of this era
 			let max_payout = rest.saturating_add(validator_payout.clone());
-			// let rest = max_payout.saturating_sub(validator_payout.clone());
-			// 将资金推送到storage_pot上面
-			
-			// 将收入转换成number 20% * max_payout
+
+			// 2.Compute the ratio of the mac_payout
+			// Market_reward = 20% * max_payout
 			let market_reward = T::BalanceToNumber::convert(max_payout);
 			let market_reward = market_reward / 5;
-			let market_reward = T::NumberToBalance::convert(market_reward);
+			let market_reward= T::NumberToBalance::convert(market_reward);
 
 			// 60 * max_payout for validator
-			let validator_payout = market_reward.clone();
+			let validator_payout = market_reward + market_reward + market_reward;
 
-			// add the reward into market
-			T::Currency::deposit_into_existing(&T::MarketInterface::storage_pot(), market_reward).ok();
-			// 计算网关分数
-			T::GatewayInterface::calculate_online_time(active_era.index);
-			T::GatewayInterface::compute_gateways_points();
-			// 计算gateway奖励
-			T::MarketInterface::compute_gateways_rewards(
+			// 20% * max_payout for treasury
+			let treasury_payout = market_reward.clone();
+
+			// 3.Compute the gateway points and reward
+			// T::GatewayInterface::calculate_online_time(active_era.index);
+			// T::GatewayInterface::compute_gateways_points();
+			// T::MarketInterface::compute_gateways_rewards(
+			// 	active_era.index,
+			// 	T::BalanceToNumber::convert(market_reward),
+			// );
+
+			// 3. Compute gateway reward
+			T::MarketInterface::compute_gateways_rewards(active_era.index, T::BalanceToNumber::convert(market_reward));
+			T::GatewayInterface::clear_points_info(active_era.index);
+
+			// // 计算网关分数
+			// T::GatewayInterface::calculate_online_time(active_era.index);
+			// T::GatewayInterface::compute_gateways_points();
+			// // 计算gateway奖励
+			// T::MarketInterface::compute_gateways_rewards(
+			// 	active_era.index,
+			// 	T::BalanceToNumber::convert(market_reward),
+			// );
+			//
+			// // 将20%的总奖励送到 storage_pot 上
+			// // 函数：T::Currency::deposit_into_existing(storage_pot, 20 * rest).ok();
+			// // 统计gateway奖励，并且在market中记录
+			// // 调用 GatewayInterfade：：函数
+
+			// transfer market_reward to market_reward_pot
+
+			Self::deposit_event(Event::<T>::EraPayout(
 				active_era.index,
-				T::BalanceToNumber::convert(market_reward),
+				validator_payout,
+				max_payout),
 			);
-			
-			// 将20%的总奖励送到 storage_pot 上
-			// 函数：T::Currency::deposit_into_existing(storage_pot, 20 * rest).ok();
-			// 统计gateway奖励，并且在market中记录
-			// 调用 GatewayInterfade：：函数
-			
-			Self::deposit_event(Event::<T>::EraPayout(active_era.index, validator_payout, rest));
 
-			// Set ending era reward.
+			Self::deposit_event(Event::<T>::EraTotalPayout(
+				market_reward,
+				validator_payout,
+				treasury_payout,
+			));
+
+			// 4.Set ending era reward.
 			//<ErasValidatorReward<T>>::insert(&active_era.index, validator_payout);
+			T::Currency::deposit_into_existing(&T::MarketInterface::storage_pot(), market_reward).ok();
 			<ErasValidatorReward<T>>::insert(&active_era.index, validator_payout);
-			T::RewardRemainder::on_unbalanced(T::Currency::issue(market_reward));
+			T::RewardRemainder::on_unbalanced(T::Currency::issue(treasury_payout));
 		}
 	}
 

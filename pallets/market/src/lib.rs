@@ -5,7 +5,7 @@ use frame_support::{dispatch::DispatchResult,
 use frame_support::sp_runtime::traits::Convert;
 use frame_support::traits::UnixTime;
 use frame_system::pallet_prelude::*;
-use primitives::p_market;
+use primitives::{Balance, p_market};
 use sp_core::Bytes;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::Zero;
@@ -21,6 +21,7 @@ pub use primitives::p_provider::*;
 pub use primitives::p_resource_order::*;
 pub use primitives::p_market::*;
 use primitives::EraIndex;
+use primitives::p_gateway::GatewayInterface;
 
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 const PALLET_ID: PalletId = PalletId(*b"ttchain!");
@@ -28,6 +29,7 @@ const PALLET_ID: PalletId = PalletId(*b"ttchain!");
 #[frame_support::pallet]
 pub mod pallet {
     use frame_system::Origin;
+    use primitives::p_gateway::GatewayInterface;
     use primitives::p_market;
 
     use super::*;
@@ -43,6 +45,9 @@ pub mod pallet {
 
         /// order fee interface
         type OrderInterface: OrderInterface<AccountId=Self::AccountId, BlockNumber=Self::BlockNumber>;
+
+        /// Gateway interface
+        type GatewayInterface: GatewayInterface;
 
         /// block height to number
         type BlockNumberToNumber: Convert<Self::BlockNumber, u128> + Convert<u32, Self::BlockNumber>;
@@ -86,6 +91,17 @@ pub mod pallet {
         OptionQuery,
     >;
 
+    /// Storage gateway reward
+    #[pallet::storage]
+    #[pallet::getter(fn gateway_reward)]
+    pub(super) type GatewayReward<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        Income,
+        OptionQuery,
+    >;
+
     /// Storage gateway points
     #[pallet::storage]
     #[pallet::getter(fn gateway_points)]
@@ -93,6 +109,17 @@ pub mod pallet {
         _,
         Twox64Concat,
         T::AccountId,
+        u128,
+        OptionQuery,
+    >;
+
+    /// Era's total reward
+    #[pallet::storage]
+    #[pallet::getter(fn era_rewards)]
+    pub(super) type EraRewards<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        EraIndex,
         u128,
         OptionQuery,
     >;
@@ -141,6 +168,8 @@ pub mod pallet {
 
         // compute_gateways_rewards
         ComputeGatewaysRewardSuccess,
+
+        ChargeStoragePotSuccess,
     }
 
     #[pallet::hooks]
@@ -291,44 +320,66 @@ pub mod pallet {
             Self::deposit_event(Event::WithdrawStakingSuccess(who.clone(), price));
             Ok(())
         }
-        
+
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn charge_storage_pot(
+            origin: OriginFor<T>,
+            price: BalanceOf<T>,
+        ) ->DispatchResult {
+
+            let who = ensure_signed(origin)?;
+
+            T::Currency::transfer(
+                &who.clone(),
+                &Self::market_reward_pot(),
+                price,
+                ExistenceRequirement::KeepAlive,
+            )?;
+
+            Self::deposit_event(Event::<T>::ChargeStoragePotSuccess);
+            Ok(())
+        }
+
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn test_deposit_into_exiting(
+            origin: OriginFor<T>,
+            price: BalanceOf<T>,
+        ) ->DispatchResult {
+
+            T::Currency::deposit_into_existing(
+                &Self::market_reward_pot(),
+                price,
+            )?;
+
+            Ok(())
+        }
         /// payout
         /// Every user can run this function
         /// Get all the history reward to gateway whose has reward
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn payout(
+        pub fn payout_gateway_nodes(
             origin: OriginFor<T>,
         ) ->DispatchResult {
             // Just check the signed
             ensure_signed(origin)?;
-
-            // 轮询GatewayRevenue
-            let gateway_nodes = GatewayRevenue::<T>::iter();
-
-            let mut total_revenue = 0;
-
-            for (accoutid, income) in gateway_nodes {
-                // 从 storage 中 转income钱到 accountid 中
+            let mut total_reward = 0;
+            let gateway_reward = GatewayReward::<T>::iter();
+            for (who, income) in gateway_reward {
+                let reward = income.total_income;
+                total_reward += reward;
+                // transfer the reward from reward_pot to who
                 T::Currency::transfer(
                     &Self::market_reward_pot(),
-                    &accoutid, 
-                    income.total_income.try_into().ok().unwrap(), 
+                    &who.clone(),
+                    T::NumberToBalance::convert(reward),
                     ExistenceRequirement::KeepAlive,
                 )?;
-                // Update all the amount has payout this time
-                total_revenue += income.total_income;
-
-                // remove the revenue info
-                GatewayRevenue::<T>::remove(accoutid.clone());
+                // Remove the reward info
+                GatewayReward::<T>::remove(who.clone());
             }
 
-            // Update the current total reward amount
-            let mut current_total_reward = CurrentTotalReward::<T>::get();
-            current_total_reward -= total_revenue;
-            CurrentTotalReward::<T>::set(current_total_reward);
-
-            // Send the amount which total payout this time 
-            Self::deposit_event(Event::RewardIssuedSucces(total_revenue));
+            // // Send the amount which total payout this time
+            Self::deposit_event(Event::RewardIssuedSucces(total_reward));
             Ok(())
         }
     }
@@ -338,7 +389,7 @@ impl<T: Config> Pallet<T> {
     /// StakingPod: use to storage the market people's stake amount 
     pub fn staking_pot() -> T::AccountId { PALLET_ID.into_sub_account(b"stak") }
     /// market_reward_pot: use to storage the market's reward from end_era
-    pub fn market_reward_pot() -> T::AccountId { PALLET_ID.into_sub_account(b"reward") }
+    pub fn market_reward_pot() -> T::AccountId { PALLET_ID.into_sub_account(b"stor") }
 
     // 将逾期未取的钱推送到国库里面
     // The function will transfer the overdue amount to the treasury
@@ -363,11 +414,6 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pallet<T> {
-    
-    fn storage_pot() -> <T as frame_system::Config>::AccountId {
-        Self::storage_pot()
-    }
-
     // Check the accountid have staking accoutid
     fn staking_accountid_exit(who: <T as frame_system::Config>::AccountId) -> bool {
         StakingAccontId::<T>::contains_key(who.clone())
@@ -378,7 +424,7 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         StakingAccontId::<T>::get(who.clone()).unwrap().clone()
     }
 
-    // updata staking info 
+    // updata staking info
     fn updata_staking_info(who: <T as frame_system::Config>::AccountId, staking_info: p_market::StakingAmount) {
         StakingAccontId::<T>::insert(who.clone(), staking_info);
     }
@@ -400,55 +446,53 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         }
         // 不存在 直接插入
         GatewayPoints::<T>::insert(account.clone(), points);
+
+        let mut gateway_total_points = GatewayTotalPoints::<T>::get();
+        gateway_total_points += points;
+        GatewayTotalPoints::<T>::set(gateway_total_points);
     }
 
-
-    // Todo 
+    // Todo
     // 检查有无逾期未取的钱
     // 计算奖励金额，将奖励金额更新到用户上面
     // 通过这个时期在线的gateway的在线时长去计算
     // input：
     //  - index： EraIndex
     fn compute_gateways_rewards(index: EraIndex, total_reward: u128) {
-        
-        // 先检查一遍是否有过期未取的钱
-        Self::clearance_overdue_property(index);
-        // 计算每个gateway获得的分数占比
-        let gateway_points = GatewayPoints::<T>::iter();
 
-        for (who, point) in gateway_points {
-            // 计算该分数的占比
-            let ratio = point / GatewayTotalPoints::<T>::get();
-            // 该账号获得的奖励
-            let reward = total_reward * ratio;
-
-            // 将奖励计算到 账户上
-            // 判断 奖励账号是否存在该账号
-            if GatewayRevenue::<T>::contains_key(who.clone()) {
-                // 存在该账户，修改income信息
-                let mut income = GatewayRevenue::<T>::get(who.clone()).unwrap();
-                income.total_income += reward;
-                GatewayRevenue::<T>::insert(who.clone(), income);
-                // 进入下一轮循环
-                continue;
-            }
-
-            // create the income struct 
-            let income = Income {
-                last_eraindex: index,
-                total_income: reward,
-            };
-
-            GatewayRevenue::<T>::insert(who.clone(), income);
-        }
+        T::GatewayInterface::compute_gateways_reward(total_reward, index);
 
         // Update the current total reward
         let mut _total_reward = CurrentTotalReward::<T>::get();
         _total_reward += total_reward;
         CurrentTotalReward::<T>::set(_total_reward);
-
+        // Save the history era reward
+        EraRewards::<T>::insert(index, total_reward);
+        // Clear the current reward
+        CurrentTotalReward::<T>::set(0);
+        // Clear the gateway points
+        // todo
+        T::GatewayInterface::clear_points_info(index);
+        
         Self::deposit_event(Event::ComputeGatewaysRewardSuccess);
     }
 
-    
+    fn save_gateway_reward(who: <T as frame_system::Config>::AccountId, reward: u128, index: EraIndex) {
+
+        if GatewayReward::<T>::contains_key(who.clone()) {
+            // Get the reward info
+            let mut reward_info = GatewayReward::<T>::get(who.clone()).unwrap();
+            reward_info.total_income += reward;
+            GatewayReward::<T>::insert(who.clone(), reward_info);
+        } else {
+            GatewayReward::<T>::insert(who.clone(), Income {
+                last_eraindex: index,
+                total_income: reward,
+            });
+        }
+    }
+
+    fn storage_pot() -> <T as frame_system::Config>::AccountId {
+        Self::market_reward_pot()
+    }
 }

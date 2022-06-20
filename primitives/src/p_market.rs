@@ -8,7 +8,7 @@ use sp_runtime::traits::AtLeast32BitUnsigned;
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
 
-use crate::EraIndex;
+use crate::{Balance, EraIndex};
 
 /// StakingAmount： Pledge account number for market
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
@@ -82,6 +82,20 @@ pub struct Income {
     pub total_income: u128,
 }
 
+impl Income {
+    // With draw the all income 
+    pub fn withdraw_reward(&mut self, index: EraIndex) {
+        // Update the last_earindex 
+        self.last_eraindex = index;
+        self.total_income = 0;
+    }
+    
+    // Get the reward from market
+    pub fn reward(&mut self, price: u128) {
+        self.total_income += price;
+    }
+}
+
 pub trait MarketInterface<AccountId> {
     // Check the accountid have staking accoutid
     fn staking_accountid_exit(who: AccountId) -> bool;
@@ -98,6 +112,9 @@ pub trait MarketInterface<AccountId> {
 
     // 计算gateway的奖励
     fn compute_gateways_rewards(index: EraIndex, total_reward: u128);
+
+    // Save the gateway rewards information
+    fn save_gateway_reward(who: AccountId, reward: u128, index: EraIndex);
 
     fn storage_pot() -> AccountId;
 }

@@ -79,6 +79,12 @@ pub mod pallet {
     #[pallet::getter(fn currenct_era)]
     pub(super) type CurrentEra<T: Config> = StorageValue<_, u64, ValueQuery>;
 
+    /// Current era total online time
+    #[pallet::storage]
+    #[pallet::getter(fn current_era_online_time)]
+    pub(super) type CurrentEraOnlineTime<T: Config> = StorageValue<_, u128, ValueQuery>;
+
+
     /// gateway node online time 
     #[pallet::storage]
     #[pallet::getter(fn gateway_node_online_time)]
@@ -89,6 +95,33 @@ pub mod pallet {
         u128,
         OptionQuery,
     >;
+
+    /// Gateway node points
+    #[pallet::storage]
+    #[pallet::getter(fn gateway_node_points)]
+    pub(super) type GatewayNodePoints<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        u128,
+        OptionQuery,
+    >;
+
+    /// Era total points
+    #[pallet::storage]
+    #[pallet::getter(fn era_total_points)]
+    pub(super) type EraTotalPoints<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        EraIndex,
+        u128,
+        OptionQuery,
+    >;
+
+    /// Gateway current total points
+    #[pallet::storage]
+    #[pallet::getter(fn currenct_total_points)]
+    pub(super) type CurrentTotalPoints<T: Config> = StorageValue<_, u128, ValueQuery>;
 
     /// Online time per era, per gateway node
     #[pallet::storage]
@@ -141,6 +174,8 @@ pub mod pallet {
         RegisterGatewayNodeSuccess(T::AccountId, T::BlockNumber, Vec<u8>),
         /// health check successfully [accountId, registration_time]
         HealthCheckSuccess(T::AccountId, T::BlockNumber),
+
+        ClearPoinstSuccess,
     }
 
     // Errors inform users that something went wrong.
@@ -156,28 +191,37 @@ pub mod pallet {
         GatewayNodeNotStakingAccoutId,
 
         NotEnoughAmount,
+
+        BingStakingInfoFailed,
     }
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_initialize(now: T::BlockNumber) -> Weight {
-            // get a list of gateway nodes
-            // let gateway_nodes = GatewayNodes::<T>::iter();
-            
-            // for(_, ref gateway_node) in gateway_nodes {
-            //     // Determine when the gateway node has been recorded
-            //     if GatewayNodeOnlineTime::<T>::contains_key(gateway_node) {
-            //         let mut onlinetime = GatewayNodeOnlineTime::<T>::get(gateway_node.clone()).unwrap();
-            //         onlinetime = onlinetime + 1;
-            //         GatewayNodeOnlineTime::<T>::insert(gateway_node.clone(), onlinetime);
-            //         continue;
-            //     } 
-            //     // Time statistics for new gateway nodes
-            //     GatewayNodeOnlineTime::<T>::insert(gateway_node.clone(), 1);
-            // }
+            // get a list of online gateway nodes
+            let gateway_nodes = GatewayNodes::<T>::iter();
+            // Accumulated points
+            let mut total_points: u128 = 0;
+            // Update the gateway node pointc
+            for(_, ref gateway_node) in gateway_nodes {
+                total_points += 10;
+                // Determine the gateway node has been recorded
+                if GatewayNodePoints::<T>::contains_key(gateway_node.account_id.clone()) {
+                    // Get the info
+                    let mut gateway_node_points = GatewayNodePoints::<T>::get(gateway_node.account_id.clone()).unwrap();
+                    // Update the info
+                    gateway_node_points += 10;
+                    GatewayNodePoints::<T>::insert(gateway_node.account_id.clone(), gateway_node_points);
+                } else {
+                    GatewayNodePoints::<T>::insert(gateway_node.account_id.clone(), 10);
+                }
+            }
+            // Update the total points
+            let mut _total_points = CurrentTotalPoints::<T>::get();
+            _total_points += total_points;
+            CurrentTotalPoints::<T>::set(_total_points);
 
             // health examination
-            
             if (now % T::GatewayNodeTimedRemovalInterval::get()).is_zero() {
 
                 // get a list of gateway nodes
@@ -236,6 +280,12 @@ pub mod pallet {
             // );
             // // update staking info
             // T::MarketInterface::updata_staking_info(who.clone(), staking_info);
+
+            // Binding the staking info
+            if !Self::binding_staking_info(who.clone()) {
+                return Err(Error::<T>::BingStakingInfoFailed.into());
+            }
+
             // get the current block height
             let block_number = <frame_system::Pallet<T>>::block_number();
 
@@ -287,6 +337,27 @@ pub mod pallet {
     }
 }
 
+impl<T: Config> Pallet<T> {
+    // Binding staking information
+    pub fn binding_staking_info(who: T::AccountId) -> bool {
+        // determine who has already binding
+        if !T::MarketInterface::staking_accountid_exit(who.clone()) {
+            return false;
+        }
+        // has binding
+        // Get the staking info
+        let mut staking_info = T::MarketInterface::staking_info(who.clone());
+        // Gateway Pledge
+        // todo: the amount now is 100
+        if !staking_info.lock_amount(100) {
+            return false;
+        }
+        // Update the staking info
+        T::MarketInterface::updata_staking_info(who.clone(), staking_info);
+        true
+    }
+}
+
 impl <T: Config> GatewayInterface for Pallet<T> {
 
     // 计算gateway在线时间，并且记录在OnlineTimeEraGateway上面
@@ -296,11 +367,12 @@ impl <T: Config> GatewayInterface for Pallet<T> {
         for (gateway_node, online_time) in gateway_nodes_online_times {
             OnlineTimeEraGateway::<T>::insert(index, gateway_node.account_id.clone(), online_time);
             // Remove the data of GatewayNodeOnlineTime
-            GatewayNodeOnlineTime::<T>::remove(gateway_node.clone());
+            // GatewayNodeOnlineTime::<T>::remove(gateway_node.clone());
         }  
     }
 
     // 计算gateway 当前时代每个结点的得分
+    // todo bug's here
     fn compute_gateways_points() {
         let gateway_node_onlinetime = GatewayNodeOnlineTime::<T>::iter();
         for (gateway_node, onlintime) in gateway_node_onlinetime {
@@ -309,5 +381,35 @@ impl <T: Config> GatewayInterface for Pallet<T> {
                 onlintime,
             );
         }
+    }
+
+    // compute gateway reward
+    // input:
+    //  -total_reward: u128
+    fn compute_gateways_reward(total_reward: u128, index: EraIndex) {
+        let total_points = CurrentTotalPoints::<T>::get();
+        // Get the gateway node and its points
+        let gateway_points = GatewayNodePoints::<T>::iter();
+        for (who, point) in gateway_points {
+            // compute the ratio about gateway reward
+            let ratio = point / total_points;
+            let reward = ratio * total_reward;
+            T::MarketInterface::save_gateway_reward(who.clone(), reward, index);
+        }
+    }
+    // Todo
+    // has bug
+    fn clear_points_info(index: EraIndex) {
+        let current_total_points = CurrentTotalPoints::<T>::get();
+        EraTotalPoints::<T>::insert(index, current_total_points);
+        CurrentTotalPoints::<T>::set(0);
+        // todo
+        // use false struct
+        let gateway_node_points = GatewayNodePoints::<T>::iter();
+        for (who, _) in gateway_node_points {
+           GatewayNodePoints::<T>::remove(who.clone());
+        }
+
+        Self::deposit_event(Event::ClearPoinstSuccess);
     }
 }
