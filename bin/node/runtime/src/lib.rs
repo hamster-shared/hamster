@@ -1410,6 +1410,7 @@ impl pallet_state_trie_migration::Config for Runtime {
 impl pallet_auth_right::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
+	type Time = pallet_timestamp::Pallet<Runtime>;
 }
 
 construct_runtime!(

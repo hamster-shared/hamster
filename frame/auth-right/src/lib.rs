@@ -11,6 +11,7 @@ use sp_std::vec::Vec;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use frame_support::traits::Time;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -19,6 +20,9 @@ pub mod pallet {
 
 		/// The currency trait.
 		type Currency: ReservableCurrency<Self::AccountId>;
+
+		/// timestamp
+		type Time: Time;
 	}
 
 	// The struct on which we build all of our Pallet logic.
@@ -45,7 +49,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		Vec<u8>,
-		AuthInfo<T::BlockNumber,T::AccountId>,
+		AuthInfo<T::BlockNumber, <<T as Config>::Time as Time>::Moment,T::AccountId>,
 		OptionQuery,
 	>;
 
@@ -152,8 +156,9 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			hash: Vec<u8>,
 			description: BoundedVec<u8, frame_support::traits::ConstU32<64>>,
-			//description: Vec<u8>,
 			org_code : Vec<u8>,
+			file: Vec<u8>,
+			people: Vec<u8>,
 		) -> DispatchResult {
 
 			let who = ensure_signed(origin)?;
@@ -171,6 +176,7 @@ pub mod pallet {
 
 			// get the current block height
 			let block_number = <frame_system::Pallet<T>>::block_number();
+			let now_timestamp = T::Time::now();
 
 			let new_auth_info = AuthInfo::new(
 				hash.clone(),
@@ -178,6 +184,9 @@ pub mod pallet {
 				block_number,
 				description.clone(),
 				org_code.clone(),
+				file.clone(),
+				people.clone(),
+				now_timestamp
 			);
 
 			//Save the message into AuthRight and AuthDetail
@@ -193,8 +202,6 @@ pub mod pallet {
 				v.push(hash.clone());
 				OrgAuthRight::<T>::insert(org_code.clone(),who.clone(),v);
 			}
-
-
 
 			//Send the success event
 			Self::deposit_event(Event::<T>::AuthRightSuccessed(who.clone(), hash.clone(), org_code.clone()));

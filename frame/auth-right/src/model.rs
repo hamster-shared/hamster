@@ -7,30 +7,38 @@ use sp_runtime::traits::AtLeast32BitUnsigned;
 //     Use BondundedVec to Specify that the interpretation is up to 64 bytes
 // */
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, scale_info::TypeInfo)]
-pub struct AuthInfo<BlockNumber, AccountId>
+pub struct AuthInfo<BlockNumber,Moment, AccountId>
     where BlockNumber: Parameter + AtLeast32BitUnsigned{
     pub hash : Vec<u8>,
     pub accountld : AccountId,
     pub blocknumber : BlockNumber,
     pub description: BoundedVec<u8, frame_support::traits::ConstU32<64>>,
-    // pub description: Vec<u8>,
     pub orgcode : Vec<u8>,
+    pub file: Vec<u8>,
+    pub people: Vec<u8>,
+    pub creation: Moment,
 }
 
-impl<BlockNumber, AccountId> AuthInfo<BlockNumber, AccountId>
+impl<BlockNumber,Moment, AccountId> AuthInfo<BlockNumber,Moment, AccountId>
     where BlockNumber: Parameter + AtLeast32BitUnsigned{
     pub fn new( hash: Vec<u8>,
                 accountld: AccountId,
                 blocknumber: BlockNumber,
                 description: BoundedVec<u8, frame_support::traits::ConstU32<64>>,
-                //description: Vec<u8>,
-                orgcode: Vec<u8>) -> Self {
+                orgcode: Vec<u8>,
+                file: Vec<u8>,
+                people: Vec<u8>,
+                creation: Moment
+    ) -> Self {
         Self{
             hash,
             accountld,
             blocknumber,
             description,
             orgcode,
+            file,
+            people,
+            creation
         }
     }
 }
