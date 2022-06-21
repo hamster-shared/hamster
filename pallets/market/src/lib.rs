@@ -429,29 +429,6 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         StakingAccontId::<T>::insert(who.clone(), staking_info);
     }
 
-    // The function score calculation by online time
-    // score = blocknums * 10
-    // input:
-    //  - account: AccoutId
-    //  - blocknums: u128
-    fn compute_gateways_points(account: <T as frame_system::Config>::AccountId, blocknums: u128) {
-        // 每在线一个区块 算10分
-        let points = blocknums * 10;
-        // 保存得分
-        if GatewayPoints::<T>::contains_key(account.clone()) {
-            let mut _points = GatewayPoints::<T>::get(account.clone()).unwrap();
-            _points = points;
-            GatewayPoints::<T>::insert(account.clone(), points);
-            return;
-        }
-        // 不存在 直接插入
-        GatewayPoints::<T>::insert(account.clone(), points);
-
-        let mut gateway_total_points = GatewayTotalPoints::<T>::get();
-        gateway_total_points += points;
-        GatewayTotalPoints::<T>::set(gateway_total_points);
-    }
-
     // Todo
     // 检查有无逾期未取的钱
     // 计算奖励金额，将奖励金额更新到用户上面

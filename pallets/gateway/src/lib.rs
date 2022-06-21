@@ -361,27 +361,27 @@ impl<T: Config> Pallet<T> {
 impl <T: Config> GatewayInterface for Pallet<T> {
 
     // 计算gateway在线时间，并且记录在OnlineTimeEraGateway上面
-    fn calculate_online_time(index : EraIndex) {
-        let gateway_nodes_online_times = GatewayNodeOnlineTime::<T>::iter();
-        // Push GatewayNodeOnlineTime data to the OnlineTimeEraGateway
-        for (gateway_node, online_time) in gateway_nodes_online_times {
-            OnlineTimeEraGateway::<T>::insert(index, gateway_node.account_id.clone(), online_time);
-            // Remove the data of GatewayNodeOnlineTime
-            // GatewayNodeOnlineTime::<T>::remove(gateway_node.clone());
-        }  
-    }
+    // fn calculate_online_time(index : EraIndex) {
+    //     let gateway_nodes_online_times = GatewayNodeOnlineTime::<T>::iter();
+    //     // Push GatewayNodeOnlineTime data to the OnlineTimeEraGateway
+    //     for (gateway_node, online_time) in gateway_nodes_online_times {
+    //         OnlineTimeEraGateway::<T>::insert(index, gateway_node.account_id.clone(), online_time);
+    //         // Remove the data of GatewayNodeOnlineTime
+    //         // GatewayNodeOnlineTime::<T>::remove(gateway_node.clone());
+    //     }
+    // }
 
-    // 计算gateway 当前时代每个结点的得分
-    // todo bug's here
-    fn compute_gateways_points() {
-        let gateway_node_onlinetime = GatewayNodeOnlineTime::<T>::iter();
-        for (gateway_node, onlintime) in gateway_node_onlinetime {
-            T::MarketInterface::compute_gateways_points(
-                gateway_node.clone().account_id, 
-                onlintime,
-            );
-        }
-    }
+    // // 计算gateway 当前时代每个结点的得分
+    // // todo bug's here
+    // fn compute_gateways_points() {
+    //     let gateway_node_onlinetime = GatewayNodeOnlineTime::<T>::iter();
+    //     for (gateway_node, onlintime) in gateway_node_onlinetime {
+    //         T::MarketInterface::compute_gateways_points(
+    //             gateway_node.clone().account_id,
+    //             onlintime,
+    //         );
+    //     }
+    // }
 
     // compute gateway reward
     // input:

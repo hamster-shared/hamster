@@ -106,9 +106,9 @@ pub trait MarketInterface<AccountId> {
     // updata the staking info 
     fn updata_staking_info(who: AccountId, staking_info: StakingAmount);
 
-    // Compute the gateway nodes points 
-    // 被gateway 的 compute_gateways_points调用，来把数据存储到 市场上
-    fn compute_gateways_points(accout: AccountId, blocknums: u128);
+    // // Compute the gateway nodes points
+    // // 被gateway 的 compute_gateways_points调用，来把数据存储到 市场上
+    // fn compute_gateways_points(accout: AccountId, blocknums: u128);
 
     // 计算gateway的奖励
     fn compute_gateways_rewards(index: EraIndex, total_reward: u128);
