@@ -2725,7 +2725,6 @@ impl<T: Config> Pallet<T> {
 
 			// 3. Compute gateway reward
 			T::MarketInterface::compute_gateways_rewards(active_era.index, T::BalanceToNumber::convert(market_reward));
-			T::GatewayInterface::clear_points_info(active_era.index);
 
 			// // 计算网关分数
 			// T::GatewayInterface::calculate_online_time(active_era.index);

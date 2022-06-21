@@ -80,17 +80,6 @@ pub mod pallet {
         OptionQuery,
     >;
 
-    /// Storage account revenue
-    #[pallet::storage]
-    #[pallet::getter(fn gateway_revenue)]
-    pub(super) type GatewayRevenue<T: Config> = StorageMap<
-        _,
-        Twox64Concat,
-        T::AccountId,
-        Income,
-        OptionQuery,
-    >;
-
     /// Storage gateway reward
     #[pallet::storage]
     #[pallet::getter(fn gateway_reward)]
@@ -99,17 +88,6 @@ pub mod pallet {
         Twox64Concat,
         T::AccountId,
         Income,
-        OptionQuery,
-    >;
-
-    /// Storage gateway points
-    #[pallet::storage]
-    #[pallet::getter(fn gateway_points)]
-    pub(super) type GatewayPoints<T: Config> = StorageMap<
-        _,
-        Twox64Concat,
-        T::AccountId,
-        u128,
         OptionQuery,
     >;
 
@@ -133,17 +111,6 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn current_total_reward)]
     pub(super) type CurrentTotalReward<T: Config> = StorageValue<_, u128, ValueQuery>;
-
-    /// storage gateway total points
-    #[pallet::storage]
-    #[pallet::getter(fn gateway_total_points)]
-    pub(super) type GatewayTotalPoints<T: Config> = StorageValue<_, u128, ValueQuery>;
-
-    /// 存储用户对应的金额
-    /// Storage overdue proceeds
-    #[pallet::storage]
-    #[pallet::getter(fn overdue_proceeds)]
-    pub(super) type OverdueProceeds<T: Config> = StorageValue<_, u128, ValueQuery>;
 
     // Pallets use events to inform users when important changes are made.
     // https://substrate.dev/docs/en/knowledgebase/runtime/events
@@ -169,7 +136,11 @@ pub mod pallet {
         // compute_gateways_rewards
         ComputeGatewaysRewardSuccess,
 
+        // charge the storge pot, use to make reward alive
         ChargeStoragePotSuccess,
+
+        // The amount of overduce clear this time
+        ClearanceOverdueProperty(u128),
     }
 
     #[pallet::hooks]
@@ -196,19 +167,8 @@ pub mod pallet {
     // Dispatchable functions must be annotated with a weight and must return a DispatchResult.
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-       
-        // 首先需要几个函数
-        /*
-        +amount:Balance 质押的金额
-        +lockAmount:Balance 锁定的金额
-        
-        +stakingAmount(price) 质押金额
-        +lockAmount() 锁定金额
-        +unLockAmount() 解锁金额
-        + withdrawAmount() 取回金额
-        */
-        
-        // 为accountId绑定 stakingAmount， 即注册
+
+        // Bing the accountid to staking information
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn crate_staking_amount(
             origin: OriginFor<T>,
@@ -340,19 +300,6 @@ pub mod pallet {
             Ok(())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn test_deposit_into_exiting(
-            origin: OriginFor<T>,
-            price: BalanceOf<T>,
-        ) ->DispatchResult {
-
-            T::Currency::deposit_into_existing(
-                &Self::market_reward_pot(),
-                price,
-            )?;
-
-            Ok(())
-        }
         /// payout
         /// Every user can run this function
         /// Get all the history reward to gateway whose has reward
@@ -391,25 +338,24 @@ impl<T: Config> Pallet<T> {
     /// market_reward_pot: use to storage the market's reward from end_era
     pub fn market_reward_pot() -> T::AccountId { PALLET_ID.into_sub_account(b"stor") }
 
-    // 将逾期未取的钱推送到国库里面
-    // The function will transfer the overdue amount to the treasury
-    // The The period is 60 Era
-    // input:
-    //  -index: EraIndex
+    /// clearance_overdue_property
+    /// The function will transfer the overdue amount to the market_reward_pot
+    /// Todo: The The period is 60 Era
+    /// input:
+    ///     -index: EraIndex
     fn clearance_overdue_property(index: EraIndex) {
-        let gateway_revenues = GatewayRevenue::<T>::iter();
-        for (who, gateway_income) in gateway_revenues {
-            if gateway_income.last_eraindex - index > 60 {
-                // 删除该id的信息
-                // 因为奖励时从staking 池子里面的发放的
-                // 所以只要删除了信息，就相当于 把逾期的钱会回归给池子了
-                GatewayRevenue::<T>::remove(who.clone());
-                // 更新池子中，获得拿到逾期的钱
-                let mut op = OverdueProceeds::<T>::get();
-                op += gateway_income.total_income;
-                OverdueProceeds::<T>::set(op);
+
+        let mut total_overdue = 0;
+        let gateway_reward = GatewayReward::<T>::iter();
+        for (who, income) in gateway_reward {
+            if index - income.last_eraindex > 60 {
+                // Clear the reward information
+                total_overdue += income.total_income;
+                GatewayReward::<T>::remove(who.clone());
             }
         }
+        // Send the total ouerdue informathion
+        Self::deposit_event(Event::<T>::ClearanceOverdueProperty(total_overdue));
     }
 }
 
@@ -429,31 +375,37 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         StakingAccontId::<T>::insert(who.clone(), staking_info);
     }
 
-    // Todo
-    // 检查有无逾期未取的钱
-    // 计算奖励金额，将奖励金额更新到用户上面
-    // 通过这个时期在线的gateway的在线时长去计算
-    // input：
-    //  - index： EraIndex
+    /// compute_gateways_rewards
+    /// Calculate the rewards that the gateway node of the current era can assign,
+    /// and reset the reward information with the points information after the calculation is completed
+    /// input：
+    ///     - index： EraIndex
+    ///     - total_reward: u128
     fn compute_gateways_rewards(index: EraIndex, total_reward: u128) {
-
+        // Use gateway's func, Because the gateway points save in pallet-gateway
         T::GatewayInterface::compute_gateways_reward(total_reward, index);
 
         // Update the current total reward
         let mut _total_reward = CurrentTotalReward::<T>::get();
         _total_reward += total_reward;
         CurrentTotalReward::<T>::set(_total_reward);
+
         // Save the history era reward
         EraRewards::<T>::insert(index, total_reward);
         // Clear the current reward
         CurrentTotalReward::<T>::set(0);
         // Clear the gateway points
-        // todo
         T::GatewayInterface::clear_points_info(index);
-        
+        // Send the Event: compute gateway's reward success
         Self::deposit_event(Event::ComputeGatewaysRewardSuccess);
     }
 
+    /// save_gateway_reward
+    /// Save the calculated reward for each gateway for subsequent reward distribution
+    /// input:
+    ///     - who: AccountId
+    ///     - reward： u128
+    ///     - index: EraIndex
     fn save_gateway_reward(who: <T as frame_system::Config>::AccountId, reward: u128, index: EraIndex) {
 
         if GatewayReward::<T>::contains_key(who.clone()) {

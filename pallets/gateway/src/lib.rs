@@ -14,6 +14,7 @@ use primitives::EraIndex;
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
 use sp_runtime::traits::Zero;
+use sp_runtime::Perbill;
 
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
@@ -22,7 +23,9 @@ use sp_runtime::traits::Zero;
 pub use pallet::*;
 pub use primitives::p_gateway::*;
 pub use pallet_market::MarketInterface;
+
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+const GATEWAY_PDGE_AMOUNT: u128 = 100;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -40,6 +43,8 @@ pub mod pallet {
 
         /// amount converted to numbers
         type BalanceToNumber: Convert<BalanceOf<Self>, u128>;
+
+        type NumberToBalance: Convert<u128, BalanceOf<Self>>;
 
         /// gateway node timed removal interval
         #[pallet::constant]
@@ -64,38 +69,12 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn gateways)]
     pub(super) type Gateways<T: Config> = StorageValue<_, Vec<Vec<u8>>, ValueQuery>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn era)]
-    pub(super) type Era<T: Config> = StorageValue<_, u32, ValueQuery>;
-
+    
     /// number of gateway nodes
     #[pallet::storage]
     #[pallet::getter(fn gateway_node_count)]
     pub(super) type GatewayNodeCount<T: Config> = StorageValue<_, u64, ValueQuery>;
-
-    /// The current era
-    #[pallet::storage]
-    #[pallet::getter(fn currenct_era)]
-    pub(super) type CurrentEra<T: Config> = StorageValue<_, u64, ValueQuery>;
-
-    /// Current era total online time
-    #[pallet::storage]
-    #[pallet::getter(fn current_era_online_time)]
-    pub(super) type CurrentEraOnlineTime<T: Config> = StorageValue<_, u128, ValueQuery>;
-
-
-    /// gateway node online time 
-    #[pallet::storage]
-    #[pallet::getter(fn gateway_node_online_time)]
-    pub(super) type GatewayNodeOnlineTime<T: Config> = StorageMap<
-        _,
-        Twox64Concat,
-        GatewayNode<T::BlockNumber, T::AccountId>,
-        u128,
-        OptionQuery,
-    >;
-
+    
     /// Gateway node points
     #[pallet::storage]
     #[pallet::getter(fn gateway_node_points)]
@@ -122,18 +101,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn currenct_total_points)]
     pub(super) type CurrentTotalPoints<T: Config> = StorageValue<_, u128, ValueQuery>;
-
-    /// Online time per era, per gateway node
-    #[pallet::storage]
-    #[pallet::getter(fn online_time_era_gateway)]
-    pub(super) type OnlineTimeEraGateway<T: Config> = StorageDoubleMap<
-        _,
-        Twox64Concat, EraIndex,
-        Twox64Concat, T::AccountId,
-        u128,
-        OptionQuery,
-    >;
-
+    
     // The genesis config type.
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
@@ -176,6 +144,10 @@ pub mod pallet {
         HealthCheckSuccess(T::AccountId, T::BlockNumber),
 
         ClearPoinstSuccess,
+
+        CurrentTotalPoints(u128),
+
+        RatioAndReward(Perbill, u128),
     }
 
     // Errors inform users that something went wrong.
@@ -264,24 +236,7 @@ pub mod pallet {
         ) -> DispatchResult {
             let who = ensure_signed(account_id)?;
 
-            // // The gateway must have a staking account in order to register
-            // ensure!(
-            //     T::MarketInterface::staking_accountid_exit(who.clone()),
-            //     Error::<T>::GatewayNodeNotStakingAccoutId,
-            // ); 
-
-            // // get the staking info 
-            // let mut staking_info = T::MarketInterface::staking_info(who.clone());
-            // // gateway Pledge  
-            // // Todo，the amount now is 100
-            // ensure!(
-            //     staking_info.lock_amount(100),
-            //     Error::<T>::NotEnoughAmount,
-            // );
-            // // update staking info
-            // T::MarketInterface::updata_staking_info(who.clone(), staking_info);
-
-            // Binding the staking info
+            // Binding the staking info, and determine whether success
             if !Self::binding_staking_info(who.clone()) {
                 return Err(Error::<T>::BingStakingInfoFailed.into());
             }
@@ -344,12 +299,11 @@ impl<T: Config> Pallet<T> {
         if !T::MarketInterface::staking_accountid_exit(who.clone()) {
             return false;
         }
-        // has binding
         // Get the staking info
         let mut staking_info = T::MarketInterface::staking_info(who.clone());
         // Gateway Pledge
         // todo: the amount now is 100
-        if !staking_info.lock_amount(100) {
+        if !staking_info.lock_amount(GATEWAY_PDGE_AMOUNT) {
             return false;
         }
         // Update the staking info
@@ -360,56 +314,52 @@ impl<T: Config> Pallet<T> {
 
 impl <T: Config> GatewayInterface for Pallet<T> {
 
-    // 计算gateway在线时间，并且记录在OnlineTimeEraGateway上面
-    // fn calculate_online_time(index : EraIndex) {
-    //     let gateway_nodes_online_times = GatewayNodeOnlineTime::<T>::iter();
-    //     // Push GatewayNodeOnlineTime data to the OnlineTimeEraGateway
-    //     for (gateway_node, online_time) in gateway_nodes_online_times {
-    //         OnlineTimeEraGateway::<T>::insert(index, gateway_node.account_id.clone(), online_time);
-    //         // Remove the data of GatewayNodeOnlineTime
-    //         // GatewayNodeOnlineTime::<T>::remove(gateway_node.clone());
-    //     }
-    // }
-
-    // // 计算gateway 当前时代每个结点的得分
-    // // todo bug's here
-    // fn compute_gateways_points() {
-    //     let gateway_node_onlinetime = GatewayNodeOnlineTime::<T>::iter();
-    //     for (gateway_node, onlintime) in gateway_node_onlinetime {
-    //         T::MarketInterface::compute_gateways_points(
-    //             gateway_node.clone().account_id,
-    //             onlintime,
-    //         );
-    //     }
-    // }
-
-    // compute gateway reward
-    // input:
-    //  -total_reward: u128
+    /// compute_gateway_reward
+    /// Calculate the reward for each node, though func:  save_gateway_reward that saves the reward
+    /// Gateway node reward = (selfpoint / totalpoints) * total_reward
+    /// input:
+    ///  -total_reward: u128
+    ///  -index: EraIndex
     fn compute_gateways_reward(total_reward: u128, index: EraIndex) {
         let total_points = CurrentTotalPoints::<T>::get();
         // Get the gateway node and its points
         let gateway_points = GatewayNodePoints::<T>::iter();
         for (who, point) in gateway_points {
-            // compute the ratio about gateway reward
-            let ratio = point / total_points;
-            let reward = ratio * total_reward;
+            // Calculate the rate of gateway rewards
+            let ratio  = Perbill::from_rational(
+                point,
+                total_points,
+            );
+            // Calculate the reward of gateway node
+            let reward = T::BalanceToNumber::convert(
+                ratio * T::NumberToBalance::convert(total_reward)
+            );
+            // Todo: Send the meg for test
+            Self::deposit_event(Event::<T>::RatioAndReward(ratio, reward));
+            // Save the gateway reward information
             T::MarketInterface::save_gateway_reward(who.clone(), reward, index);
         }
     }
-    // Todo
-    // has bug
+
+    /// clear_points_info
+    /// When the current era's award is calculated, the individual's gateway node poinst
+    /// and total_reward need to be reset.Then save the total points in 'CurrentTotalPoints'
+    /// input:
+    ///     -index: EraIndex
     fn clear_points_info(index: EraIndex) {
         let current_total_points = CurrentTotalPoints::<T>::get();
+        Self::deposit_event(Event::CurrentTotalPoints(current_total_points));
         EraTotalPoints::<T>::insert(index, current_total_points);
         CurrentTotalPoints::<T>::set(0);
         // todo
-        // use false struct
+        // Get the online gateway node and their points
         let gateway_node_points = GatewayNodePoints::<T>::iter();
         for (who, _) in gateway_node_points {
-           GatewayNodePoints::<T>::remove(who.clone());
+            // Reset the gateway node points = remve the points information
+            GatewayNodePoints::<T>::remove(who.clone());
         }
 
+        // Send the Event: ClearPoinstSuccess
         Self::deposit_event(Event::ClearPoinstSuccess);
     }
 }
