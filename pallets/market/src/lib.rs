@@ -1,7 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::{dispatch::DispatchResult,
-                    pallet_prelude::*, PalletId, traits::{Currency, ExistenceRequirement}};
+                    pallet_prelude::*, PalletId,
+                    traits::{Currency, ExistenceRequirement, LockableCurrency, LockIdentifier, WithdrawReasons, Imbalance}};
 use frame_support::sp_runtime::traits::Convert;
 use frame_support::traits::UnixTime;
 use frame_system::pallet_prelude::*;
@@ -24,15 +25,24 @@ use primitives::EraIndex;
 use primitives::p_gateway::GatewayInterface;
 
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
+    <T as frame_system::Config>::AccountId,
+>>::NegativeImbalance;
+
 const PALLET_ID: PalletId = PalletId(*b"ttchain!");
+const EXAMPLE_ID: LockIdentifier = *b"example ";
+
+
 
 #[frame_support::pallet]
 pub mod pallet {
     use frame_system::Origin;
+    use pallet_balances::NegativeImbalance;
     use primitives::p_gateway::GatewayInterface;
     use primitives::p_market;
 
     use super::*;
+
 
     /// Configure the pallet by specifying the parameters and types on which it depends.
     #[pallet::config]
@@ -41,7 +51,11 @@ pub mod pallet {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
         /// currency to pay fees and hold balances
-        type Currency: Currency<Self::AccountId>;
+        /// type Currency: Currency<Self::AccountId>;
+
+        /// todo
+        /// Test lockable-currency
+        type Currency: LockableCurrency<Self::AccountId, Moment = Self::BlockNumber>;
 
         /// order fee interface
         type OrderInterface: OrderInterface<AccountId=Self::AccountId, BlockNumber=Self::BlockNumber>;
@@ -63,6 +77,7 @@ pub mod pallet {
 
         /// time
         type UnixTime: UnixTime;
+
     }
 
     #[pallet::pallet]
@@ -91,6 +106,17 @@ pub mod pallet {
         OptionQuery,
     >;
 
+    /// Storage provider reward
+    #[pallet::storage]
+    #[pallet::getter(fn provider_reward)]
+    pub(super) type ProviderReward<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        Income,
+        OptionQuery,
+    >;
+
     /// Era's total reward
     #[pallet::storage]
     #[pallet::getter(fn era_rewards)]
@@ -99,6 +125,17 @@ pub mod pallet {
         Twox64Concat,
         EraIndex,
         u128,
+        OptionQuery,
+    >;
+
+    /// Provider Era total reward
+    #[pallet::storage]
+    #[pallet::getter(fn era_provider_rewards)]
+    pub(super) type EraProvidre_rewards<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        EraIndex,
+        ProviderIncome,
         OptionQuery,
     >;
 
@@ -141,6 +178,13 @@ pub mod pallet {
 
         // The amount of overduce clear this time
         ClearanceOverdueProperty(u128),
+
+        Locked(T::AccountId, BalanceOf<T>),
+
+        Unlocked(T::AccountId),
+
+        SlashSuccess(T::AccountId, BalanceOf<T>),
+
     }
 
     #[pallet::hooks]
@@ -167,6 +211,53 @@ pub mod pallet {
     // Dispatchable functions must be annotated with a weight and must return a DispatchResult.
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn lock_capital(
+            origin: OriginFor<T>,
+            #[pallet::compact] amount: BalanceOf<T>
+        ) -> DispatchResultWithPostInfo {
+
+            let user = ensure_signed(origin)?;
+
+            T::Currency::set_lock(
+                EXAMPLE_ID,
+                &user,
+                // amount,
+                Provider_Staking_BaseFee,
+                WithdrawReasons::all(),
+            );
+
+            Self::deposit_event(Event::Locked(user, amount));
+            Ok(().into())
+        }
+
+        #[pallet::weight(1_000)]
+        pub fn unlock_all(
+            origin: OriginFor<T>,
+        ) -> DispatchResultWithPostInfo {
+            let user = ensure_signed(origin)?;
+
+            T::Currency::remove_lock(EXAMPLE_ID, &user);
+
+            Self::deposit_event(Event::Unlocked(user));
+            Ok(().into())
+        }
+
+        #[pallet::weight(1_000)]
+        pub fn slash(
+            origin: OriginFor<T>,
+            #[pallet::compact] amount: BalanceOf<T>,
+        ) -> DispatchResultWithPostInfo {
+            let user = ensure_signed(origin)?;
+            // put the money from user to staking_pot
+
+            let (im, missing) = T::Currency::slash(&user.clone(), amount);
+            T::Currency::deposit_into_existing(&user.clone(), amount).ok();
+
+            Self::deposit_event(Event::SlashSuccess(user, amount));
+            Ok(().into())
+        }
 
         // Bing the accountid to staking information
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]

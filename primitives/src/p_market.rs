@@ -96,6 +96,20 @@ impl Income {
     }
 }
 
+#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct ProviderIncome {
+    pub resource_reward: u128,
+    pub services_reward: u128,
+}
+
+impl ProviderIncome {
+    pub fn set_reward(&mut self, r_reward: u128, s_reward: u128) {
+        self.resource_reward += r_reward;
+        self.services_reward += s_reward;
+    }
+}
+
 pub trait MarketInterface<AccountId> {
     // Check the accountid have staking accoutid
     fn staking_accountid_exit(who: AccountId) -> bool;

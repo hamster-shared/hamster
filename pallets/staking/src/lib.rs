@@ -280,7 +280,6 @@ pub mod slashing;
 pub mod inflation;
 pub mod weights;
 
-
 use pallet_gateway::GatewayInterface;
 use pallet_market::MarketInterface;
 
@@ -322,7 +321,6 @@ use frame_system::{
 use frame_election_provider_support::{ElectionProvider, VoteWeight, Supports, data_provider};
 pub use weights::WeightInfo;
 pub use pallet::*;
-
 
 const STAKING_ID: LockIdentifier = *b"staking ";
 pub(crate) const LOG_TARGET: &'static str = "runtime::staking";
