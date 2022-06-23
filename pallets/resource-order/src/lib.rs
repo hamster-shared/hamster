@@ -118,22 +118,12 @@ pub mod pallet {
 
     /// the free resource apply info
     #[pallet::storage]
-    #[pallet::getter(fn apply_info)]
-    pub(super) type ApplyInfo<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u64, ValueQuery>;
+    #[pallet::getter(fn apply_orders)]
+    pub(super) type ApplyOrders<T: Config> = StorageMap<_, Twox64Concat, u64 , ApplyOrder<T::AccountId, T::BlockNumber>, OptionQuery>;
 
     #[pallet::storage]
-    #[pallet::getter(fn apply_order)]
-    pub(super) type ApplyOrder<T: Config> = StorageMap<_, Twox64Concat,u64, T::AccountId, ValueQuery>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn apply_process)]
-    pub(super) type ApplyProcess<T: Config> = StorageMap<_, Twox64Concat, u64, Vec<u8>, ValueQuery>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn apply_process_user)]
-    pub(super) type ApplyProcessUser<T: Config> = StorageMap<_, Twox64Concat, u64, T::AccountId, ValueQuery>;
-
-
+    #[pallet::getter(fn apply_users)]
+    pub(super) type ApplyUsers<T: Config> = StorageMap<_,Twox64Concat, T::AccountId, u64, ValueQuery>;
 
     // The genesis config type.
     #[pallet::genesis_config]
@@ -250,7 +240,7 @@ pub mod pallet {
 
         /// free resource applied
         /// [accountId, order_index, cpu, memory, duration, deploy_type,public_key]
-        FreeResourceApplied(T::AccountId, u64, u64, u64, u32, u32,Vec<u8>),
+        FreeResourceApplied(T::AccountId, u64, u64, u64, u32, u32,Bytes),
 
         /// free resource processed
         /// [order_index, peer_id]
@@ -316,6 +306,10 @@ pub mod pallet {
         FreeResourceApplied,
         /// free resource has be deal
         FreeResourceHasBeDeal,
+        /// free resource not Exists
+        FreeResourceNotExists,
+        /// free resource forbidden
+        FreeResourceForbidden,
     }
 
     // Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -806,14 +800,23 @@ pub mod pallet {
                                    cpu: u64,
                                    memory: u64,
                                    duration: u32,
-                                   public_key: Vec<u8>,
+                                   public_key: Bytes,
                                    deploy_type: u32) -> DispatchResult {
             let who = ensure_signed(origin)?;
-            ensure!(!ApplyInfo::<T>::contains_key(who.clone()),Error::<T>::FreeResourceApplied);
-
+            ensure!(!ApplyUsers::<T>::contains_key(who.clone()),Error::<T>::FreeResourceApplied);
             let order_index = OrderIndex::<T>::get();
-            ApplyInfo::<T>::insert(who.clone(),order_index);
-            ApplyOrder::<T>::insert(order_index,who.clone());
+            let customer = TenantInfo::new(who.clone(), public_key.clone());
+            // get the current block height
+            let block_number = <frame_system::Pallet<T>>::block_number();
+            let now = T::UnixTime::now();
+            let apply_order = ApplyOrder::new(
+                order_index,
+                customer,
+                block_number,
+                now
+            );
+            ApplyOrders::<T>::insert(order_index,apply_order);
+            ApplyUsers::<T>::insert(who.clone(),order_index);
             OrderIndex::<T>::put(order_index + 1);
             Self::deposit_event(Event::FreeResourceApplied(who,order_index,cpu,memory,duration,deploy_type,public_key));
 
@@ -825,14 +828,12 @@ pub mod pallet {
 
             let who = ensure_signed(origin)?;
 
-
-            ensure!(!ApplyProcess::<T>::contains_key(order_index), Error::<T>::FreeResourceHasBeDeal);
-            ensure!(!ApplyProcessUser::<T>::contains_key(order_index), Error::<T>::FreeResourceHasBeDeal);
-
-
-            ApplyProcess::<T>::insert(order_index,peer_id.clone());
-            ApplyProcessUser::<T>::insert(order_index, who);
-
+            ensure!(ApplyOrders::<T>::contains_key(order_index), Error::<T>::FreeResourceNotExists);
+            let mut apply_order = ApplyOrders::<T>::get(order_index).unwrap();
+            ensure!(apply_order.status == OrderStatus::Pending,Error::<T>::FreeResourceHasBeDeal);
+            // process
+            apply_order.processed(who.clone(),peer_id.clone());
+            ApplyOrders::<T>::insert(order_index,apply_order);
 
             Self::deposit_event(Event::FreeResourceProcessed(order_index,peer_id));
 
@@ -844,26 +845,14 @@ pub mod pallet {
 
             let who = ensure_signed(origin)?;
 
-            let apply_index = ApplyInfo::<T>::get(who.clone());
+            ensure!(ApplyOrders::<T>::contains_key(order_index), Error::<T>::FreeResourceNotExists);
+            let apply_order = ApplyOrders::<T>::get(order_index).unwrap();
 
-            if order_index == apply_index {
-                ApplyProcess::<T>::remove(order_index);
-                ApplyProcessUser::<T>::remove(order_index);
-                let applyer = ApplyOrder::<T>::get(order_index);
-                ApplyOrder::<T>::remove(order_index);
-                ApplyInfo::<T>::remove(applyer);
-            }else {
-                let processer = ApplyProcessUser::<T>::get(order_index);
+            ensure!(who.clone() == apply_order.provider || who.clone() == apply_order.tenant_info.account_id, Error::<T>::FreeResourceForbidden);
 
-                if processer.clone() == who.clone() {
-                    ApplyProcess::<T>::remove(order_index);
-                    ApplyProcessUser::<T>::remove(order_index);
-                    let applyer = ApplyOrder::<T>::get(order_index);
-                    ApplyOrder::<T>::remove(order_index);
-                    ApplyInfo::<T>::remove(applyer);
-                }
-            }
-
+            let applyer = apply_order.tenant_info.account_id;
+            ApplyUsers::<T>::remove(applyer);
+            ApplyOrders::<T>::remove(order_index);
             Ok(())
         }
 

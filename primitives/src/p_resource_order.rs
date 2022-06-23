@@ -341,3 +341,46 @@ pub trait OrderInterface {
     /// update resource interface
     fn update_computing_resource(index: u64, resource_info: ComputingResource<Self::BlockNumber,Self::AccountId>);
 }
+
+
+/// resourceOrder
+#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct ApplyOrder<AccountId, BlockNumber> {
+    /// OrderIdIndex
+    pub index: u64,
+    /// provider
+    pub provider: AccountId,
+    /// peer_id
+    pub peer_id: Vec<u8>,
+    /// TenantInformation
+    pub tenant_info: TenantInfo<AccountId>,
+    /// BlockAtCreationTime
+    pub create: BlockNumber,
+    /// Timestamp
+    pub time: Duration,
+    /// OrderStatus
+    pub status: OrderStatus,
+}
+
+impl<AccountId, BlockNumber> ApplyOrder<AccountId, BlockNumber>
+    where BlockNumber: Parameter + AtLeast32BitUnsigned, AccountId: core::default::Default  {
+
+    pub fn new(index: u64,tenant_info: TenantInfo<AccountId>,create: BlockNumber,time:Duration) -> Self {
+        ApplyOrder {
+            index,
+            provider: Default::default(),
+            peer_id: Default::default(),
+            tenant_info,
+            create,
+            time,
+            status: OrderStatus::Pending
+        }
+    }
+
+    pub fn processed(&mut self, provider: AccountId, peer_id: Vec<u8>){
+        self.provider = provider;
+        self.peer_id = peer_id;
+        self.status = OrderStatus::Finished
+    }
+}
