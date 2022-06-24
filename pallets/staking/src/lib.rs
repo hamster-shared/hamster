@@ -2703,15 +2703,16 @@ impl<T: Config> Pallet<T> {
 
 			// 2.Compute the ratio of the mac_payout
 			// Market_reward = 20% * max_payout
-			let market_reward = T::BalanceToNumber::convert(max_payout);
-			let market_reward = market_reward / 5;
-			let market_reward= T::NumberToBalance::convert(market_reward);
+			let market_ratio = Perbill::from_percent(20);
+			let market_reward = market_ratio * max_payout;
 
 			// 60 * max_payout for validator
-			let validator_payout = market_reward + market_reward + market_reward;
+			let validator_ratio = Perbill::from_percent(60);
+			let validator_payout = validator_ratio * max_payout;
 
 			// 20% * max_payout for treasury
-			let treasury_payout = market_reward.clone();
+			let treasury_ratio = Perbill::from_percent(20);
+			let treasury_payout = treasury_ratio * max_payout;
 
 			// 3.Compute the gateway points and reward
 			// T::GatewayInterface::calculate_online_time(active_era.index);

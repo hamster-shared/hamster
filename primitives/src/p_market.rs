@@ -130,5 +130,8 @@ pub trait MarketInterface<AccountId> {
     // Save the gateway rewards information
     fn save_gateway_reward(who: AccountId, reward: u128, index: EraIndex);
 
+    // Save the provider rewards information
+    fn save_provider_reward(who: AccountId, reward: u128, index: EraIndex);
+
     fn storage_pot() -> AccountId;
 }

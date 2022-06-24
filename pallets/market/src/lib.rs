@@ -131,7 +131,7 @@ pub mod pallet {
     /// Provider Era total reward
     #[pallet::storage]
     #[pallet::getter(fn era_provider_rewards)]
-    pub(super) type EraProvidre_rewards<T: Config> = StorageMap<
+    pub(super) type EraProviderRewards<T: Config> = StorageMap<
         _,
         Twox64Concat,
         EraIndex,
@@ -172,6 +172,8 @@ pub mod pallet {
 
         // compute_gateways_rewards
         ComputeGatewaysRewardSuccess,
+        // compute gateway and provider reward success
+        ComputeRewardSuccess,
 
         // charge the storge pot, use to make reward alive
         ChargeStoragePotSuccess,
@@ -472,23 +474,47 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
     /// input：
     ///     - index： EraIndex
     ///     - total_reward: u128
+    /// todo!() change the func name : compute_rewards
     fn compute_gateways_rewards(index: EraIndex, total_reward: u128) {
+
+        let g_total_reward = total_reward / 2;
+        let p_total_reward = total_reward / 2;
+        let p_total_reward = p_market::ProviderIncome {
+            resource_reward: p_total_reward / 2,
+            services_reward: p_total_reward / 2,
+        };
+
         // Use gateway's func, Because the gateway points save in pallet-gateway
         T::GatewayInterface::compute_gateways_reward(total_reward, index);
+        // T::GatewayInterface::compute_gateways_reward(g_total_reward, index);
+
+        // todo!() use providerInface's func
+        // T::ProviderInterface::compute_provider_reward(p_total_reward, index);
 
         // Update the current total reward
         let mut _total_reward = CurrentTotalReward::<T>::get();
         _total_reward += total_reward;
         CurrentTotalReward::<T>::set(_total_reward);
 
+        // todo!() change the total_reward to g_total_reward
         // Save the history era reward
         EraRewards::<T>::insert(index, total_reward);
+        // EraRewards::<T>::insert(index, g_total_reward);
+
+        // Save the history ear provider reward
+        EraProviderRewards::<T>::insert(index, p_total_reward);
+
         // Clear the current reward
         CurrentTotalReward::<T>::set(0);
         // Clear the gateway points
         T::GatewayInterface::clear_points_info(index);
+        // todo!() Clear the provider points
+        // T::ProviderInterface::clear_points_info(index);
+
         // Send the Event: compute gateway's reward success
         Self::deposit_event(Event::ComputeGatewaysRewardSuccess);
+        // todo!()
+        // Self::deposit_event(Event::ComputeRewardSuccess);
     }
 
     /// save_gateway_reward
@@ -506,6 +532,25 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
             GatewayReward::<T>::insert(who.clone(), reward_info);
         } else {
             GatewayReward::<T>::insert(who.clone(), Income {
+                last_eraindex: index,
+                total_income: reward,
+            });
+        }
+    }
+
+    /// save_provider_reward
+    /// input:
+    ///     - who: AccountId
+    ///     - reward: u128
+    ///     - index: EraIndex
+    fn save_provider_reward(who: <T as frame_system::Config>::AccountId, reward: u128, index: EraIndex) {
+        if ProviderReward::<T>::contains_key(who.clone()) {
+            // Get the reward info
+            let mut reward_info = ProviderReward::<T>::get(who.clone()).unwrap();
+            reward_info.reward(reward);
+            ProviderReward::<T>::insert(who.clone(), reward_info);
+        } else {
+            ProviderReward::<T>::insert(who.clone(), Income {
                 last_eraindex: index,
                 total_income: reward,
             });
