@@ -33,25 +33,25 @@ version = '2.0.0'
 
 [dependencies.sp-debug-derive]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.frame-system]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.sp-std]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.sp-runtime]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
@@ -61,13 +61,13 @@ version = "1.0.101"
 
 [dependencies.sp-core]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.frame-support]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
