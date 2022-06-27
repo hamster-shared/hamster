@@ -1015,6 +1015,10 @@ pub mod pallet {
 	#[pallet::getter(fn validators)]
 	pub type Validators<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, ValidatorPrefs, ValueQuery>;
 
+	// #[pallet::stroage]
+	// #[pallet::getter(fn providers)]
+	// pub type Providers<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, >
+
 	/// A tracker to keep count of the number of items in the `Validators` map.
 	#[pallet::storage]
 	pub type CounterForValidators<T> = StorageValue<_, u32, ValueQuery>;
@@ -1482,13 +1486,13 @@ pub mod pallet {
 			payee: RewardDestination<T::AccountId>,
 		) -> DispatchResult {
 			let stash = ensure_signed(origin)?;
-
+			// 判断该stash是否已经绑定 控制器
 			if <Bonded<T>>::contains_key(&stash) {
 				Err(Error::<T>::AlreadyBonded)?
 			}
-
+			
 			let controller = T::Lookup::lookup(controller)?;
-
+			// 判断该控制器是否已经有配对的质押信息
 			if <Ledger<T>>::contains_key(&controller) {
 				Err(Error::<T>::AlreadyPaired)?
 			}
@@ -2694,9 +2698,14 @@ impl<T: Config> Pallet<T> {
 			let now_as_millis_u64 = T::UnixTime::now().as_millis().saturated_into::<u64>();
 
 			let era_duration = (now_as_millis_u64 - active_era_start).saturated_into::<u64>();
+			// 当前时代总的质押金额
 			let staked = Self::eras_total_stake(&active_era.index);
+			let stake_test = T::NumberToBalance::convert(200);
+			let test = staked + stake_test;
+
+
 			let issuance = T::Currency::total_issuance();
-			let (validator_payout, rest) = T::EraPayout::era_payout(staked, issuance, era_duration);
+			let (validator_payout, rest) = T::EraPayout::era_payout(test, issuance, era_duration);
 
 			// 1.Get the total reward of this era
 			let max_payout = rest.saturating_add(validator_payout.clone());
@@ -2869,6 +2878,7 @@ impl<T: Config> Pallet<T> {
 			}
 			<ErasStakersClipped<T>>::insert(&new_planned_era, &stash, exposure_clipped);
 		});
+
 
 		// Insert current era staking information
 		<ErasTotalStake<T>>::insert(&new_planned_era, total_stake);

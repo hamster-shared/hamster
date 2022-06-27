@@ -226,7 +226,7 @@ pub mod pallet {
                 EXAMPLE_ID,
                 &user,
                 // amount,
-                Provider_Staking_BaseFee,
+                amount,
                 WithdrawReasons::all(),
             );
 
