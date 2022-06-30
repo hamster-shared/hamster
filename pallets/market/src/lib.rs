@@ -12,6 +12,7 @@ use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::Zero;
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
+use sp_runtime::Perbill;
 
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
@@ -38,6 +39,7 @@ const EXAMPLE_ID: LockIdentifier = *b"example ";
 pub mod pallet {
     use frame_system::Origin;
     use pallet_balances::NegativeImbalance;
+    use sp_runtime::Perbill;
     use primitives::p_gateway::GatewayInterface;
     use primitives::p_market;
 
@@ -187,6 +189,10 @@ pub mod pallet {
 
         SlashSuccess(T::AccountId, BalanceOf<T>),
 
+        Protion(Perbill),
+
+        Money(BalanceOf<T>),
+
     }
 
     #[pallet::hooks]
@@ -283,6 +289,15 @@ pub mod pallet {
 
             Self::deposit_event(Event::CreateStakingAccountSuccessful(who.clone()));
 
+            const MILLISECONDS_PER_YEAR: u64 = 1000 * 3600 * 24 * 36525 / 100;
+            let era_edution = 1194001;
+            let portion = sp_runtime::Perbill::from_rational(era_edution as u64, MILLISECONDS_PER_YEAR);
+
+            // cout the portion
+            Self::deposit_event(Event::Protion(portion));
+
+            // cout the result of money
+            Self::deposit_event(Event::Money(portion * T::NumberToBalance::convert(24000000000000000)));
             Ok(())
         }
 

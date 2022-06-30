@@ -319,6 +319,7 @@ use frame_system::{
 	offchain::SendTransactionTypes,
 };
 use frame_election_provider_support::{ElectionProvider, VoteWeight, Supports, data_provider};
+use frame_support::traits::Len;
 pub use weights::WeightInfo;
 pub use pallet::*;
 
@@ -710,6 +711,7 @@ impl<
 			// Duration of era; more than u64::MAX is rewarded as u64::MAX.
 			era_duration_millis,
 		);
+
 		let rest = max_payout.saturating_sub(validator_payout.clone());
 		(validator_payout, rest)
 	}
@@ -833,6 +835,7 @@ pub mod migrations {
 
 #[frame_support::pallet]
 pub mod pallet {
+	use pallet_market::Event::CreateStakingAccountSuccessful;
 	use super::*;
 
 	#[pallet::pallet]
@@ -1349,6 +1352,12 @@ pub mod pallet {
 		Kicked(T::AccountId, T::AccountId),
 		/// The election failed. No new era is planned.
 		StakingElectionFailed,
+
+		ChangeTotalSkakeSuccess(BalanceOf<T>),
+
+		EraDuration(u64, u64),
+
+		Validator_Payout(BalanceOf<T>),
 	}
 
 	#[pallet::error]
@@ -2146,6 +2155,21 @@ pub mod pallet {
 			Self::do_payout_stakers(validator_stash, era)
 		}
 
+		#[pallet::weight(1_000)]
+		pub fn test_change_total_staked(
+			origin: OriginFor<T>,
+			era: EraIndex,
+		) -> DispatchResultWithPostInfo {
+			let user = ensure_signed(origin)?;
+			// put the money from user to staking_pot
+
+			let mut totalstaked = ErasTotalStake::<T>::get(era);
+			totalstaked += T::NumberToBalance::convert(100000000000000);
+			ErasTotalStake::<T>::insert(era, totalstaked);
+			Self::deposit_event(Event::ChangeTotalSkakeSuccess(totalstaked));
+			Ok(().into())
+		}
+
 		/// Rebond a portion of the stash scheduled to be unlocked.
 		///
 		/// The dispatch origin must be signed by the controller, and it can be only called when
@@ -2700,12 +2724,22 @@ impl<T: Config> Pallet<T> {
 			let era_duration = (now_as_millis_u64 - active_era_start).saturated_into::<u64>();
 			// 当前时代总的质押金额
 			let staked = Self::eras_total_stake(&active_era.index);
-			let stake_test = T::NumberToBalance::convert(200);
-			let test = staked + stake_test;
 
+			log!(
+				debug,
+				"the era_durtaion is : {:?}",
+				era_duration,
+			);
+
+			Self::deposit_event(Event::<T>::EraDuration(
+				era_duration,
+				1000 * 3600 * 24 * 36525 / 100,
+			));
 
 			let issuance = T::Currency::total_issuance();
-			let (validator_payout, rest) = T::EraPayout::era_payout(test, issuance, era_duration);
+			let (validator_payout, rest) = T::EraPayout::era_payout(staked, issuance, era_duration);
+
+			Self::deposit_event(Event::<T>::Validator_Payout(validator_payout));
 
 			// 1.Get the total reward of this era
 			let max_payout = rest.saturating_add(validator_payout.clone());
