@@ -97,6 +97,58 @@ pub mod pallet {
         OptionQuery,
     >;
 
+    #[pallet::storage]
+    #[pallet::getter(fn staker_info)]
+    pub(super) type StakerInfo<T: Config> = StorageDoubleMap<
+        _,
+        Twox64Concat, MarketUserStatus,
+        Twox64Concat, T::AccountId,
+        p_market::UserInfo,
+        OptionQuery,
+    >;
+
+    #[pallet::storage]
+    #[pallet::getter(fn bonded_gateway)]
+    pub(super) type BondedGateway<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        BalanceOf<T>,
+        OptionQuery,
+    >;
+
+    #[pallet::storage]
+    #[pallet::getter(fn gateway_total_staked)]
+    pub(super) type GatewayTotalStaked<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn bonded_provider)]
+    pub(super) type BondedProvider<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        BalanceOf<T>,
+        OptionQuery,
+    >;
+
+    #[pallet::storage]
+    #[pallet::getter(fn provider_total_staked)]
+    pub(super) type ProviderTotalStaked<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn bonded_client)]
+    pub(super) type BondedClient<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        BalanceOf<T>,
+        OptionQuery,
+    >;
+
+    #[pallet::storage]
+    #[pallet::getter(fn client_total_staked)]
+    pub(super) type ClientTotalStaked<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
     /// Storage gateway reward
     #[pallet::storage]
     #[pallet::getter(fn gateway_reward)]
@@ -193,6 +245,9 @@ pub mod pallet {
 
         Money(BalanceOf<T>),
 
+        // Create market account success (account, status)
+        CreateMarketAccountSuccess(T::AccountId, MarketUserStatus),
+
     }
 
     #[pallet::hooks]
@@ -212,6 +267,10 @@ pub mod pallet {
 
         // Users are not rewarded enough
         NotEnoughReward,
+
+        UnperfectedIdentity,
+
+        MarketStatusHasExited,
     }
 
     // Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -219,6 +278,72 @@ pub mod pallet {
     // Dispatchable functions must be annotated with a weight and must return a DispatchResult.
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn crate_market_account(
+            origin: OriginFor<T>,
+            status: p_market::MarketUserStatus,
+        ) -> DispatchResult {
+
+            let who = ensure_signed(origin)?;
+
+            let userinfo = p_market::UserInfo {
+                staked_amount: 0
+            };
+
+            match status {
+                // Provider
+                MarketUserStatus::Provider => {
+                    // Determine weather who already has provider status
+                    if StakerInfo::<T>::contains_key(MarketUserStatus::Provider, who.clone()) {
+                        return Err(Error::<T>::MarketStatusHasExited.into());
+                    }
+                    // Insert the Provider for who
+                    StakerInfo::<T>::insert(MarketUserStatus::Provider, who.clone(), userinfo);
+                },
+                // Gateway
+                MarketUserStatus::Gateway => {
+                    // Determine weather who already has Gateway status
+                    if StakerInfo::<T>::contains_key(MarketUserStatus::Gateway, who.clone()) {
+                        return Err(Error::<T>::MarketStatusHasExited.into());
+                    }
+                    // Insert the Gateway for who
+                    StakerInfo::<T>::insert(MarketUserStatus::Gateway, who.clone(), userinfo);
+                },
+                // Client
+                MarketUserStatus::Client => {
+                    // Determine weather who already has Client status
+                    if StakerInfo::<T>::contains_key(MarketUserStatus::Client, who.clone()) {
+                        return Err(Error::<T>::MarketStatusHasExited.into());
+                    }
+                    // Insert the Client for who
+                    StakerInfo::<T>::insert(MarketUserStatus::Client, who.clone(), userinfo);
+                },
+                // Others
+                // todo
+                _ => {
+                    return Err(Error::<T>::UnperfectedIdentity.into());
+                }
+           }
+
+            Self::deposit_event(Event::CreateMarketAccountSuccess(who, status));
+            Ok(())
+        }
+
+
+        // Bond for his status
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn bond(
+            origin: OriginFor<T>,
+            #[pallet::compact] value: BalanceOf<T>
+        ) -> DispatchResult {
+
+            let stash = ensure_signed(origin)?;
+
+
+
+            Ok(())
+        }
 
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn lock_capital(

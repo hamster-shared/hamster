@@ -10,6 +10,20 @@ use sp_std::vec::Vec;
 
 use crate::{Balance, EraIndex};
 
+#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct UserInfo {
+    pub staked_amount: u128,
+}
+
+#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+pub enum MarketUserStatus {
+    Provider,
+    Gateway,
+    Client,
+}
+
 /// StakingAmount： Pledge account number for market
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
