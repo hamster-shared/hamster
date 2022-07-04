@@ -8,11 +8,14 @@ use frame_support::traits::UnixTime;
 use frame_system::pallet_prelude::*;
 use primitives::{Balance, p_market};
 use sp_core::Bytes;
+use sp_runtime::generic::Era;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::Zero;
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
 use sp_runtime::Perbill;
+
+
 
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
@@ -32,15 +35,19 @@ type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
 
 const PALLET_ID: PalletId = PalletId(*b"ttchain!");
 const EXAMPLE_ID: LockIdentifier = *b"example ";
-
+pub const BALANCE_UNIT: u128 = 1_000_000_000_000;  //10^12
 
 
 #[frame_support::pallet]
 pub mod pallet {
     use frame_system::Origin;
+    // use log::Level::Error;
+    use log::log;
     use pallet_balances::NegativeImbalance;
     use sp_runtime::Perbill;
+    use sp_runtime::traits::Saturating;
     use primitives::p_gateway::GatewayInterface;
+    use primitives::p_staking::StakingInterface;
     use primitives::p_market;
 
     use super::*;
@@ -64,6 +71,9 @@ pub mod pallet {
 
         /// Gateway interface
         type GatewayInterface: GatewayInterface;
+
+        /// Staking interface
+        type StakingInterface: StakingInterface;
 
         /// block height to number
         type BlockNumberToNumber: Convert<Self::BlockNumber, u128> + Convert<u32, Self::BlockNumber>;
@@ -107,43 +117,18 @@ pub mod pallet {
         OptionQuery,
     >;
 
-    #[pallet::storage]
-    #[pallet::getter(fn bonded_gateway)]
-    pub(super) type BondedGateway<T: Config> = StorageMap<
-        _,
-        Twox64Concat,
-        T::AccountId,
-        BalanceOf<T>,
-        OptionQuery,
-    >;
 
     #[pallet::storage]
     #[pallet::getter(fn gateway_total_staked)]
     pub(super) type GatewayTotalStaked<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
     #[pallet::storage]
-    #[pallet::getter(fn bonded_provider)]
-    pub(super) type BondedProvider<T: Config> = StorageMap<
-        _,
-        Twox64Concat,
-        T::AccountId,
-        BalanceOf<T>,
-        OptionQuery,
-    >;
+    #[pallet::getter(fn market_total_staked)]
+    pub(super) type MarketTotalStaked<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn provider_total_staked)]
     pub(super) type ProviderTotalStaked<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn bonded_client)]
-    pub(super) type BondedClient<T: Config> = StorageMap<
-        _,
-        Twox64Concat,
-        T::AccountId,
-        BalanceOf<T>,
-        OptionQuery,
-    >;
 
     #[pallet::storage]
     #[pallet::getter(fn client_total_staked)]
@@ -248,6 +233,13 @@ pub mod pallet {
         // Create market account success (account, status)
         CreateMarketAccountSuccess(T::AccountId, MarketUserStatus),
 
+        Era(EraIndex),
+
+        // User bond success, (user, Status, Staked amount)
+        StakingSuccess(T::AccountId, MarketUserStatus, BalanceOf<T>),
+
+        Yes(u8),
+
     }
 
     #[pallet::hooks]
@@ -271,6 +263,12 @@ pub mod pallet {
         UnperfectedIdentity,
 
         MarketStatusHasExited,
+
+        NotEnoughBalanceTobond,
+
+        NotThisStatus,
+
+        todo,
     }
 
     // Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -282,21 +280,31 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn crate_market_account(
             origin: OriginFor<T>,
-            status: p_market::MarketUserStatus,
+            // status: p_market::MarketUserStatus,
+            status: u8,
         ) -> DispatchResult {
 
             let who = ensure_signed(origin)?;
 
-            let userinfo = p_market::UserInfo {
-                staked_amount: 0
+            Self::deposit_event(Event::Yes(1));
+
+            let userinfo = UserInfo::new(0);
+
+            let status_ = status;
+
+            let status = match Self::u8_to_MarketStatus(status) {
+                Ok(s) => s,
+                Err(error) => Err(error)?
             };
+
+            Self::deposit_event(Event::Yes(2));
 
             match status {
                 // Provider
                 MarketUserStatus::Provider => {
                     // Determine weather who already has provider status
                     if StakerInfo::<T>::contains_key(MarketUserStatus::Provider, who.clone()) {
-                        return Err(Error::<T>::MarketStatusHasExited.into());
+                        Err(Error::<T>::MarketStatusHasExited)?
                     }
                     // Insert the Provider for who
                     StakerInfo::<T>::insert(MarketUserStatus::Provider, who.clone(), userinfo);
@@ -305,7 +313,7 @@ pub mod pallet {
                 MarketUserStatus::Gateway => {
                     // Determine weather who already has Gateway status
                     if StakerInfo::<T>::contains_key(MarketUserStatus::Gateway, who.clone()) {
-                        return Err(Error::<T>::MarketStatusHasExited.into());
+                        Err(Error::<T>::MarketStatusHasExited)?
                     }
                     // Insert the Gateway for who
                     StakerInfo::<T>::insert(MarketUserStatus::Gateway, who.clone(), userinfo);
@@ -314,7 +322,7 @@ pub mod pallet {
                 MarketUserStatus::Client => {
                     // Determine weather who already has Client status
                     if StakerInfo::<T>::contains_key(MarketUserStatus::Client, who.clone()) {
-                        return Err(Error::<T>::MarketStatusHasExited.into());
+                        Err(Error::<T>::MarketStatusHasExited)?
                     }
                     // Insert the Client for who
                     StakerInfo::<T>::insert(MarketUserStatus::Client, who.clone(), userinfo);
@@ -322,26 +330,73 @@ pub mod pallet {
                 // Others
                 // todo
                 _ => {
-                    return Err(Error::<T>::UnperfectedIdentity.into());
+                    Err(Error::<T>::UnperfectedIdentity)?
                 }
            }
 
-            Self::deposit_event(Event::CreateMarketAccountSuccess(who, status));
+            // Self::deposit_event(Event::CreateMarketAccountSuccess(who, status));
+            Self::deposit_event(Event::Yes(status_));
             Ok(())
         }
-
 
         // Bond for his status
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn bond(
             origin: OriginFor<T>,
-            #[pallet::compact] value: BalanceOf<T>
+            // status: p_market::MarketUserStatus,
+            status: u8,
         ) -> DispatchResult {
 
-            let stash = ensure_signed(origin)?;
+            let who = ensure_signed(origin)?;
 
+            let use_free_balance = T::Currency::free_balance(&who.clone());
+            // test, see the user money
+            Self::deposit_event(Event::Money(use_free_balance));
 
+            let status_ = status;
 
+            let status = match Self::u8_to_MarketStatus(status) {
+                Ok(s) => s,
+                Err(error) => Err(error)?
+            };
+
+            // Computer staked amount
+            let uesr_staked = Self::compute_user_staked(status.clone(), who.clone());
+
+            match status.clone() {
+                MarketUserStatus::Provider => {
+                    Err(Error::<T>::todo)?
+                },
+
+                MarketUserStatus::Gateway => {
+                    // Determine user has Gateway status staking_info
+                    if !StakerInfo::<T>::contains_key(MarketUserStatus::Gateway, who.clone()) {
+                        Err(Error::<T>::StakingAccountIdNotExit)?
+                    }
+                    // Determine user has enough balance to bond
+                    if use_free_balance.saturating_sub(uesr_staked) < T::Currency::minimum_balance() {
+                        Err(Error::<T>::NotEnoughBalanceTobond)?
+                    }
+                    Self::stake_amount(who.clone(), uesr_staked);
+
+                },
+
+                MarketUserStatus::Client => {
+                    Err(Error::<T>::todo)?
+                }
+            }
+            Self::deposit_event(Event::Yes(1));
+            // Update the total staked
+            let mut market_total_staked = MarketTotalStaked::<T>::get();
+            market_total_staked += uesr_staked;
+            MarketTotalStaked::<T>::set(market_total_staked);
+            Self::deposit_event(Event::Yes(2));
+            // Update the status(provider, gateway, client) total staked
+            Self::updata_staked_amount(status.clone(), uesr_staked);
+
+            // Self::deposit_event(Event::StakingSuccess(who.clone(), status.clone(), uesr_staked));
+            Self::deposit_event(Event::Yes(status_));
+            Self::deposit_event(Event::Money(uesr_staked));
             Ok(())
         }
 
@@ -392,84 +447,6 @@ pub mod pallet {
             Ok(().into())
         }
 
-        // Bing the accountid to staking information
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn crate_staking_amount(
-            origin: OriginFor<T>,
-        ) ->DispatchResult {
-            // mut be singed 
-            let who = ensure_signed(origin)?;
-
-            // Is already registered
-            if StakingAccontId::<T>::contains_key(who.clone()) {
-                return Err(Error::<T>::StakingAccontIdAlreadyExit.into());
-            }
-
-            // Binding stakingamount to Account
-            StakingAccontId::<T>::insert(who.clone(), p_market::StakingAmount {
-                amount: 0,
-                active_amount: 0,
-                lock_amount: 0,
-            });
-
-            Self::deposit_event(Event::CreateStakingAccountSuccessful(who.clone()));
-
-            const MILLISECONDS_PER_YEAR: u64 = 1000 * 3600 * 24 * 36525 / 100;
-            let era_edution = 1194001;
-            let portion = sp_runtime::Perbill::from_rational(era_edution as u64, MILLISECONDS_PER_YEAR);
-
-            // cout the portion
-            Self::deposit_event(Event::Protion(portion));
-
-            // cout the result of money
-            Self::deposit_event(Event::Money(portion * T::NumberToBalance::convert(24000000000000000)));
-            Ok(())
-        }
-
-        // charge for account 
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn charge_for_account(
-            origin: OriginFor<T>,
-            bond_price: BalanceOf<T>,
-        ) ->DispatchResult {
-
-            let who = ensure_signed(origin)?;
-
-            // Determine if a user exist staking account
-            if !StakingAccontId::<T>::contains_key(who.clone()) {
-                return Err(Error::<T>::StakingAccountIdNotExit.into());
-            }
-
-            // transfer accountid token to staking pot
-            T::Currency::transfer(
-                &who.clone(), 
-                &Self::staking_pot(), 
-                bond_price, 
-                ExistenceRequirement::KeepAlive,
-            )?;
-
-            // Update the current total staking amount
-            let mut staking = CurrentTotalStaking::<T>::get();
-            staking += T::BalanceToNumber::convert(bond_price);
-            CurrentTotalStaking::<T>::set(staking);
-
-            // get pledge details
-            let mut staking_info = StakingAccontId::<T>::get(who.clone()).unwrap();
-            // calculate the new total pledge amount
-            let price = T::BalanceToNumber::convert(bond_price);
-            // charge for account
-            staking_info.charge_for_account(price);
-            // save the account amount 
-            StakingAccontId::<T>::insert(
-                who.clone(),
-                staking_info,
-            );
-
-            Self::deposit_event(Event::ChargeStakingAccountSuccessful(who.clone()));
-
-            Ok(())
-        }
-
         // Withdraw amount from staking account 
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn withdraw_amount(
@@ -514,6 +491,9 @@ pub mod pallet {
             Ok(())
         }
 
+
+        /// Used to Initialize the storage pot
+        /// todo, change the func in config
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn charge_storage_pot(
             origin: OriginFor<T>,
@@ -562,6 +542,19 @@ pub mod pallet {
             Self::deposit_event(Event::RewardIssuedSucces(total_reward));
             Ok(())
         }
+
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn test_era(
+            origin: OriginFor<T>,
+        ) ->DispatchResult {
+
+            let index = T::StakingInterface::EraIndex();
+
+            Self::deposit_event(Event::Era(index));
+
+            Ok(())
+        }
+
     }
 }
 
@@ -570,6 +563,37 @@ impl<T: Config> Pallet<T> {
     pub fn staking_pot() -> T::AccountId { PALLET_ID.into_sub_account(b"stak") }
     /// market_reward_pot: use to storage the market's reward from end_era
     pub fn market_reward_pot() -> T::AccountId { PALLET_ID.into_sub_account(b"stor") }
+
+    fn u8_to_MarketStatus(status: u8) -> Result<MarketUserStatus, Error<T>> {
+
+        match status {
+            0 => {
+                Ok(MarketUserStatus::Provider)
+            },
+
+            1 => {
+                Ok(MarketUserStatus::Gateway)
+            },
+
+            2 => {
+                Ok(MarketUserStatus::Client)
+            },
+
+            _ => {
+                return Err(Error::<T>::NotThisStatus.into());
+            }
+        }
+    }
+
+    fn stake_amount(who: T::AccountId, amount: BalanceOf<T>) {
+        T::Currency::set_lock(
+            EXAMPLE_ID,
+            &who,
+            // amount,
+            amount,
+            WithdrawReasons::all(),
+        );
+    }
 
     /// clearance_overdue_property
     /// The function will transfer the overdue amount to the market_reward_pot
@@ -589,6 +613,52 @@ impl<T: Config> Pallet<T> {
         }
         // Send the total ouerdue informathion
         Self::deposit_event(Event::<T>::ClearanceOverdueProperty(total_overdue));
+    }
+
+    /// updata_staked_amount
+    /// Calling the StakingInterface function: updata_staked_amount
+    /// input:
+    ///     index: EraIndex, used for the specified era
+    ///     value: Balance, the amount which user staking
+    fn updata_staked_amount(status: MarketUserStatus, value: BalanceOf<T>) {
+        match status {
+            MarketUserStatus::Provider => {
+                let mut staked = ProviderTotalStaked::<T>::get();
+                staked += value;
+                ProviderTotalStaked::<T>::set(staked);
+            },
+
+            MarketUserStatus::Gateway => {
+                let mut staked = GatewayTotalStaked::<T>::get();
+                staked += value;
+                GatewayTotalStaked::<T>::set(staked);
+            },
+
+            MarketUserStatus::Client => {
+                let mut staked = ClientTotalStaked::<T>::get();
+                staked += value;
+                ClientTotalStaked::<T>::set(staked);
+            },
+        }
+    }
+
+    fn compute_user_staked(status: MarketUserStatus, who: T::AccountId) -> BalanceOf<T> {
+
+        match status {
+            MarketUserStatus::Provider => {
+                // todo
+            },
+
+            MarketUserStatus::Gateway => {
+                return T::NumberToBalance::convert(100 * BALANCE_UNIT);
+            },
+
+            MarketUserStatus::Client => {
+                // todo
+            }
+        }
+
+        T::NumberToBalance::convert(0)
     }
 }
 

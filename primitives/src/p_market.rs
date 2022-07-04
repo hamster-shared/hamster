@@ -16,8 +16,16 @@ pub struct UserInfo {
     pub staked_amount: u128,
 }
 
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+impl UserInfo {
+    pub fn new(amount: u128) -> Self{
+        UserInfo {
+            staked_amount: amount
+        }
+    }
+}
+
+#[derive(Encode, Decode, RuntimeDebug, PartialEq, Eq, Copy, Clone)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum MarketUserStatus {
     Provider,
     Gateway,

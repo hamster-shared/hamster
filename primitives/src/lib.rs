@@ -5,6 +5,7 @@ pub mod p_provider;
 pub mod constants;
 pub mod p_gateway;
 pub mod p_market;
+pub mod p_staking;
 
 use sp_runtime::{
     traits::{IdentifyAccount, Verify},

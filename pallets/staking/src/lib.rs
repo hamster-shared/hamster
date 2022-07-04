@@ -322,6 +322,7 @@ use frame_election_provider_support::{ElectionProvider, VoteWeight, Supports, da
 use frame_support::traits::Len;
 pub use weights::WeightInfo;
 pub use pallet::*;
+use primitives::p_staking::StakingInterface;
 
 const STAKING_ID: LockIdentifier = *b"staking ";
 pub(crate) const LOG_TARGET: &'static str = "runtime::staking";
@@ -3561,3 +3562,11 @@ where
 fn is_sorted_and_unique(list: &[u32]) -> bool {
 	list.windows(2).all(|w| w[0] < w[1])
 }
+
+impl<T: Config> StakingInterface for Pallet<T> {
+	fn EraIndex() -> primitives::EraIndex {
+		ActiveEra::<T>::get().unwrap().index
+	}
+}
+
+

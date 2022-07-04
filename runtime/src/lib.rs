@@ -393,6 +393,7 @@ impl pallet_market::Config for Runtime {
 	type HealthCheckInterval = HealthCheckInterval;
 	type UnixTime = Timestamp;
 	type GatewayInterface = Gateway;
+	type StakingInterface = Staking;
 }
 
 parameter_types! {

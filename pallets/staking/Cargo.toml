@@ -220,9 +220,11 @@ sp-application-crypto = { version = "3.0.0", default-features = false, git = 'ht
 frame-election-provider-support = { version = "3.0.0", default-features = false, git = 'https://gitee.com/mohaijiang/substrate.git', tag = 'monthly-2021-07'}
 pallet-gateway = {version = "3.0.0", path = "../gateway", default-features = false}
 pallet-provider = {version = "3.0.0", path = "../provider", default-features = false}
-pallet-market = {version = "3.0.0", path = "../market", default-features =false}
+pallet-market = {version = "3.0.0", path = "../market", default-features = false}
+primitives = {version = "3.0.0", path = "../../primitives", default-features = false, package="ttc-primitives"}
 log = { version = "0.4.14", default-features = false }
 paste = "1.0"
+
 
 # Optional imports for benchmarking
 frame-benchmarking = { version = "3.1.0", default-features = false, git = 'https://gitee.com/mohaijiang/substrate.git', tag = 'monthly-2021-07', optional = true }
@@ -261,6 +263,7 @@ std = [
 	"pallet-provider/std",
 	"pallet-gateway/std",
 	"pallet-market/std",
+	'primitives/std',
 ]
 runtime-benchmarks = [
 	"frame-benchmarking",
