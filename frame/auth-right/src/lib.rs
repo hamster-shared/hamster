@@ -72,8 +72,8 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		// (accountid, hash, orgcode)
-		AuthRightSuccessed(T::AccountId, Vec<u8>, Vec<u8>),
+		// (accountid, hash, orgcode,filename, username,description, create_time)
+		AuthRightSuccessed(T::AccountId, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>,BoundedVec<u8, frame_support::traits::ConstU32<64>>,<<T as Config>::Time as Time>::Moment),
 		// (orgCode, orgName) )
 		OrgRegSuccess(T::AccountId, Vec<u8>, Vec<u8>),
 		// orgApprove(orgCode, status)
@@ -204,7 +204,7 @@ pub mod pallet {
 			}
 
 			//Send the success event
-			Self::deposit_event(Event::<T>::AuthRightSuccessed(who.clone(), hash.clone(), org_code.clone()));
+			Self::deposit_event(Event::<T>::AuthRightSuccessed(who.clone(), hash.clone(), org_code.clone(),file.clone(),people.clone(),description,now_timestamp));
 
 			Ok(())
 		}
