@@ -161,6 +161,9 @@ pub trait MarketInterface<AccountId> {
     fn market_total_staked() -> u128;
 
     fn bond(who: AccountId, status: MarketUserStatus) -> Result<(), DispatchError>;
-    
+
     fn unlock();
+
+    fn update_provider_staked(who: AccountId, amount: u128);
+
 }

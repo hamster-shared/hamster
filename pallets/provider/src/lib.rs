@@ -14,6 +14,7 @@ use sp_std::vec::Vec;
 pub use pallet::*;
 pub use primitives::p_provider::*;
 pub use primitives::p_resource_order::*;
+pub use pallet_market::MarketInterface;
 
 #[cfg(test)]
 mod mock;
@@ -27,7 +28,9 @@ type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Con
 
 #[frame_support::pallet]
 pub mod pallet {
+    use sp_runtime::traits::Saturating;
     use primitives::Balance;
+    use primitives::p_market::{MarketInterface, MarketUserStatus};
 
     use super::*;
 
@@ -43,8 +46,13 @@ pub mod pallet {
         /// amount converted to numbers
         type BalanceToNumber: Convert<BalanceOf<Self>, u128>;
 
+        type NumberToBalance: Convert<u128, BalanceOf<Self>>;
+
         /// resource expiration polling interval
         type ResourceInterval: Get<Self::BlockNumber>;
+
+        /// market interface
+        type MarketInterface: MarketInterface<Self::AccountId>;
     }
 
     #[pallet::pallet]
@@ -78,6 +86,15 @@ pub mod pallet {
     #[pallet::getter(fn provider)]
     pub(super) type Provider<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, Vec<u64>, OptionQuery>;
 
+    /// providers total cpu
+    #[pallet::storage]
+    #[pallet::getter(fn provider_total_cpu)]
+    pub(super) type ProviderTotalCpu<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u64, OptionQuery>;
+
+    /// providers total memory
+    #[pallet::storage]
+    #[pallet::getter(fn provider_total_memory)]
+    pub(super) type ProviderTotalMemory<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u64, OptionQuery>;
 
     // The genesis config type.
     #[pallet::genesis_config]
@@ -193,6 +210,8 @@ pub mod pallet {
         UnmodifiableStatusNow,
         /// resource expired
         ResourcesExpired,
+
+        NotEnoughStakingAount,
     }
 
     // Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -201,6 +220,7 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// register resources
+        #[frame_support::transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn register_resource(
             account_id: OriginFor<T>,
@@ -213,15 +233,54 @@ pub mod pallet {
             rent_duration_hour: u32,
         ) -> DispatchResult {
             let who = ensure_signed(account_id)?;
-            let index = ResourceIndex::<T>::get();
 
+            // 0. get the user free balance
+            let user_free_balance = T::Currency::free_balance(&who.clone());
+
+            // 1. compute the provider total staked
+            let mut new_total_cpus = cpu;
+            let mut new_total_memory = memory;
+            if ProviderTotalCpu::<T>::contains_key(who.clone()) {
+                let old = ProviderTotalCpu::<T>::get(who.clone()).unwrap();
+                new_total_cpus += old;
+            }
+            if ProviderTotalMemory::<T>::contains_key(who.clone()) {
+                let old = ProviderTotalMemory::<T>::get(who.clone()).unwrap();
+                new_total_memory += old;
+            }
+
+            let new_total_staked = Self::compute_provider_staked_amount(
+                new_total_cpus,
+                new_total_memory,
+            );
+
+            if user_free_balance.saturating_sub(new_total_staked) < T::Currency::minimum_balance() {
+                Err(Error::<T>::NotEnoughStakingAount)?
+            }
+
+            T::MarketInterface::update_provider_staked(who.clone(), T::BalanceToNumber::convert(new_total_staked));
+
+            // 1. MarketInterface:: bond()
+            match T::MarketInterface::bond(who.clone(), MarketUserStatus::Provider) {
+                Ok(()) => {
+
+                },
+                Err(error) => {
+                    Err(error)?
+                }
+            }
+
+            // get the resource current index
+            let index = ResourceIndex::<T>::get();
+            // crate the resource config, use cpu, memory, system, cpu_model
             let resource_config =
                 ResourceConfig::new(cpu.clone(), memory.clone(),
                                     system.clone(), cpu_model.clone());
-
+            // create the statistice
             let statistics =
                 ResourceRentalStatistics::new(0, 0, 0, 0);
 
+            // compute the Expiration time of the source
             // get the current block height
             let block_number = <frame_system::Pallet<T>>::block_number();
             // calculate persistent blocks
@@ -229,11 +288,11 @@ pub mod pallet {
                 TryInto::<T::BlockNumber>::try_into(&rent_duration_hour * 600).ok().unwrap();
             // the block number at which the calculation ends
             let end_of_block = block_number + rent_blocks;
-
+            // create the resource rental information
             let resource_rental_info =
                 ResourceRentalInfo::new(T::BalanceToNumber::convert(price.clone()),
                                         rent_blocks, end_of_block);
-
+            // create the computing resource: include all the info(resource, statistics, rental_info, and source status)
             let computing_resource = ComputingResource::new(
                 index, who.clone(), peer_id.clone(), resource_config,
                 statistics, resource_rental_info,
@@ -270,6 +329,24 @@ pub mod pallet {
             let mut resources = Provider::<T>::get(who.clone()).unwrap();
             resources.push(index);
             Provider::<T>::insert(who.clone(), resources);
+
+            // update the provider total memory
+            if !ProviderTotalMemory::<T>::contains_key(who.clone()) {
+                // Initialize
+                ProviderTotalMemory::<T>::insert(who.clone(), 0);
+            }
+            let mut memorys = ProviderTotalMemory::<T>::get(who.clone()).unwrap();
+            memorys += memory;
+            ProviderTotalMemory::<T>::insert(who.clone(), memorys);
+
+            // update the provider total cpu
+            if !ProviderTotalCpu::<T>::contains_key(who.clone()) {
+                // Initialize
+                ProviderTotalCpu::<T>::insert(who.clone(), 0);
+            }
+            let mut cpus = ProviderTotalCpu::<T>::get(who.clone()).unwrap();
+            cpus += cpu;
+            ProviderTotalCpu::<T>::insert(who.clone(), cpus);
 
             Self::deposit_event(Event::RegisterResourceSuccess(who, index, peer_id, cpu, memory, system, cpu_model, T::BalanceToNumber::convert(price), rent_duration_hour));
 
@@ -431,6 +508,20 @@ impl<T: Config> Pallet<T> {
         Resources::<T>::insert(index, resource);
         Ok(())
     }
+
+    /// compute the staked from cpus and memorys
+    /// * base_cpu = 100 UNIT base_memory = 100 UNIT
+    fn compute_provider_staked_amount(cpus: u64, memory: u64) -> BalanceOf<T> {
+        // Set the base staked fee
+        let base_staked: u64 = 100_000_000_000_000;
+        // compute the staked from cpus and memory
+        let staked: u128 = (
+            cpus.saturating_mul(base_staked) as u128 +
+                memory.saturating_mul(base_staked) as u128) as u128;
+        // return the staked
+        T::NumberToBalance::convert(staked)
+    }
+
 }
 
 impl<T: Config> OrderInterface for Pallet<T> {

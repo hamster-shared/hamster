@@ -41,6 +41,7 @@ pub const BALANCE_UNIT: u128 = 1_000_000_000_000;  //10^12
 #[frame_support::pallet]
 pub mod pallet {
     use frame_system::Origin;
+
     // use log::Level::Error;
     use log::log;
     use pallet_balances::NegativeImbalance;
@@ -246,10 +247,26 @@ pub mod pallet {
     #[pallet::getter(fn current_total_staking)]
     pub(super) type CurrentTotalStaking<T: Config> = StorageValue<_, u128, ValueQuery>;
 
+    /// provider total staked
+    #[pallet::storage]
+    #[pallet::getter(fn provider_total_staking)]
+    pub(super) type ProviderTotalStaking<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        u128,
+        OptionQuery,
+    >;
+
     /// Current total amount in the market_reward_pot
     #[pallet::storage]
     #[pallet::getter(fn current_total_reward)]
     pub(super) type CurrentTotalReward<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
+
+    #[pallet::storage]
+    #[pallet::getter(fn test_value)]
+    pub(super) type Testvalue<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
     /// Current total provider amount in the market_reward_pot
     #[pallet::storage]
@@ -417,6 +434,36 @@ pub mod pallet {
             Ok(())
         }
 
+        // todo test lock
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn testlock(
+            origin: OriginFor<T>,
+            value: BalanceOf<T>,
+        ) -> DispatchResult {
+
+            let user = ensure_signed(origin)?;
+
+            // T::Currency::set_lock(
+            //     EXAMPLE_ID,
+            //     &user,
+            //     // amount,
+            //     value,
+            //     WithdrawReasons::all(),
+            // );
+
+
+            T::Currency::extend_lock(
+                EXAMPLE_ID,
+                &user,
+                // amount,
+                value,
+                WithdrawReasons::all(),
+            );
+
+            Ok(())
+        }
+
+        
         // Bond for his status
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn bond(
@@ -848,6 +895,8 @@ impl<T: Config> Pallet<T> {
         match status {
             MarketUserStatus::Provider => {
                 // todo
+                // get the staked from storage
+                return T::NumberToBalance::convert(ProviderTotalStaking::<T>::get(who.clone()).unwrap());
             },
 
             MarketUserStatus::Gateway => {
@@ -1179,6 +1228,9 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         match status.clone() {
             MarketUserStatus::Provider => {
                 Err(Error::<T>::todo)?
+                // todo
+
+
             },
 
             MarketUserStatus::Gateway => {
@@ -1232,5 +1284,9 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         Self::deposit_event(Event::StakingSuccess(who.clone(), status.clone(), uesr_staked));
 
         Ok(())
+    }
+
+    fn update_provider_staked(who: T::AccountId, amount: u128) {
+        ProviderTotalStaking::<T>::insert(who.clone(), amount);
     }
 }

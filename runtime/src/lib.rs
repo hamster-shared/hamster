@@ -615,7 +615,9 @@ impl pallet_provider::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type BalanceToNumber = ConvertInto;
+	type NumberToBalance = ConvertInto;
 	type ResourceInterval = ResourceInterval;
+	type MarketInterface = Market;
 }
 
 impl pallet_gateway::Config for Runtime {
