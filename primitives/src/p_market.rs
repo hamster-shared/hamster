@@ -7,6 +7,7 @@ use sp_debug_derive::RuntimeDebug;
 use sp_runtime::traits::AtLeast32BitUnsigned;
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
+use sp_runtime::DispatchError;
 
 use crate::{Balance, EraIndex};
 
@@ -147,7 +148,7 @@ pub trait MarketInterface<AccountId> {
     // fn compute_gateways_points(accout: AccountId, blocknums: u128);
 
     // 计算gateway的奖励
-    fn compute_gateways_rewards(index: EraIndex, total_reward: u128);
+    fn compute_rewards(index: EraIndex, total_reward: u128);
 
     // Save the gateway rewards information
     fn save_gateway_reward(who: AccountId, reward: u128, index: EraIndex);
@@ -156,4 +157,10 @@ pub trait MarketInterface<AccountId> {
     fn save_provider_reward(who: AccountId, reward: u128, index: EraIndex);
 
     fn storage_pot() -> AccountId;
+
+    fn market_total_staked() -> u128;
+
+    fn bond(who: AccountId, status: MarketUserStatus) -> Result<(), DispatchError>;
+    
+    fn unlock();
 }

@@ -19,6 +19,7 @@ use sp_std::vec::Vec;
 pub use pallet::*;
 pub use primitives::p_provider::*;
 pub use primitives::p_resource_order::*;
+pub use pallet_market::MarketInterface;
 
 #[cfg(test)]
 mod mock;
@@ -50,6 +51,9 @@ pub mod pallet {
 
         /// order fee interface
         type OrderInterface: OrderInterface<AccountId=Self::AccountId, BlockNumber=Self::BlockNumber>;
+
+        /// Market interface
+        type MarketInterface: MarketInterface<Self::AccountId>;
 
         /// block height to number
         type BlockNumberToNumber: Convert<Self::BlockNumber, u128> + Convert<u32, Self::BlockNumber>;
@@ -383,7 +387,6 @@ pub mod pallet {
             // determine whether it is me
             ensure!(who.clone() == resource_info.account_id,Error::<T>::OrderNotOwnedByYou);
 
-
             // get order amount
             let order_price = order.price;
             // get pledge information
@@ -539,7 +542,21 @@ pub mod pallet {
             bond_price: BalanceOf<T>,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
-            
+
+            // todo use marketinterface func bond
+            match T::MarketInterface::bond(who.clone(), pallet_market::MarketUserStatus::Provider) {
+                Ok(()) => {
+
+                },
+                Err(error) => {
+                    Err(error)?
+                }
+            }
+
+
+
+
+
             // transfer
             T::Currency::transfer(&who.clone(), &Self::staking_pool(), bond_price, ExistenceRequirement::AllowDeath)?;
 

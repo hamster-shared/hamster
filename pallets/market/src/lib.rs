@@ -9,7 +9,7 @@ use frame_system::pallet_prelude::*;
 use primitives::{Balance, p_market};
 use sp_core::Bytes;
 use sp_runtime::generic::Era;
-use sp_runtime::traits::AccountIdConversion;
+use sp_runtime::traits::{AccountIdConversion, Saturating};
 use sp_runtime::traits::Zero;
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
@@ -117,6 +117,21 @@ pub mod pallet {
         OptionQuery,
     >;
 
+    /// Store the user total staked
+    #[pallet::storage]
+    #[pallet::getter(fn user_total_staked)]
+    pub(super) type UserTotalStaked<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        BalanceOf<T>,
+        OptionQuery,
+    >;
+
+    /// Current total amount in the market_reward_pot
+    #[pallet::storage]
+    #[pallet::getter(fn clients)]
+    pub(super) type Clients<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn gateway_total_staked)]
@@ -133,6 +148,10 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn client_total_staked)]
     pub(super) type ClientTotalStaked<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn client_current_nums)]
+    pub(super) type ClientCurrentNums<T: Config> = StorageValue<_, u128, ValueQuery>;
 
     /// Storage gateway reward
     #[pallet::storage]
@@ -156,6 +175,17 @@ pub mod pallet {
         OptionQuery,
     >;
 
+    /// Storage Client reward
+    #[pallet::storage]
+    #[pallet::getter(fn client_reward)]
+    pub(super) type ClientReward<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        Income,
+        OptionQuery,
+    >;
+
     /// Era's total reward
     #[pallet::storage]
     #[pallet::getter(fn era_rewards)]
@@ -163,7 +193,7 @@ pub mod pallet {
         _,
         Twox64Concat,
         EraIndex,
-        u128,
+        BalanceOf<T>,
         OptionQuery,
     >;
 
@@ -174,7 +204,40 @@ pub mod pallet {
         _,
         Twox64Concat,
         EraIndex,
-        ProviderIncome,
+        BalanceOf<T>,
+        OptionQuery,
+    >;
+
+    /// Gateway Era total reward
+    #[pallet::storage]
+    #[pallet::getter(fn era_gateway_rewards)]
+    pub(super) type EraGatewayRewards<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        EraIndex,
+        BalanceOf<T>,
+        OptionQuery,
+    >;
+
+    /// Client Era total reward
+    #[pallet::storage]
+    #[pallet::getter(fn era_client_rewards)]
+    pub(super) type EraClientRewards<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        EraIndex,
+        BalanceOf<T>,
+        OptionQuery,
+    >;
+
+    /// Unlock account list
+    #[pallet::storage]
+    #[pallet::getter(fn unlock_account_list)]
+    pub(super) type UnlockAccountList<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        MarketUserStatus,
+        Vec<T::AccountId>,
         OptionQuery,
     >;
 
@@ -186,7 +249,22 @@ pub mod pallet {
     /// Current total amount in the market_reward_pot
     #[pallet::storage]
     #[pallet::getter(fn current_total_reward)]
-    pub(super) type CurrentTotalReward<T: Config> = StorageValue<_, u128, ValueQuery>;
+    pub(super) type CurrentTotalReward<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
+    /// Current total provider amount in the market_reward_pot
+    #[pallet::storage]
+    #[pallet::getter(fn current_total_provider_reward)]
+    pub(super) type CurrentTotalProviderReward<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
+    /// Current total gateway amount in the market_reward_pot
+    #[pallet::storage]
+    #[pallet::getter(fn current_total_gateway_reward)]
+    pub(super) type CurrentTotalGatewayReward<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
+    /// Current total client amount in the market_reward_pot
+    #[pallet::storage]
+    #[pallet::getter(fn current_total_client_reward)]
+    pub(super) type CurrentTotalClientReward<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
     // Pallets use events to inform users when important changes are made.
     // https://substrate.dev/docs/en/knowledgebase/runtime/events
@@ -240,6 +318,11 @@ pub mod pallet {
 
         Yes(u8),
 
+        ComputeClientSuccess,
+
+        M(Perbill),
+
+        SaveUnlockInfoSueecss(T::AccountId, MarketUserStatus),
     }
 
     #[pallet::hooks]
@@ -269,6 +352,10 @@ pub mod pallet {
         NotThisStatus,
 
         todo,
+
+        UnlockInfoAlreadyExit,
+
+        NotBond,
     }
 
     // Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -280,8 +367,7 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn crate_market_account(
             origin: OriginFor<T>,
-            // status: p_market::MarketUserStatus,
-            status: u8,
+            status: MarketUserStatus,
         ) -> DispatchResult {
 
             let who = ensure_signed(origin)?;
@@ -289,13 +375,6 @@ pub mod pallet {
             Self::deposit_event(Event::Yes(1));
 
             let userinfo = UserInfo::new(0);
-
-            let status_ = status;
-
-            let status = match Self::u8_to_MarketStatus(status) {
-                Ok(s) => s,
-                Err(error) => Err(error)?
-            };
 
             Self::deposit_event(Event::Yes(2));
 
@@ -334,8 +413,7 @@ pub mod pallet {
                 }
            }
 
-            // Self::deposit_event(Event::CreateMarketAccountSuccess(who, status));
-            Self::deposit_event(Event::Yes(status_));
+            Self::deposit_event(Event::CreateMarketAccountSuccess(who, status));
             Ok(())
         }
 
@@ -344,21 +422,12 @@ pub mod pallet {
         pub fn bond(
             origin: OriginFor<T>,
             // status: p_market::MarketUserStatus,
-            status: u8,
+            status: MarketUserStatus,
         ) -> DispatchResult {
 
             let who = ensure_signed(origin)?;
 
             let use_free_balance = T::Currency::free_balance(&who.clone());
-            // test, see the user money
-            Self::deposit_event(Event::Money(use_free_balance));
-
-            let status_ = status;
-
-            let status = match Self::u8_to_MarketStatus(status) {
-                Ok(s) => s,
-                Err(error) => Err(error)?
-            };
 
             // Computer staked amount
             let uesr_staked = Self::compute_user_staked(status.clone(), who.clone());
@@ -382,10 +451,27 @@ pub mod pallet {
                 },
 
                 MarketUserStatus::Client => {
-                    Err(Error::<T>::todo)?
+                    // Determine user has client status staking_info
+                    if !StakerInfo::<T>::contains_key(MarketUserStatus::Client, who.clone()) {
+                        Err(Error::<T>::StakingAccountIdNotExit)?
+                    }
+                    // Determine user has enough balance to bond
+                    if use_free_balance.saturating_sub(uesr_staked) < T::Currency::minimum_balance() {
+                        Err(Error::<T>::NotEnoughBalanceTobond)?
+                    }
+                    Self::stake_amount(who.clone(), uesr_staked);
+                    // Recore the client nums
+                    let mut client_nums = ClientCurrentNums::<T>::get();
+                    client_nums += 1;
+                    ClientCurrentNums::<T>::set(client_nums);
+
+                    // Recore the client
+                    let mut client_list = Clients::<T>::get();
+                    client_list.push(who.clone());
+                    Clients::<T>::set(client_list);
                 }
             }
-            Self::deposit_event(Event::Yes(1));
+
             // Update the total staked
             let mut market_total_staked = MarketTotalStaked::<T>::get();
             market_total_staked += uesr_staked;
@@ -394,9 +480,37 @@ pub mod pallet {
             // Update the status(provider, gateway, client) total staked
             Self::updata_staked_amount(status.clone(), uesr_staked);
 
-            // Self::deposit_event(Event::StakingSuccess(who.clone(), status.clone(), uesr_staked));
-            Self::deposit_event(Event::Yes(status_));
-            Self::deposit_event(Event::Money(uesr_staked));
+           Self::deposit_event(Event::StakingSuccess(who.clone(), status.clone(), uesr_staked));
+            Ok(())
+        }
+
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn withdraw (
+            origin: OriginFor<T>,
+            status: MarketUserStatus,
+        ) -> DispatchResult {
+
+            let user = ensure_signed(origin)?;
+
+            // 0. Deterine already exit in unlock list
+            let mut list = UnlockAccountList::<T>::get(status).unwrap();
+            if !list.contains(&user) {
+                Err(Error::<T>::UnlockInfoAlreadyExit)?
+            }
+            // 1. Determine the user exit
+            if !StakerInfo::<T>::contains_key(status, user.clone()) {
+                Err(Error::<T>::StakingAccountIdNotExit)?
+            }
+            // 2. Determine the user has bond
+            let staker_info = StakerInfo::<T>::get(status, user.clone()).unwrap();
+            if staker_info.staked_amount.is_zero() {
+                Err(Error::<T>::NotBond)?
+            }
+            // 3. save the withdraw information
+            list.push(user.clone());
+            UnlockAccountList::<T>::insert(status, list);
+
+            Self::deposit_event(Event::SaveUnlockInfoSueecss(user.clone(), status));
             Ok(())
         }
 
@@ -447,50 +561,104 @@ pub mod pallet {
             Ok(().into())
         }
 
-        // Withdraw amount from staking account 
+        // // Withdraw amount from staking account
+        // #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        // pub fn withdraw_amount(
+        //     origin: OriginFor<T>,
+        //     price: BalanceOf<T>,
+        // ) ->DispatchResult {
+        //
+        //     let who = ensure_signed(origin)?;
+        //
+        //     // Determine if a user exist staking account
+        //     ensure!(
+        //         StakingAccontId::<T>::contains_key(who.clone()),
+        //         Error::<T>::StakingAccountIdNotExit,
+        //     );
+        //
+        //     // Get the staking info from user
+        //     let mut staking_info = StakingAccontId::<T>::get(who.clone()).unwrap();
+        //
+        //     // Update staking infformation
+        //     // And determine if the user have enough active amount
+        //     ensure!(
+        //         staking_info.withdraw_amount(T::BalanceToNumber::convert(price)),
+        //         Error::<T>::NotEnoughActiveAmount,
+        //     );
+        //
+        //     // Transfer the price from staking pot to user
+        //     T::Currency::transfer(
+        //         &Self::staking_pot(),
+        //         &who.clone(),
+        //         price,
+        //         ExistenceRequirement::AllowDeath,
+        //     )?;
+        //
+        //     StakingAccontId::<T>::insert(who.clone(), staking_info);
+        //
+        //     // update the current total staking amount
+        //     let mut totalstaking = CurrentTotalStaking::<T>::get();
+        //     totalstaking -= T::BalanceToNumber::convert(price);
+        //     CurrentTotalStaking::<T>::set(totalstaking);
+        //
+        //     Self::deposit_event(Event::WithdrawStakingSuccess(who.clone(), price));
+        //     Ok(())
+        // }
+
+        /// New withdraw amount
+        /// * Used to unlock the locked token
+        /// todo: the func now only used by client
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn withdraw_amount(
             origin: OriginFor<T>,
-            price: BalanceOf<T>,
+            status: MarketUserStatus,
         ) ->DispatchResult {
 
             let who = ensure_signed(origin)?;
 
-            // Determine if a user exist staking account
-            ensure!(
-                StakingAccontId::<T>::contains_key(who.clone()),
-                Error::<T>::StakingAccountIdNotExit,
-            );
+            // 1. check the status and determine user has this status info
 
-            // Get the staking info from user
-            let mut staking_info = StakingAccontId::<T>::get(who.clone()).unwrap();
+            // 2. match the status
+            match status {
+                MarketUserStatus::Provider => {
+                    // 3. get the staker info and staked amount
+                },
+                MarketUserStatus::Gateway => {
+                    // 3. get the staker info and staked amount
+                },
+                MarketUserStatus::Client => {
+                    // 3. get the staker info and staked amount
+                    let client_staked_info = StakerInfo::<T>::get(status, who.clone()).unwrap();
+                    let client_staked_amount = T::NumberToBalance::convert(client_staked_info.staked_amount);
+                    // 4. unlock the amount
 
-            // Update staking infformation
-            // And determine if the user have enough active amount
-            ensure!(
-                staking_info.withdraw_amount(T::BalanceToNumber::convert(price)),
-                Error::<T>::NotEnoughActiveAmount,
-            );
+                    // 5. clear the staker info
 
-            // Transfer the price from staking pot to user
-            T::Currency::transfer(
-                &Self::staking_pot(), 
-                &who.clone(), 
-                price, 
-                ExistenceRequirement::AllowDeath,
-            )?;
+                    // 6. reduce the client nums
 
-            StakingAccontId::<T>::insert(who.clone(), staking_info);
+                    // 7. clear the clent list
+                }
+            }
 
-            // update the current total staking amount
-            let mut totalstaking = CurrentTotalStaking::<T>::get();
-            totalstaking -= T::BalanceToNumber::convert(price);
-            CurrentTotalStaking::<T>::set(totalstaking);
 
-            Self::deposit_event(Event::WithdrawStakingSuccess(who.clone(), price));
+
+
             Ok(())
+
         }
 
+
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn test_pen (
+            origin: OriginFor<T>,
+            price: BalanceOf<T>,
+        ) ->DispatchResult {
+
+            let test = Perbill::from_percent(200) * price;
+            let test = test.saturating_add(test).saturating_add(test);
+            Self::deposit_event(Event::Money(test));
+            Ok(())
+        }
 
         /// Used to Initialize the storage pot
         /// todo, change the func in config
@@ -543,6 +711,34 @@ pub mod pallet {
             Ok(())
         }
 
+        // todo payout_reward()
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn payout_client_nodes(
+            origin: OriginFor<T>,
+        ) ->DispatchResult {
+            // Just check the signed
+            ensure_signed(origin)?;
+            let mut total_reward = 0;
+            let client_reward = ClientReward::<T>::iter();
+            for (who, income) in client_reward {
+                let reward = income.total_income;
+                total_reward += reward;
+                // transfer the reward from reward_pot to who
+                T::Currency::transfer(
+                    &Self::market_reward_pot(),
+                    &who.clone(),
+                    T::NumberToBalance::convert(reward),
+                    ExistenceRequirement::KeepAlive,
+                )?;
+                // Remove the reward info
+                GatewayReward::<T>::remove(who.clone());
+            }
+
+            // // Send the amount which total payout this time
+            Self::deposit_event(Event::RewardIssuedSucces(total_reward));
+            Ok(())
+        }
+
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn test_era(
             origin: OriginFor<T>,
@@ -564,6 +760,11 @@ impl<T: Config> Pallet<T> {
     /// market_reward_pot: use to storage the market's reward from end_era
     pub fn market_reward_pot() -> T::AccountId { PALLET_ID.into_sub_account(b"stor") }
 
+
+    /// change the u8 to MarketStatus
+    /// * 0: Provider
+    /// * 1: Gateway
+    /// * 2: Client
     fn u8_to_MarketStatus(status: u8) -> Result<MarketUserStatus, Error<T>> {
 
         match status {
@@ -655,11 +856,138 @@ impl<T: Config> Pallet<T> {
 
             MarketUserStatus::Client => {
                 // todo
+                // The Client staked amount, Tentative: 100
+                return T::NumberToBalance::convert(100 * BALANCE_UNIT);
             }
         }
 
         T::NumberToBalance::convert(0)
     }
+
+
+
+
+    fn compute_portion(
+        p_staked: BalanceOf<T>,
+        g_staked: BalanceOf<T>,
+        c_staked: BalanceOf<T>,
+    ) -> (Perbill, Perbill, Perbill) {
+
+
+        // todo maybe bug
+        // 500
+        let _p_portion = p_staked.
+            saturating_add(p_staked).
+            saturating_add(p_staked).
+            saturating_add(p_staked).
+            saturating_add(p_staked);
+        // 300
+        let _g_portion = Perbill::from_percent(300) * g_staked;
+        let _g_portion = g_staked.
+            saturating_add(g_staked).
+            saturating_add(g_staked);
+        // 100
+        let _c_portion = c_staked;
+        // todo test the total_portion
+        // 400
+        let total_portion = _p_portion + _g_portion + _c_portion;
+        // todo test the p_portion
+        // todo maybe bug
+        // let p_portion = _p_portion / total_portion;
+        //
+        let p_portion = Perbill::from_rational(_p_portion, total_portion);
+        // todo test the g_portion
+        // todo maybe bug
+        // let g_portion = _g_portion / total_portion;
+        let g_portion = Perbill::from_rational(_g_portion, total_portion);
+
+       // todo test c_portion
+        // todo maybe bug
+        // let c_portion = _c_portion / total_portion;
+        let c_portion = Perbill::from_rational(_c_portion, total_portion);
+
+        (p_portion, g_portion, c_portion)
+    }
+
+    fn compute_client_reward(total_reward: BalanceOf<T>, index: EraIndex) {
+        // 1. get the nums of client
+        let client_nums = ClientCurrentNums::<T>::get();
+
+        if client_nums == 0 {
+            return;
+        }
+
+        // 2. get the total client reward
+        let client_total_reward = T::BalanceToNumber::convert(CurrentTotalClientReward::<T>::get());
+
+        // 3. compute the client reward
+        let client_reward = T::NumberToBalance::convert(client_total_reward / client_nums);
+
+        // 4. get the list of status: client
+        let client_list = Clients::<T>::get();
+
+        // 5. save the client reward
+        for client in client_list {
+
+            // Determine the user in has already save
+            if ClientReward::<T>::contains_key(client.clone()) {
+                // get the client reward
+                let mut _client_reward = ClientReward::<T>::get(client.clone()).unwrap();
+                _client_reward.reward(T::BalanceToNumber::convert(client_reward));
+                // update the reward information
+                ClientReward::<T>::insert(client.clone(), _client_reward);
+            } else {
+                // Create the Income
+                let _client_rewrd = Income {
+                    last_eraindex: index,
+                    total_income: T::BalanceToNumber::convert(client_reward),
+                };
+                ClientReward::<T>::insert(client.clone(), _client_rewrd);
+            }
+        }
+
+        Self::deposit_event(Event::ComputeClientSuccess);
+    }
+
+    fn unlock_client(list: Vec<T::AccountId>) {
+        // 0. get the account
+        for client in list {
+            // 1. get the staked amount info
+            let mut staked_info = StakerInfo::<T>::get(MarketUserStatus::Client, client.clone()).unwrap();
+            let staked_amount = T::NumberToBalance::convert(staked_info.staked_amount);
+
+            // 2. get user total staked
+            let total_staked = UserTotalStaked::<T>::get(client.clone()).unwrap();
+
+            // 3. get the new lock amount
+            let new_staked = total_staked.saturating_sub(staked_amount);
+
+            // 4. reset the new lock
+            // todo maybe bug
+            T::Currency::extend_lock(
+                EXAMPLE_ID,
+                &client,
+                new_staked,
+                WithdrawReasons::all(),
+            );
+
+            // 5. reduce the client nums
+            let mut client_nums = ClientCurrentNums::<T>::get();
+            client_nums -=1 ;
+            ClientCurrentNums::<T>::set(client_nums);
+
+            // 6. remove the user from Client list
+            let mut clients = Clients::<T>::get();
+            clients.remove(clients.binary_search(&client).unwrap());
+            Clients::<T>::set(clients);
+
+            // 7. reset the info from the stakeInfo
+            staked_info.staked_amount = T::BalanceToNumber::convert(staked_amount.saturating_sub(staked_amount));
+            StakerInfo::<T>::insert(MarketUserStatus::Client, client.clone(), staked_info);
+        }
+    }
+
+
 }
 
 impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pallet<T> {
@@ -678,6 +1006,21 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         StakingAccontId::<T>::insert(who.clone(), staking_info);
     }
 
+    fn unlock() {
+        // 0. get every status unlock list
+        let provider_list = UnlockAccountList::<T>::get(MarketUserStatus::Provider).unwrap();
+        let gateway_list = UnlockAccountList::<T>::get(MarketUserStatus::Gateway).unwrap();
+        let client_list = UnlockAccountList::<T>::get(MarketUserStatus::Client).unwrap();
+
+        // 1. todo unlock provider
+
+        // 2. todo unlock gateway
+
+        // 3. todo unlock client
+        Self::unlock_client(client_list);
+    }
+
+
     /// compute_gateways_rewards
     /// Calculate the rewards that the gateway node of the current era can assign,
     /// and reset the reward information with the points information after the calculation is completed
@@ -685,46 +1028,95 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
     ///     - index： EraIndex
     ///     - total_reward: u128
     /// todo!() change the func name : compute_rewards
-    fn compute_gateways_rewards(index: EraIndex, total_reward: u128) {
+    fn compute_rewards(index: EraIndex, total_reward: u128) {
 
-        let g_total_reward = total_reward / 2;
-        let p_total_reward = total_reward / 2;
-        let p_total_reward = p_market::ProviderIncome {
-            resource_reward: p_total_reward / 2,
-            services_reward: p_total_reward / 2,
-        };
+        // 1.Get the staked
+        // Get the Provider total staked
+        let provider_staked = ProviderTotalStaked::<T>::get();
+        // Get the Gateway total staked
+        let gateway_staked = GatewayTotalStaked::<T>::get();
+        // Get the Client total staked
+        let client_staked = ClientTotalStaked::<T>::get();
 
+        // Get the Portion
+        let (provider_portion,
+            gateway_portion,
+            client_portion) = Self::compute_portion(
+            provider_staked,
+            gateway_staked,
+            client_staked,
+        );
+
+        // 2. Compute the status(provider, gateway, client) total reward
+        let total_reward = T::NumberToBalance::convert(total_reward);
+        // todo test the total_reward
+        Self::deposit_event(Event::Money(total_reward));
+
+        let provider_reward = provider_portion * total_reward;
+
+        let gateway_reward = gateway_portion * total_reward;
+        // todo test the gateway reward
+        Self::deposit_event(Event::Money(gateway_reward));
+        let client_reward = client_portion * total_reward;
+
+        // 3. Compute every node reward
         // Use gateway's func, Because the gateway points save in pallet-gateway
-        T::GatewayInterface::compute_gateways_reward(total_reward, index);
-        // T::GatewayInterface::compute_gateways_reward(g_total_reward, index);
+        T::GatewayInterface::compute_gateways_reward(T::BalanceToNumber::convert(gateway_reward.clone()), index);
+        // Compute client reward
+        Self::compute_client_reward(client_reward.clone(), index);
+
 
         // todo!() use providerInface's func
         // T::ProviderInterface::compute_provider_reward(p_total_reward, index);
 
+        // 4. Update status(total, provider, gateway, client) Current reward on the chain
         // Update the current total reward
         let mut _total_reward = CurrentTotalReward::<T>::get();
         _total_reward += total_reward;
         CurrentTotalReward::<T>::set(_total_reward);
 
-        // todo!() change the total_reward to g_total_reward
+        // Update the current total provider reward
+        let mut _total_provider_reward = CurrentTotalProviderReward::<T>::get();
+        _total_provider_reward += provider_reward.clone();
+        CurrentTotalProviderReward::<T>::set(_total_provider_reward);
+
+        // Update the current total gatway reward
+        let mut _total_gateway_reward = CurrentTotalGatewayReward::<T>::get();
+        _total_gateway_reward += gateway_reward.clone();
+        CurrentTotalGatewayReward::<T>::set(_total_gateway_reward);
+
+        // Update the current total client reward
+        let mut _total_client_reward = CurrentTotalClientReward::<T>::get();
+        _total_client_reward += client_reward.clone();
+        CurrentTotalClientReward::<T>::set(_total_gateway_reward);
+
+        // 5. Save the status(total, provider, gateway, client) histort reward
         // Save the history era reward
         EraRewards::<T>::insert(index, total_reward);
-        // EraRewards::<T>::insert(index, g_total_reward);
-
         // Save the history ear provider reward
-        EraProviderRewards::<T>::insert(index, p_total_reward);
+        EraProviderRewards::<T>::insert(index, provider_reward);
+        // Save the history ear gatway reward
+        EraGatewayRewards::<T>::insert(index, gateway_reward.clone());
+        // Save the Client ear client reward
+        EraClientRewards::<T>::insert(index, client_reward.clone());
 
+        // 6. Clear the current reward information
         // Clear the current reward
-        CurrentTotalReward::<T>::set(0);
+        CurrentTotalReward::<T>::set(T::NumberToBalance::convert(0));
+        // Clear the current provider reward
+        CurrentTotalProviderReward::<T>::set(T::NumberToBalance::convert(0));
+        // Clear the current gateway reward
+        CurrentTotalGatewayReward::<T>::set(T::NumberToBalance::convert(0));
+        // Clear the current client reward
+        CurrentTotalClientReward::<T>::set(T::NumberToBalance::convert(0));
+
+        // 7. Clear the every node and status information
         // Clear the gateway points
         T::GatewayInterface::clear_points_info(index);
         // todo!() Clear the provider points
         // T::ProviderInterface::clear_points_info(index);
 
-        // Send the Event: compute gateway's reward success
-        Self::deposit_event(Event::ComputeGatewaysRewardSuccess);
-        // todo!()
-        // Self::deposit_event(Event::ComputeRewardSuccess);
+        Self::deposit_event(Event::ComputeRewardSuccess);
     }
 
     /// save_gateway_reward
@@ -769,5 +1161,76 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
 
     fn storage_pot() -> <T as frame_system::Config>::AccountId {
         Self::market_reward_pot()
+    }
+
+    fn market_total_staked() -> u128 {
+        T::BalanceToNumber::convert(MarketTotalStaked::<T>::get())
+    }
+
+    fn bond(who: T::AccountId, status: MarketUserStatus) -> Result<(), DispatchError> {
+
+        let use_free_balance = T::Currency::free_balance(&who.clone());
+        // todo test, see the user money
+        Self::deposit_event(Event::Money(use_free_balance));
+
+        // Computer staked amount
+        let uesr_staked = Self::compute_user_staked(status.clone(), who.clone());
+
+        match status.clone() {
+            MarketUserStatus::Provider => {
+                Err(Error::<T>::todo)?
+            },
+
+            MarketUserStatus::Gateway => {
+                // Determine user has Gateway status staking_info
+                if !StakerInfo::<T>::contains_key(MarketUserStatus::Gateway, who.clone()) {
+                    Err(Error::<T>::StakingAccountIdNotExit)?
+                }
+                // Determine user has enough balance to bond
+                if use_free_balance.saturating_sub(uesr_staked) < T::Currency::minimum_balance() {
+                    Err(Error::<T>::NotEnoughBalanceTobond)?
+                }
+                Self::stake_amount(who.clone(), uesr_staked);
+
+            },
+
+            MarketUserStatus::Client => {
+
+                // Determine user has client status staking_info
+                if !StakerInfo::<T>::contains_key(MarketUserStatus::Client, who.clone()) {
+                    Err(Error::<T>::StakingAccountIdNotExit)?
+                }
+                // Determine user has enough balance to bond
+                if use_free_balance.saturating_sub(uesr_staked) < T::Currency::minimum_balance() {
+                    Err(Error::<T>::NotEnoughBalanceTobond)?
+                }
+                Self::stake_amount(who.clone(), uesr_staked);
+                // Recore the client nums
+                let mut client_nums = ClientCurrentNums::<T>::get();
+                client_nums += 1;
+                ClientCurrentNums::<T>::set(client_nums);
+
+                // Recore the client
+                let mut client_list = Clients::<T>::get();
+                client_list.push(who.clone());
+                Clients::<T>::set(client_list);
+            }
+        }
+        // todo test
+        Self::deposit_event(Event::Yes(1));
+        // Update the total staked
+        let mut market_total_staked = MarketTotalStaked::<T>::get();
+        market_total_staked += uesr_staked;
+        MarketTotalStaked::<T>::set(market_total_staked);
+        // todo test
+        Self::deposit_event(Event::Yes(2));
+        // Update the status(provider, gateway, client) total staked
+        Self::updata_staked_amount(status.clone(), uesr_staked);
+
+        // todo test
+        Self::deposit_event(Event::Money(uesr_staked));
+        Self::deposit_event(Event::StakingSuccess(who.clone(), status.clone(), uesr_staked));
+
+        Ok(())
     }
 }

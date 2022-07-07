@@ -238,8 +238,17 @@ pub mod pallet {
             let who = ensure_signed(account_id)?;
 
             // Binding the staking info, and determine whether success
-            if !Self::binding_staking_info(who.clone()) {
-                return Err(Error::<T>::BingStakingInfoFailed.into());
+            // if !Self::binding_staking_info(who.clone()) {
+            //     return Err(Error::<T>::BingStakingInfoFailed.into());
+            // }
+
+            match T::MarketInterface::bond(who.clone(), pallet_market::MarketUserStatus::Gateway) {
+                Ok(()) => {
+
+                },
+                Err(error) => {
+                    Err(error)?
+                }
             }
 
             // get the current block height

@@ -608,6 +608,7 @@ impl pallet_resource_order::Config for Runtime{
 	type BalanceToNumber = ConvertInto;
 	type HealthCheckInterval = HealthCheckInterval;
 	type UnixTime = Timestamp;
+	type MarketInterface = Market;
 }
 
 impl pallet_provider::Config for Runtime {

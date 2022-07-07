@@ -280,6 +280,7 @@ pub mod slashing;
 pub mod inflation;
 pub mod weights;
 
+use core::convert::TryInto;
 use pallet_gateway::GatewayInterface;
 use pallet_market::MarketInterface;
 
@@ -322,6 +323,7 @@ use frame_election_provider_support::{ElectionProvider, VoteWeight, Supports, da
 use frame_support::traits::Len;
 pub use weights::WeightInfo;
 pub use pallet::*;
+use primitives::Balance;
 use primitives::p_staking::StakingInterface;
 
 const STAKING_ID: LockIdentifier = *b"staking ";
@@ -1359,6 +1361,8 @@ pub mod pallet {
 		EraDuration(u64, u64),
 
 		Validator_Payout(BalanceOf<T>),
+
+		TestStakedAndPortion(u128, BalanceOf<T>),
 	}
 
 	#[pallet::error]
@@ -2723,86 +2727,97 @@ impl<T: Config> Pallet<T> {
 			let now_as_millis_u64 = T::UnixTime::now().as_millis().saturated_into::<u64>();
 
 			let era_duration = (now_as_millis_u64 - active_era_start).saturated_into::<u64>();
-			// 当前时代总的质押金额
+			// current validator total staked
 			let staked = Self::eras_total_stake(&active_era.index);
 
-			log!(
-				debug,
-				"the era_durtaion is : {:?}",
-				era_duration,
-			);
+			let market_staked = T::NumberToBalance::convert(T::MarketInterface::market_total_staked());
 
-			Self::deposit_event(Event::<T>::EraDuration(
-				era_duration,
-				1000 * 3600 * 24 * 36525 / 100,
-			));
+			let mut total_staked: BalanceOf<T> = T::NumberToBalance::convert(0);
+			// Current era total staked = validator_staked + market_staked
+			total_staked.saturating_add(staked).saturating_add(market_staked);
 
 			let issuance = T::Currency::total_issuance();
-			let (validator_payout, rest) = T::EraPayout::era_payout(staked, issuance, era_duration);
+			// Get the reward (validator_market_payout, rest)
+			let (validator_market_payout, rest) = T::EraPayout::era_payout(total_staked, issuance, era_duration);
+			// let (validator_payout, rest) = T::EraPayout::era_payout(staked, issuance, era_duration);
+			// Test the validator_market_payout
+			Self::deposit_event(Event::<T>::Validator_Payout(validator_market_payout));
 
-			Self::deposit_event(Event::<T>::Validator_Payout(validator_payout));
+			// 1. compute the validator and market payout
+			let (validator_payout, market_payout) = Self::compute_validator_market_payout(
+				staked,
+				market_staked,
+				validator_market_payout,
+			);
 
-			// 1.Get the total reward of this era
-			let max_payout = rest.saturating_add(validator_payout.clone());
-
-			// 2.Compute the ratio of the mac_payout
-			// Market_reward = 20% * max_payout
-			let market_ratio = Perbill::from_percent(20);
-			let market_reward = market_ratio * max_payout;
-
-			// 60 * max_payout for validator
-			let validator_ratio = Perbill::from_percent(60);
-			let validator_payout = validator_ratio * max_payout;
-
-			// 20% * max_payout for treasury
-			let treasury_ratio = Perbill::from_percent(20);
-			let treasury_payout = treasury_ratio * max_payout;
-
-			// 3.Compute the gateway points and reward
-			// T::GatewayInterface::calculate_online_time(active_era.index);
-			// T::GatewayInterface::compute_gateways_points();
-			// T::MarketInterface::compute_gateways_rewards(
-			// 	active_era.index,
-			// 	T::BalanceToNumber::convert(market_reward),
-			// );
-
-			// 3. Compute gateway reward
-			T::MarketInterface::compute_gateways_rewards(active_era.index, T::BalanceToNumber::convert(market_reward));
-
-			// // 计算网关分数
-			// T::GatewayInterface::calculate_online_time(active_era.index);
-			// T::GatewayInterface::compute_gateways_points();
-			// // 计算gateway奖励
-			// T::MarketInterface::compute_gateways_rewards(
-			// 	active_era.index,
-			// 	T::BalanceToNumber::convert(market_reward),
-			// );
-			//
-			// // 将20%的总奖励送到 storage_pot 上
-			// // 函数：T::Currency::deposit_into_existing(storage_pot, 20 * rest).ok();
-			// // 统计gateway奖励，并且在market中记录
-			// // 调用 GatewayInterfade：：函数
-
-			// transfer market_reward to market_reward_pot
+			// 2. Compute market reward
+			T::MarketInterface::compute_rewards(active_era.index, T::BalanceToNumber::convert(market_payout));
 
 			Self::deposit_event(Event::<T>::EraPayout(
 				active_era.index,
 				validator_payout,
-				max_payout),
+				rest),
 			);
 
+			// used to test the reward portion
 			Self::deposit_event(Event::<T>::EraTotalPayout(
-				market_reward,
+				market_payout,
 				validator_payout,
-				treasury_payout,
+				rest,
 			));
 
-			// 4.Set ending era reward.
+			// 3.Set ending era reward.
 			//<ErasValidatorReward<T>>::insert(&active_era.index, validator_payout);
-			T::Currency::deposit_into_existing(&T::MarketInterface::storage_pot(), market_reward).ok();
+			T::Currency::deposit_into_existing(&T::MarketInterface::storage_pot(), market_payout).ok();
 			<ErasValidatorReward<T>>::insert(&active_era.index, validator_payout);
-			T::RewardRemainder::on_unbalanced(T::Currency::issue(treasury_payout));
+			T::RewardRemainder::on_unbalanced(T::Currency::issue(rest));
 		}
+	}
+
+	/// compute validator market payout
+	/// * Use the portion to compute anyone's payout
+	/// * validator_weight = 1.0	market_weight = 2.0
+	pub fn compute_validator_market_payout(
+		validator_staked: BalanceOf<T>,
+		market_staked: BalanceOf<T>,
+		total_payout: BalanceOf<T>,
+	) -> (BalanceOf<T>, BalanceOf<T>) {
+
+
+		// Compute the validator portion
+		let validator_portion = Perbill::from_percent(100) * validator_staked;
+		Self::deposit_event(Event::<T>::TestStakedAndPortion(
+			2799,
+			validator_portion,
+		));
+		// Compute the makret portion
+		let market_portion = Perbill::from_percent(200) * market_staked;
+		Self::deposit_event(Event::<T>::TestStakedAndPortion(
+			2805,
+			market_portion,
+		));
+		// compute the total portion
+		let total_portion = validator_portion + market_portion;
+		Self::deposit_event(Event::<T>::TestStakedAndPortion(
+			2811,
+			total_portion,
+		));
+		// compute the validator payout
+		// todo maybe error
+		// let validator_payout = (validator_portion / total_portion) * total_payout;
+		let validator_payout = Perbill::from_rational(
+			validator_portion,
+			total_portion,
+		) * total_payout;
+		// compute the market payout
+		// todo maybe error
+		// let market_payout = (market_portion / total_portion) * total_payout;
+		let market_payout = Perbill::from_rational(
+			market_portion,
+			total_portion,
+		) * total_payout;
+
+		(validator_payout, market_payout)
 	}
 
 	/// Plan a new era.
