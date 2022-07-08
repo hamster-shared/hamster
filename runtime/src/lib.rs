@@ -60,6 +60,8 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 /// Import the template pallet.
 pub use pallet_template;
 
+pub use pallet_burn;
+
 use pallet_authority_discovery;
 
 /// An index to a block.
@@ -380,6 +382,12 @@ impl pallet_template::Config for Runtime {
 	type BlockNumberToNumber = ConvertInto;
 }
 
+impl pallet_burn::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type WeightInfo = pallet_burn::SubstrateWeight<Runtime>;
+}
+
 parameter_types! {
 	pub const UncleGenerations: BlockNumber = 5;
 }
@@ -638,7 +646,7 @@ construct_runtime!(
 		ResourceOrder: pallet_resource_order::{Pallet, Call, Storage, Event<T>},
 		Provider: pallet_provider::{Pallet, Call, Storage, Event<T>},
 		Gateway: pallet_gateway::{Pallet, Call, Storage, Event<T>},
-
+		Burn: pallet_burn::{Pallet, Call, Storage, Event<T>},
 
 	}
 );

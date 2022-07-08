@@ -215,6 +215,13 @@ pub mod pallet {
             let who = ensure_signed(account_id)?;
             let index = ResourceIndex::<T>::get();
 
+            // 1. 判断 new_index 是否大于 ResourceIndex 序列表，如果大于, 认为是新注册，index 从序列表中获取
+            // 2. 如果小于等于index ，从storage Resources 表中取出历史注册信息 <ComputeResource>，
+            // 3. 判断传入peer_id 与历史注册信息的peer_id是否一致
+            // 4. 如果一致，则是重复注册，不变更index， 认为是重新登录
+            // 5. 若果不一致，认为是新注册，index 从序列表中获取
+
+
             let resource_config =
                 ResourceConfig::new(cpu.clone(), memory.clone(),
                                     system.clone(), cpu_model.clone());
