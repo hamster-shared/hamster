@@ -238,7 +238,7 @@ pub mod pallet {
             let end_of_block = block_number + rent_blocks;
 
             let resource_rental_info =
-                ResourceRentalInfo::new(T::BalanceToNumber::convert(price.clone()),
+                ResourceRentalInfo::new(
                                         rent_blocks, end_of_block);
 
             let computing_resource = ComputingResource::new(
@@ -290,18 +290,6 @@ pub mod pallet {
             index: u64,
             unit_price: BalanceOf<T>,
         ) -> DispatchResult {
-            let who = ensure_signed(account_id)?;
-
-            // query and modify
-            ensure!(Resources::<T>::contains_key(index),Error::<T>::ResourceNotFound);
-            let mut resource = Resources::<T>::get(index.clone()).unwrap();
-
-            ensure!(resource.account_id == who.clone(), Error::<T>::IllegalRequest);
-
-            resource.update_resource_price(T::BalanceToNumber::convert(unit_price.clone()));
-            Resources::<T>::insert(&index, resource);
-
-            Self::deposit_event(Event::ModifyResourceUnitPrice(who, index, T::BalanceToNumber::convert(unit_price)));
 
             Ok(())
         }

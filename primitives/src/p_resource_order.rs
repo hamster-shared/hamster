@@ -20,7 +20,7 @@ pub struct ResourceOrder<AccountId, BlockNumber> {
     /// TenantInformation
     pub tenant_info: TenantInfo<AccountId>,
     /// OrderAmount
-    pub price: u128,
+    // pub price: u128,
     /// ResourceIndex
     pub resource_index: u64,
     /// BlockAtCreationTime
@@ -65,14 +65,6 @@ pub struct RentalAgreement<AccountId, BlockNumber>
     pub config: ResourceConfig,
     /// ResourceRentalInformation
     pub rental_info: ResourceRentalInfo<BlockNumber>,
-    /// RentalAmount
-    pub price: u128,
-    /// LockedAmount
-    pub lock_price: u128,
-    /// PenaltyAmount
-    pub penalty_amount: u128,
-    /// ReceiveAmount
-    pub receive_amount: u128,
     /// StartBlock
     pub start: BlockNumber,
     /// AgreementExpirationBlock
@@ -122,11 +114,10 @@ pub enum AgreementStatus {
 
 impl<AccountId, BlockNumber> ResourceOrder<AccountId, BlockNumber> {
     /// CreateANewResourceOrder
-    pub fn new(index: u64, tenant_info: TenantInfo<AccountId>, price: u128, resource_index: u64, create: BlockNumber, rent_duration: BlockNumber,time:Duration) -> Self {
+    pub fn new(index: u64, tenant_info: TenantInfo<AccountId>, resource_index: u64, create: BlockNumber, rent_duration: BlockNumber,time:Duration) -> Self {
         ResourceOrder {
             index,
             tenant_info,
-            price,
             resource_index,
             create,
             rent_duration,
@@ -137,11 +128,10 @@ impl<AccountId, BlockNumber> ResourceOrder<AccountId, BlockNumber> {
     }
 
     /// CreateARenewalOrder
-    pub fn renew(index: u64, tenant_info: TenantInfo<AccountId>, price: u128, resource_index: u64, create: BlockNumber, rent_duration: BlockNumber,time:Duration,agreement_index:Option<u64>) -> Self {
+    pub fn renew(index: u64, tenant_info: TenantInfo<AccountId>, resource_index: u64, create: BlockNumber, rent_duration: BlockNumber,time:Duration,agreement_index:Option<u64>) -> Self {
         ResourceOrder {
             index,
             tenant_info,
-            price,
             resource_index,
             create,
             rent_duration,
@@ -169,7 +159,7 @@ impl<AccountId, BlockNumber> ResourceOrder<AccountId, BlockNumber> {
 impl<AccountId, BlockNumber> RentalAgreement<AccountId, BlockNumber>
     where BlockNumber: Parameter + AtLeast32BitUnsigned
 {
-    pub fn new(index: u64, provider: AccountId, tenant_info: TenantInfo<AccountId>, peer_id: Vec<u8>, resource_index: u64, config: ResourceConfig, rental_info: ResourceRentalInfo<BlockNumber>, price: u128, lock_price: u128, penalty_amount: u128, receive_amount: u128, start: BlockNumber, end: BlockNumber, calculation: BlockNumber,time:Duration) -> Self {
+    pub fn new(index: u64, provider: AccountId, tenant_info: TenantInfo<AccountId>, peer_id: Vec<u8>, resource_index: u64, config: ResourceConfig, rental_info: ResourceRentalInfo<BlockNumber>, penalty_amount: u128, receive_amount: u128, start: BlockNumber, end: BlockNumber, calculation: BlockNumber,time:Duration) -> Self {
         RentalAgreement {
             index,
             provider,
@@ -178,10 +168,6 @@ impl<AccountId, BlockNumber> RentalAgreement<AccountId, BlockNumber>
             resource_index,
             config,
             rental_info,
-            price,
-            lock_price,
-            penalty_amount,
-            receive_amount,
             start,
             end,
             calculation,
@@ -206,53 +192,20 @@ impl<AccountId, BlockNumber> RentalAgreement<AccountId, BlockNumber>
             // calculate the number of blocks
             let this_block = TryInto::<u128>::try_into(this_block).ok().unwrap();
             // calculate the amount earned during this period
-            let price = (this_block * self.price.clone()) / duration;
 
-            self.lock_price = self.lock_price - price;
-            self.receive_amount = self.receive_amount + price;
             self.calculation = block_number.clone();
         } else {
             // end of current agreement
-            self.receive_amount += self.lock_price;
-            self.lock_price = 0;
             self.calculation = self.end.clone();
         }
 
         true
     }
 
-    /// FaultExecutionProtocol
-    pub fn fault_excution(&mut self) -> u128{
-        // get the remaining amount of the order
-        let price = self.lock_price;
-
-        // Transfer all the locked amount to the penalty amount
-        self.penalty_amount += self.lock_price;
-        // the locked amount is set to 0
-        self.lock_price = 0;
-
-        price
-    }
-
-    /// GetBackTheAmount
-    pub fn withdraw(&mut self) -> u128{
-        let price = self.receive_amount;
-        self.receive_amount = 0;
-        price
-    }
-
-    /// GetBackThePenaltyAmount
-    pub fn withdraw_penalty(&mut self) -> u128 {
-        let price = self.penalty_amount;
-        self.penalty_amount = 0;
-        price
-    }
 
     /// Renewal
-    pub fn renew(&mut self,price:u128,duration:BlockNumber,resource_config:ComputingResource<BlockNumber,AccountId>) {
+    pub fn renew(&mut self,duration:BlockNumber,resource_config:ComputingResource<BlockNumber,AccountId>) {
         // negotiated price increase
-        self.price += price;
-        self.lock_price += price;
         // agreement end deadline increased
         self.end += duration;
         // update protocol resource snapshot
@@ -262,7 +215,7 @@ impl<AccountId, BlockNumber> RentalAgreement<AccountId, BlockNumber>
 
     /// determine whether the agreement is complete
     pub fn is_finished(self) -> bool {
-        if self.status != AgreementStatus::Using && self.lock_price == 0 && self.penalty_amount == 0 && self.receive_amount == 0 {
+        if self.status != AgreementStatus::Using  {
             return true
         }
 
@@ -340,4 +293,47 @@ pub trait OrderInterface {
 
     /// update resource interface
     fn update_computing_resource(index: u64, resource_info: ComputingResource<Self::BlockNumber,Self::AccountId>);
+}
+
+
+/// resourceOrder
+#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct ApplyOrder<AccountId, BlockNumber> {
+    /// OrderIdIndex
+    pub index: u64,
+    /// provider
+    pub provider: AccountId,
+    /// peer_id
+    pub peer_id: Vec<u8>,
+    /// TenantInformation
+    pub tenant_info: TenantInfo<AccountId>,
+    /// BlockAtCreationTime
+    pub create: BlockNumber,
+    /// Timestamp
+    pub time: Duration,
+    /// OrderStatus
+    pub status: OrderStatus,
+}
+
+impl<AccountId, BlockNumber> ApplyOrder<AccountId, BlockNumber>
+    where BlockNumber: Parameter + AtLeast32BitUnsigned, AccountId: core::default::Default  {
+
+    pub fn new(index: u64,tenant_info: TenantInfo<AccountId>,create: BlockNumber,time:Duration) -> Self {
+        ApplyOrder {
+            index,
+            provider: Default::default(),
+            peer_id: Default::default(),
+            tenant_info,
+            create,
+            time,
+            status: OrderStatus::Pending
+        }
+    }
+
+    pub fn processed(&mut self, provider: AccountId, peer_id: Vec<u8>){
+        self.provider = provider;
+        self.peer_id = peer_id;
+        self.status = OrderStatus::Finished
+    }
 }
