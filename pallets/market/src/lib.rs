@@ -51,6 +51,7 @@ pub mod pallet {
     use primitives::p_staking::StakingInterface;
     use primitives::p_market;
 
+
     use super::*;
 
 
@@ -129,10 +130,15 @@ pub mod pallet {
         OptionQuery,
     >;
 
-    /// Current total amount in the market_reward_pot
+    /// Current total client id
     #[pallet::storage]
     #[pallet::getter(fn clients)]
     pub(super) type Clients<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
+
+    /// Current total provider id
+    #[pallet::storage]
+    #[pallet::getter(fn providers)]
+    pub(super) type Providers<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn gateway_total_staked)]
@@ -153,6 +159,10 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn client_current_nums)]
     pub(super) type ClientCurrentNums<T: Config> = StorageValue<_, u128, ValueQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn provider_current_nums)]
+    pub(super) type ProviderCurrentNums<T: Config> = StorageValue<_, u128, ValueQuery>;
 
     /// Storage gateway reward
     #[pallet::storage]
@@ -257,6 +267,8 @@ pub mod pallet {
         u128,
         OptionQuery,
     >;
+
+
 
     /// Current total amount in the market_reward_pot
     #[pallet::storage]
@@ -1223,14 +1235,31 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         Self::deposit_event(Event::Money(use_free_balance));
 
         // Computer staked amount
-        let uesr_staked = Self::compute_user_staked(status.clone(), who.clone());
+        let user_staked = Self::compute_user_staked(status.clone(), who.clone());
 
         match status.clone() {
             MarketUserStatus::Provider => {
-                Err(Error::<T>::todo)?
                 // todo
+                // Determine user has Provider status staking_info
+                if !StakerInfo::<T>::contains_key(MarketUserStatus::Provider, who.clone()) {
+                    Err(Error::<T>::StakingAccountIdNotExit)?
+                }
+                // Determine user has enough balance to bond
+                if use_free_balance.saturating_sub(user_staked) < T::Currency::minimum_balance() {
+                    Err(Error::<T>::NotEnoughBalanceTobond)?
+                }
 
-
+                Self::stake_amount(who.clone(), user_staked);
+                
+                // Recore provider nums 
+                let mut provider_nums = ProviderCurrentNums::<T>::get();
+                provider_nums += 1;
+                ProviderCurrentNums::<T>::set(provider_nums);
+                // Recore provider list 
+                let mut provider_list = Providers::<T>::get();
+                provider_list.push(who.clone());
+                Providers::<T>::set(provider_list);
+                
             },
 
             MarketUserStatus::Gateway => {
@@ -1239,10 +1268,10 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
                     Err(Error::<T>::StakingAccountIdNotExit)?
                 }
                 // Determine user has enough balance to bond
-                if use_free_balance.saturating_sub(uesr_staked) < T::Currency::minimum_balance() {
+                if use_free_balance.saturating_sub(user_staked) < T::Currency::minimum_balance() {
                     Err(Error::<T>::NotEnoughBalanceTobond)?
                 }
-                Self::stake_amount(who.clone(), uesr_staked);
+                Self::stake_amount(who.clone(), user_staked);
 
             },
 
@@ -1253,10 +1282,10 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
                     Err(Error::<T>::StakingAccountIdNotExit)?
                 }
                 // Determine user has enough balance to bond
-                if use_free_balance.saturating_sub(uesr_staked) < T::Currency::minimum_balance() {
+                if use_free_balance.saturating_sub(user_staked) < T::Currency::minimum_balance() {
                     Err(Error::<T>::NotEnoughBalanceTobond)?
                 }
-                Self::stake_amount(who.clone(), uesr_staked);
+                Self::stake_amount(who.clone(), user_staked);
                 // Recore the client nums
                 let mut client_nums = ClientCurrentNums::<T>::get();
                 client_nums += 1;
@@ -1272,16 +1301,16 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         Self::deposit_event(Event::Yes(1));
         // Update the total staked
         let mut market_total_staked = MarketTotalStaked::<T>::get();
-        market_total_staked += uesr_staked;
+        market_total_staked += user_staked;
         MarketTotalStaked::<T>::set(market_total_staked);
         // todo test
         Self::deposit_event(Event::Yes(2));
         // Update the status(provider, gateway, client) total staked
-        Self::updata_staked_amount(status.clone(), uesr_staked);
+        Self::updata_staked_amount(status.clone(), user_staked);
 
         // todo test
-        Self::deposit_event(Event::Money(uesr_staked));
-        Self::deposit_event(Event::StakingSuccess(who.clone(), status.clone(), uesr_staked));
+        Self::deposit_event(Event::Money(user_staked));
+        Self::deposit_event(Event::StakingSuccess(who.clone(), status.clone(), user_staked));
 
         Ok(())
     }

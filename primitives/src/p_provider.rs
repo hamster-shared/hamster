@@ -67,6 +67,31 @@ impl<BlockNumber, AccountId> ComputingResource<BlockNumber, AccountId>
     }
 }
 
+/// Provider points
+#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct ProviderPoints {
+    total_points: u128,
+    resource_points: u64,
+    duration_points: u64,
+}
+
+impl ProviderPoints {
+    pub fn new(t_points: u128, r_points: u64, d_points: u64) -> Self {
+        ProviderPoints {
+            total_points: t_points,
+            resource_points: r_points,
+            duration_points: d_points,
+        }
+    }
+    
+    pub fn updata_points(&mut self, r_points: u64, d_points: u64) {
+        self.duration_points += d_points;
+        self.resource_points += r_points;
+        self.total_points += (d_points + r_points) as u128;
+    }
+}
+
 
 #[derive(Encode, Decode, RuntimeDebug, PartialEq, Eq, Copy, Clone)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]

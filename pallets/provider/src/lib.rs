@@ -31,7 +31,7 @@ pub mod pallet {
     use sp_runtime::traits::Saturating;
     use primitives::Balance;
     use primitives::p_market::{MarketInterface, MarketUserStatus};
-
+    use primitives::p_provider;
     use super::*;
 
     /// Configure the pallet by specifying the parameters and types on which it depends.
@@ -70,10 +70,26 @@ pub mod pallet {
     #[pallet::getter(fn resource_index)]
     pub(super) type ResourceIndex<T: Config> = StorageValue<_, u64, ValueQuery>;
 
+    /// provider total duration points
+    #[pallet::storage]
+    #[pallet::getter(fn provider_total_duration_points)]
+    pub(super) type ProviderTotalDurationPoints<T: Config> = StorageValue<_, u128, ValueQuery>;
+
+    /// provider total resource points
+    #[pallet::storage]
+    #[pallet::getter(fn provider_total_resource_points)]
+    pub(super) type ProviderTotalResourcePoints<T: Config> = StorageValue<_, u128, ValueQuery>;
+
+
     /// number of resources
     #[pallet::storage]
     #[pallet::getter(fn resource_count)]
     pub(super) type ResourceCount<T: Config> = StorageValue<_, u64, ValueQuery>;
+
+    /// online provider list
+    #[pallet::storage]
+    #[pallet::getter(fn provider_online_list)]
+    pub(super) type ProviderOnlineList<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
     /// Association between future block numbers and expired resource indexes
     #[pallet::storage]
@@ -95,6 +111,17 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn provider_total_memory)]
     pub(super) type ProviderTotalMemory<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u64, OptionQuery>;
+
+    /// provider points
+    #[pallet::storage]
+    #[pallet::getter(fn provider_points)]
+    pub(super) type ProviderPoints<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        p_provider::ProviderPoints,
+        OptionQuery,
+    >;
 
     // The genesis config type.
     #[pallet::genesis_config]
@@ -158,6 +185,26 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_initialize(now: T::BlockNumber) -> Weight {
+
+            // Part1: updata provider points
+            // 0. get the online provider source list
+            let provider_list = ProviderOnlineList::<T>::get();
+            let mut total_duration_points = 0;
+            for provider in provider_list {
+                // update total duration points
+                total_duration_points += 10;
+                // get the old  point
+                let mut provider_point = ProviderPoints::<T>::get(provider.clone()).unwrap();
+                provider_point.updata_points(0, 10);
+                ProviderPoints::<T>::insert(provider.clone(), provider_point);
+            }
+
+            // update the provider total duration points
+            let mut _total_duration_points = ProviderTotalDurationPoints::<T>::get();
+            _total_duration_points += total_duration_points;
+            ProviderTotalDurationPoints::<T>::set(_total_duration_points);
+
+
             //Determine whether there is a current block in the block association information
             if FutureExpiredResource::<T>::contains_key(now) {
                 //Determine whether the expired resource corresponding to the current block is empty
@@ -231,12 +278,30 @@ pub mod pallet {
             cpu_model: Vec<u8>,
             price: BalanceOf<T>,
             rent_duration_hour: u32,
+            new_index: u64,
         ) -> DispatchResult {
             let who = ensure_signed(account_id)?;
 
-            // 0. get the user free balance
-            let user_free_balance = T::Currency::free_balance(&who.clone());
+            // 0. get the current index
+            let current_index = ResourceIndex::<T>::get();
 
+            // 1. new_index < current_index, may be repeat Registration
+            if new_index < current_index {
+                // get the history registraton info
+                let compute_resource = Resources::<T>::get(new_index).unwrap();
+                // check the peerid is eq
+                if peer_id.eq(&compute_resource.peer_id) {
+                    // todo: may be send the event
+                    // repeat Registration, do nothing
+                    return Ok(());
+                }
+            }
+
+            // now need to make the new registration
+            // Get the resource index
+            let index = new_index.min(current_index);
+
+            // Staking part
             // 1. compute the provider total staked
             let mut new_total_cpus = cpu;
             let mut new_total_memory = memory;
@@ -248,19 +313,15 @@ pub mod pallet {
                 let old = ProviderTotalMemory::<T>::get(who.clone()).unwrap();
                 new_total_memory += old;
             }
-
+            // compute the total staked
             let new_total_staked = Self::compute_provider_staked_amount(
                 new_total_cpus,
                 new_total_memory,
             );
-
-            if user_free_balance.saturating_sub(new_total_staked) < T::Currency::minimum_balance() {
-                Err(Error::<T>::NotEnoughStakingAount)?
-            }
-
+            // update the staked info into market
             T::MarketInterface::update_provider_staked(who.clone(), T::BalanceToNumber::convert(new_total_staked));
 
-            // 1. MarketInterface:: bond()
+            // 2. Provider Staking
             match T::MarketInterface::bond(who.clone(), MarketUserStatus::Provider) {
                 Ok(()) => {
 
@@ -270,8 +331,21 @@ pub mod pallet {
                 }
             }
 
-            // get the resource current index
-            let index = ResourceIndex::<T>::get();
+            // updata the online provider list
+            let mut provider_list = ProviderOnlineList::<T>::get();
+            provider_list.push(who.clone());
+            ProviderOnlineList::<T>::set(provider_list);
+
+            // give the source points
+            let resource_poinst = new_total_memory + new_total_cpus;
+            let _points = p_provider::ProviderPoints::new(resource_poinst as u128, 0, resource_poinst);
+            ProviderPoints::<T>::insert(who.clone(), _points);
+
+            // update the total resource points
+            let mut provider_total_resoucre_points = ProviderTotalResourcePoints::<T>::get();
+            provider_total_resoucre_points += resource_poinst as u128;
+            ProviderTotalResourcePoints::<T>::set(provider_total_resoucre_points);
+
             // crate the resource config, use cpu, memory, system, cpu_model
             let resource_config =
                 ResourceConfig::new(cpu.clone(), memory.clone(),
