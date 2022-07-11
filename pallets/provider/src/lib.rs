@@ -266,7 +266,6 @@ pub mod pallet {
 
         NotEnoughStakingAount,
     }
-
     // Dispatchable functions allows users to interact with the pallet and invoke state changes.
     // These functions materialize as "extrinsics", which are often compared to transactions.
     // Dispatchable functions must be annotated with a weight and must return a DispatchResult.

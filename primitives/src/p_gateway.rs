@@ -6,7 +6,7 @@ use sp_std::vec::Vec;
 use frame_support::Parameter;
 use sp_runtime::traits::AtLeast32BitUnsigned;
 
-use crate::EraIndex;
+use crate::{AccountId, EraIndex};
 
 /// Gateway node
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
@@ -36,11 +36,13 @@ impl<BlockNumber, AccountId> GatewayNode<BlockNumber, AccountId>
     }
 }
 
-pub trait GatewayInterface {
+pub trait GatewayInterface<AccountId> {
     // fn calculate_online_time(index : EraIndex);
     // fn compute_gateways_points();
 
     fn compute_gateways_reward(total_reward: u128, index: EraIndex);
     
     fn clear_points_info(index: EraIndex);
+
+    fn clear_gateway_info(who: AccountId);
 }

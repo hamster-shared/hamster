@@ -848,7 +848,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
 		/// The staking balance.
-		type GatewayInterface : GatewayInterface;
+		type GatewayInterface : GatewayInterface<Self::AccountId>;
 
 		type MarketInterface: MarketInterface<Self::AccountId>;
 		
@@ -2765,6 +2765,9 @@ impl<T: Config> Pallet<T> {
 				validator_payout,
 				rest,
 			));
+
+			// Todo: unlock the staking
+			// T::MarketInterface::unlock();
 
 			// 3.Set ending era reward.
 			//<ErasValidatorReward<T>>::insert(&active_era.index, validator_payout);

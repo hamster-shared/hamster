@@ -263,6 +263,7 @@ pub mod pallet {
             GatewayNodes::<T>::insert(peer_id.clone(), gateway_node.clone());
 
             let mut peerIds = Gateways::<T>::get();
+            // todo if the index exit? why can show this ?
             if let Err(index) = peerIds.binary_search(&peer_id){
                 peerIds.insert(index,peer_id.clone());
                 Gateways::<T>::put(peerIds);
@@ -322,7 +323,7 @@ impl<T: Config> Pallet<T> {
     }
 }
 
-impl <T: Config> GatewayInterface for Pallet<T> {
+impl <T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pallet<T> {
 
     /// compute_gateway_reward
     /// Calculate the reward for each node, though func:  save_gateway_reward that saves the reward
@@ -371,5 +372,9 @@ impl <T: Config> GatewayInterface for Pallet<T> {
 
         // Send the Event: ClearPoinstSuccess
         Self::deposit_event(Event::ClearPoinstSuccess);
+    }
+
+    fn clear_gateway_info(who: <T as frame_system::Config>::AccountId) {
+
     }
 }
