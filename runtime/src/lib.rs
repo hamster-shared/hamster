@@ -394,6 +394,7 @@ impl pallet_market::Config for Runtime {
 	type UnixTime = Timestamp;
 	type GatewayInterface = Gateway;
 	type StakingInterface = Staking;
+	type ProviderInterface = Provider;
 }
 
 parameter_types! {

@@ -49,7 +49,9 @@ pub mod pallet {
     use sp_runtime::traits::Saturating;
     use primitives::p_gateway::GatewayInterface;
     use primitives::p_staking::StakingInterface;
+    use primitives::p_provider::ProviderInterface;
     use primitives::p_market;
+
 
 
     use super::*;
@@ -76,6 +78,9 @@ pub mod pallet {
 
         /// Staking interface
         type StakingInterface: StakingInterface;
+
+        /// provider interface
+        type ProviderInterface: ProviderInterface;
 
         /// block height to number
         type BlockNumberToNumber: Convert<Self::BlockNumber, u128> + Convert<u32, Self::BlockNumber>;
@@ -770,6 +775,25 @@ pub mod pallet {
             Ok(())
         }
 
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn test_add(
+            origin: OriginFor<T>,
+        ) ->DispatchResult {
+
+            ensure_signed(origin)?;
+
+            let A: u8 = 20;
+            let B: u8 = A.saturating_add(10);
+
+
+            Self::deposit_event(Event::Yes(A));
+
+            Self::deposit_event(Event::Yes(B));
+
+
+            Ok(())
+        }
+
         // todo payout_reward()
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn payout_client_nodes(
@@ -795,6 +819,36 @@ pub mod pallet {
 
             // // Send the amount which total payout this time
             Self::deposit_event(Event::RewardIssuedSucces(total_reward));
+            Ok(())
+        }
+
+        // todo payout provider
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn payout_provider_nodes(
+            origin: OriginFor<T>,
+        ) ->DispatchResult {
+
+            ensure_signed(origin)?;
+
+            let mut total_reward = 0;
+            let provider_reward = ProviderReward::<T>::iter();
+            for (who, income) in provider_reward {
+                let reward = income.total_income;
+                total_reward += reward;
+                // transfer the reward from reward_pot to who
+                T::Currency::transfer(
+                    &Self::market_reward_pot(),
+                    &who.clone(),
+                    T::NumberToBalance::convert(reward),
+                    ExistenceRequirement::KeepAlive,
+                )?;
+                // Remove the reward info
+                GatewayReward::<T>::remove(who.clone());
+            }
+
+            // // Send the amount which total payout this time
+            Self::deposit_event(Event::RewardIssuedSucces(total_reward));
+
             Ok(())
         }
 
@@ -925,15 +979,11 @@ impl<T: Config> Pallet<T> {
         T::NumberToBalance::convert(0)
     }
 
-
-
-
     fn compute_portion(
         p_staked: BalanceOf<T>,
         g_staked: BalanceOf<T>,
         c_staked: BalanceOf<T>,
     ) -> (Perbill, Perbill, Perbill) {
-
 
         // todo maybe bug
         // 500
@@ -1011,7 +1061,7 @@ impl<T: Config> Pallet<T> {
     }
 
     fn unlock_client(list: Vec<T::AccountId>) {
-        // 0. get the account
+        // 0. get the current client list
         for client in list {
             // 1. get the staked amount info
             let mut staked_info = StakerInfo::<T>::get(MarketUserStatus::Client, client.clone()).unwrap();
@@ -1025,7 +1075,7 @@ impl<T: Config> Pallet<T> {
 
             // 4. reset the new lock
             // todo maybe bug
-            T::Currency::extend_lock(
+            T::Currency::set_lock(
                 EXAMPLE_ID,
                 &client,
                 new_staked,
@@ -1047,7 +1097,6 @@ impl<T: Config> Pallet<T> {
             StakerInfo::<T>::insert(MarketUserStatus::Client, client.clone(), staked_info);
         }
     }
-
 
 }
 
@@ -1125,6 +1174,9 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         T::GatewayInterface::compute_gateways_reward(T::BalanceToNumber::convert(gateway_reward.clone()), index);
         // Compute client reward
         Self::compute_client_reward(client_reward.clone(), index);
+        // todo
+        // compute provider reward
+        T::ProviderInterface::compute_providers_reward(T::BalanceToNumber::convert(provider_reward.clone()), index);
 
 
         // todo!() use providerInface's func
@@ -1175,7 +1227,7 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         // Clear the gateway points
         T::GatewayInterface::clear_points_info(index);
         // todo!() Clear the provider points
-        // T::ProviderInterface::clear_points_info(index);
+        T::ProviderInterface::clear_points_info(index);
 
         Self::deposit_event(Event::ComputeRewardSuccess);
     }
@@ -1248,18 +1300,24 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
                 if use_free_balance.saturating_sub(user_staked) < T::Currency::minimum_balance() {
                     Err(Error::<T>::NotEnoughBalanceTobond)?
                 }
-
+                // lock the provider staking amount
                 Self::stake_amount(who.clone(), user_staked);
-                
-                // Recore provider nums 
+                // todo () bug need update the stakedinfo
+
+                // Get and update the Provider staking info
+                let mut provider_staking_info = StakerInfo::<T>::get(status, who.clone()).unwrap();
+                provider_staking_info.staked_amount += T::BalanceToNumber::convert(user_staked);
+                StakerInfo::<T>::insert(status, who.clone(), provider_staking_info);
+
+                // Recore provider nums
                 let mut provider_nums = ProviderCurrentNums::<T>::get();
                 provider_nums += 1;
                 ProviderCurrentNums::<T>::set(provider_nums);
-                // Recore provider list 
+                // Recore provider list
                 let mut provider_list = Providers::<T>::get();
                 provider_list.push(who.clone());
                 Providers::<T>::set(provider_list);
-                
+
             },
 
             MarketUserStatus::Gateway => {

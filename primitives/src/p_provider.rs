@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use sp_std::vec::Vec;
 use frame_support::Parameter;
 use sp_runtime::traits::AtLeast32BitUnsigned;
+use crate::EraIndex;
 
 
 /// ComputingResources
@@ -71,9 +72,9 @@ impl<BlockNumber, AccountId> ComputingResource<BlockNumber, AccountId>
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ProviderPoints {
-    total_points: u128,
-    resource_points: u64,
-    duration_points: u64,
+    pub total_points: u128,
+    pub resource_points: u64,
+    pub duration_points: u64,
 }
 
 impl ProviderPoints {
@@ -84,7 +85,7 @@ impl ProviderPoints {
             duration_points: d_points,
         }
     }
-    
+
     pub fn updata_points(&mut self, r_points: u64, d_points: u64) {
         self.duration_points += d_points;
         self.resource_points += r_points;
@@ -213,14 +214,18 @@ impl<BlockNumber> ResourceRentalInfo<BlockNumber> {
 }
 
 pub trait ProviderInterface {
-    type BlockNumber: Parameter + AtLeast32BitUnsigned;
-    type AccountId;
+    // type BlockNumber: Parameter + AtLeast32BitUnsigned;
+    // type AccountId;
 
     /// get computing resource information
-    fn get_computing_resource_info(index: u64) -> ComputingResource<Self::BlockNumber, Self::AccountId>;
+    /// fn get_computing_resource_info(index: u64) -> ComputingResource<Self::BlockNumber, Self::AccountId>;
 
     /// update computing resource information
-    fn update_computing_resource
-    (index: u64, resource: ComputingResource<Self::BlockNumber, Self::AccountId>);
+    // fn update_computing_resource
+    // (index: u64, resource: ComputingResource<Self::BlockNumber, Self::AccountId>);
+
+    fn compute_providers_reward(total_reward: u128, index: EraIndex);
+
+    fn clear_points_info(index: EraIndex);
 }
 

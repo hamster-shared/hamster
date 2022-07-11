@@ -4,6 +4,8 @@ use frame_support::{dispatch::DispatchResult,
                     pallet_prelude::*, traits::Currency};
 use frame_support::sp_runtime::traits::Convert;
 use frame_system::pallet_prelude::*;
+use sp_runtime::Perbill;
+use sp_runtime::traits::Saturating;
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
 
@@ -15,6 +17,7 @@ pub use pallet::*;
 pub use primitives::p_provider::*;
 pub use primitives::p_resource_order::*;
 pub use pallet_market::MarketInterface;
+use primitives::EraIndex;
 
 #[cfg(test)]
 mod mock;
@@ -96,6 +99,9 @@ pub mod pallet {
     #[pallet::getter(fn future_expired_resource)]
     pub(super) type FutureExpiredResource<T: Config> = StorageMap<_, Twox64Concat, T::BlockNumber, Vec<u64>, OptionQuery>;
 
+    #[pallet::storage]
+    #[pallet::getter(fn era_total_points)]
+    pub(super) type EraTotalPoints<T: Config> = StorageMap<_, Twox64Concat, EraIndex, u128, OptionQuery>;
 
     /// resource provider and resource association
     #[pallet::storage]
@@ -115,7 +121,7 @@ pub mod pallet {
     /// provider points
     #[pallet::storage]
     #[pallet::getter(fn provider_points)]
-    pub(super) type ProviderPoints<T: Config> = StorageMap<
+    pub(super) type ProviderTotalPoints<T: Config> = StorageMap<
         _,
         Twox64Concat,
         T::AccountId,
@@ -194,9 +200,9 @@ pub mod pallet {
                 // update total duration points
                 total_duration_points += 10;
                 // get the old  point
-                let mut provider_point = ProviderPoints::<T>::get(provider.clone()).unwrap();
+                let mut provider_point = ProviderTotalPoints::<T>::get(provider.clone()).unwrap();
                 provider_point.updata_points(0, 10);
-                ProviderPoints::<T>::insert(provider.clone(), provider_point);
+                ProviderTotalPoints::<T>::insert(provider.clone(), provider_point);
             }
 
             // update the provider total duration points
@@ -296,7 +302,6 @@ pub mod pallet {
                     return Ok(());
                 }
             }
-
             // now need to make the new registration
             // Get the resource index
             let index = new_index.min(current_index);
@@ -338,8 +343,8 @@ pub mod pallet {
 
             // give the source points
             let resource_poinst = new_total_memory + new_total_cpus;
-            let _points = p_provider::ProviderPoints::new(resource_poinst as u128, 0, resource_poinst);
-            ProviderPoints::<T>::insert(who.clone(), _points);
+            let _points = p_provider::ProviderPoints::new(resource_poinst as u128, resource_poinst, 0);
+            ProviderTotalPoints::<T>::insert(who.clone(), _points);
 
             // update the total resource points
             let mut provider_total_resoucre_points = ProviderTotalResourcePoints::<T>::get();
@@ -551,7 +556,6 @@ pub mod pallet {
             Ok(())
         }
 
-
         /// change resource status to unused
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn change_resource_status(account_id: OriginFor<T>,
@@ -570,7 +574,6 @@ pub mod pallet {
         }
     }
 }
-
 
 impl<T: Config> Pallet<T> {
     /// modify resources
@@ -612,3 +615,49 @@ impl<T: Config> OrderInterface for Pallet<T> {
     }
 }
 
+impl<T: Config> ProviderInterface for Pallet<T> {
+    fn compute_providers_reward(total_reward: u128, index: EraIndex) {
+
+        // 0. compute resource and duration reward part
+        let resource_reward = Perbill::from_percent(60) * T::NumberToBalance::convert(total_reward);
+        let duration_reward = Perbill::from_percent(40) * T::NumberToBalance::convert(total_reward);
+
+        // 1. get the total points
+        let total_resource_points = ProviderTotalResourcePoints::<T>::get();
+        let total_duration_points = ProviderTotalDurationPoints::<T>::get();
+
+        // 2. get the provider points list
+        let provider_list = ProviderTotalPoints::<T>::iter();
+
+        for (provider, points_info) in provider_list {
+            // compute the resource reward
+            let r_reward = Perbill::from_rational(points_info.resource_points as u128, total_resource_points)
+                * resource_reward;
+            // compute the duration reward
+            let d_reward = Perbill::from_rational(points_info.duration_points as u128, total_duration_points)
+                * duration_reward;
+            // provider total reward
+            let provider_total_reward = r_reward + d_reward;
+            // save the reward
+            T::MarketInterface::save_provider_reward(provider.clone(), T::BalanceToNumber::convert(provider_total_reward), index);
+        }
+    }
+
+    fn clear_points_info(index: EraIndex) {
+
+        let current_duration_total_points = ProviderTotalDurationPoints::<T>::get();
+
+        EraTotalPoints::<T>::insert(index, current_duration_total_points);
+
+        ProviderTotalDurationPoints::<T>::set(0);
+        // todo
+        // Get the online gateway node and their points
+        let gateway_node_points = ProviderTotalPoints::<T>::iter();
+        for (who, mut points_info) in gateway_node_points {
+            // Reset the gateway node points = remve the points information
+            points_info.total_points -= points_info.duration_points as u128;
+            points_info.duration_points = 0;
+            ProviderTotalPoints::<T>::insert(who.clone(), points_info);
+        }
+    }
+}
