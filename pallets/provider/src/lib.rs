@@ -67,7 +67,6 @@ pub mod pallet {
     #[pallet::getter(fn resource)]
     pub(super) type Resources<T: Config> = StorageMap<_, Twox64Concat, u64, ComputingResource<T::BlockNumber, T::AccountId>, OptionQuery>;
 
-
     /// resource index
     #[pallet::storage]
     #[pallet::getter(fn resource_index)]
@@ -82,7 +81,6 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn provider_total_resource_points)]
     pub(super) type ProviderTotalResourcePoints<T: Config> = StorageValue<_, u128, ValueQuery>;
-
 
     /// number of resources
     #[pallet::storage]

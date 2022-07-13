@@ -2734,7 +2734,7 @@ impl<T: Config> Pallet<T> {
 
 			let mut total_staked: BalanceOf<T> = T::NumberToBalance::convert(0);
 			// Current era total staked = validator_staked + market_staked
-			total_staked.saturating_add(staked).saturating_add(market_staked);
+			total_staked = total_staked.saturating_add(staked).saturating_add(market_staked);
 
 			let issuance = T::Currency::total_issuance();
 			// Get the reward (validator_market_payout, rest)
@@ -2767,7 +2767,7 @@ impl<T: Config> Pallet<T> {
 			));
 
 			// Todo: unlock the staking
-			// T::MarketInterface::unlock();
+			T::MarketInterface::unlock();
 
 			// 3.Set ending era reward.
 			//<ErasValidatorReward<T>>::insert(&active_era.index, validator_payout);

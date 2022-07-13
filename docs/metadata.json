@@ -1,0 +1,25 @@
+{
+  "MarketUserStatus": {
+    "_enum": [
+      "Provider",
+      "Gateway",
+      "Client"
+    ]
+  },
+  "UserInfo": {
+    "staked_amount": "u128"
+  },
+  "ProviderIncome": {
+    "resource_reward": "u128",
+    "services_reward": "u128"
+  },
+  "ProviderPoints": {
+    "total_points": "u128",
+    "resource_points": "u64",
+    "duration_points": "u64"
+  },
+  "Income": {
+    "last_eraindex": "EraIndex",
+    "total_income": "u128"
+  }
+}
