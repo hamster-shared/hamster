@@ -122,6 +122,10 @@ If you want to see the multi-node consensus algorithm in action, refer to
 ├── node                                substrate node module package
 │   └── src                       substrate nodesource package
 ├── pallets                             substrate pallets package
+│   ├── burn                      erc20 exchange with eth package 
+│   │   └── src             erc20 exchange with eth implementation source code
+│   ├── gateway                   hamster gateway package 
+│   │   └── src             hamster gateway registry impl
 │   ├── provider                  computing provides contract packages
 │   │   └── src             Computing provides contract implementation source code
 │   ├── resource-order            resource order contract package
