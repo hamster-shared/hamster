@@ -59,6 +59,8 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 /// Import the template pallet.
 pub use pallet_template;
 
+pub use pallet_burn;
+
 /// Import the market pallet
 pub use pallet_market;
 
@@ -397,6 +399,12 @@ impl pallet_market::Config for Runtime {
 	type ProviderInterface = Provider;
 }
 
+impl pallet_burn::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type WeightInfo = pallet_burn::SubstrateWeight<Runtime>;
+}
+
 parameter_types! {
 	pub const UncleGenerations: BlockNumber = 5;
 }
@@ -666,6 +674,7 @@ construct_runtime!(
 		Provider: pallet_provider::{Pallet, Call, Storage, Event<T>},
 		Gateway: pallet_gateway::{Pallet, Call, Storage, Event<T>},
 		Market: pallet_market::{Pallet, Call, Storage, Event<T>},
+		Burn: pallet_burn::{Pallet, Call, Storage, Event<T>},
 
 	}
 );
