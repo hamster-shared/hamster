@@ -264,7 +264,7 @@ tag = 'monthly-2021-07'
 version = '0.9.0'
 
 # [dependencies.pallet-staking]
-# git = 'https://gitee.com/mohaijiang/substrate.git'
+# git = 'https://github.com/paritytech/substrate.git'
 # tag = 'monthly-2021-07'
 # version = '3.0.0'
 

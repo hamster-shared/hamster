@@ -404,8 +404,6 @@ pub mod pallet {
             // determine whether it is me
             ensure!(who.clone() == resource_info.account_id,Error::<T>::OrderNotOwnedByYou);
 
-            // get order amount
-            let order_price = order.price;
             // get pledge information
             ensure!(Staking::<T>::contains_key(who.clone()),Error::<T>::InsufficientStaking);
             let mut staking_info = Staking::<T>::get(who.clone()).unwrap();
