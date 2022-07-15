@@ -150,8 +150,8 @@ pub mod pallet {
     #[pallet::generate_deposit(pub (super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// successfully registered resources
-        /// [accountId, registration_time, peerId, ]
-        RegisterGatewayNodeSuccess(T::AccountId, T::BlockNumber, Vec<u8>),
+        /// [accountId, registration_time, ]
+        RegisterGatewayNodeSuccess(T::AccountId, T::BlockNumber),
         /// health check successfully [accountId, registration_time]
         HealthCheckSuccess(T::AccountId, T::BlockNumber),
 
@@ -309,7 +309,7 @@ pub mod pallet {
             let count = GatewayNodeCount::<T>::get();
             GatewayNodeCount::<T>::set(count + 1);
 
-            Self::deposit_event(Event::RegisterGatewayNodeSuccess(who,block_number, gateway_node.peer_id));
+            Self::deposit_event(Event::RegisterGatewayNodeSuccess(who,block_number));
             Ok(())
         }
         
