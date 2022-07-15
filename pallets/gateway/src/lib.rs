@@ -16,7 +16,6 @@ use sp_std::vec::Vec;
 use sp_runtime::traits::Zero;
 use sp_runtime::Perbill;
 
-
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://substrate.dev/docs/en/knowledgebase/runtime/frame>
@@ -267,6 +266,10 @@ pub mod pallet {
             // if !Self::binding_staking_info(who.clone()) {
             //     return Err(Error::<T>::BingStakingInfoFailed.into());
             // }
+
+            if GatewayNodes::<T>::contains_key(peer_id.clone()) {
+                return Ok(());
+            }
 
             match T::MarketInterface::bond(who.clone(), pallet_market::MarketUserStatus::Gateway) {
                 Ok(()) => {

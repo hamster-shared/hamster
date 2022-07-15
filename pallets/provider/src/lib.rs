@@ -231,11 +231,11 @@ pub mod pallet {
                                     resource.clone(),
                                 );
 
-                                T::MarketInterface::withdraw_provider(
-                                    resource.account_id.clone(),
-                                    (resource.config.cpu + resource.config.memory) * 100_000_000_000_000,
-                                    resource.index as u128,
-                                );
+                                // T::MarketInterface::withdraw_provider(
+                                //     resource.account_id.clone(),
+                                //     (resource.config.cpu + resource.config.memory) * 100_000_000_000_000,
+                                //     resource_index as u128,
+                                // );
 
                                 let account_id = resource_option.unwrap().account_id;
                                 // delete associated resource
@@ -452,6 +452,7 @@ pub mod pallet {
                 // Initialize
                 ProviderTotalCpu::<T>::insert(who.clone(), 0);
             }
+
             let mut cpus = ProviderTotalCpu::<T>::get(who.clone()).unwrap();
             cpus += cpu;
             ProviderTotalCpu::<T>::insert(who.clone(), cpus);
@@ -694,6 +695,23 @@ impl<T: Config> Pallet<T> {
         provider_points.total_points -= resource.config.cpu as u128 + resource.config.memory as u128;
         provider_points.resource_points -= resource.config.cpu + resource.config.memory;
         ProviderTotalPoints::<T>::insert(who.clone(), provider_points);
+
+        // update the provider online list
+        if Provider::<T>::contains_key(who.clone()) {
+            let list = Provider::<T>::get(who.clone()).unwrap();
+            if list.len() == 0 {
+                let mut provider_online_list = ProviderOnlineList::<T>::get();
+                let mut index = 0;
+                for provider in &provider_online_list {
+                    if provider.eq(&who.clone()) {
+                        break;
+                    }
+                    index += 1;
+                }
+                provider_online_list.remove(index);
+                ProviderOnlineList::<T>::set(provider_online_list);
+            }
+        }
 
         // update the staking info
         T::MarketInterface::withdraw_provider(
