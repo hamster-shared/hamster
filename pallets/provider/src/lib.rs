@@ -294,6 +294,8 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
 
         /// register resources
+        /// * register the resoure config
+        /// * save the
         #[frame_support::transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn register_resource(
