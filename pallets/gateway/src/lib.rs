@@ -227,11 +227,22 @@ pub mod pallet {
                             Gateways::<T>::put(peerIds);
                         }
                         //remove gateway node
-                        GatewayNodes::<T>::remove(peer_id);
+                        GatewayNodes::<T>::remove(peer_id.clone());
                         // reduce count
                         let count = GatewayNodeCount::<T>::get();
                         GatewayNodeCount::<T>::set(count - 1);
 
+                        // 0. apply unlock, use market interface func withdraw_gateway
+                        match T::MarketInterface::withdraw_gateway(gateway_node.account_id.clone(), peer_id.clone()) {
+                            Ok(()) => {
+                                Self::deposit_event(Event::WithdrawGatewaySuccess(
+                                    gateway_node.account_id.clone(),
+                                    peer_id.clone()));
+                            },
+                            Err(_) => {
+
+                            }
+                        }
                     }
                 }
             }

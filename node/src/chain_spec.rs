@@ -10,7 +10,6 @@ use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount}};
 use hex_literal::hex;
 
-
 use sc_service::ChainType;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 
@@ -75,6 +74,7 @@ pub fn development_config() -> Result<ChainSpec, String> {
 				get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
 				get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
 				get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+				get_account_id_from_seed::<sr25519::Public>("ttchain!stor"),
 			],
 			true,
 		),
@@ -140,7 +140,6 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		None,
 	))
 }
-
 
 
 ///ttc
@@ -334,6 +333,7 @@ fn testnet_genesis(
 			.. Default::default()
 		},
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
+
 
 	}
 }
