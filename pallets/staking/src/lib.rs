@@ -1538,6 +1538,9 @@ pub mod pallet {
 				claimed_rewards: (last_reward_era..current_era).collect(),
 			};
 			Self::update_ledger(&controller, &item);
+
+			//
+
 			Ok(())
 		}
 
@@ -1614,7 +1617,7 @@ pub mod pallet {
 		///   will cause a new entry to be inserted into a vector (`Ledger.unlocking`) kept in storage.
 		///   The only way to clean the aforementioned storage item is also user-controlled via
 		///   `withdraw_unbonded`.
-		/// - One DB entry.
+		/// - One DB entry.1
 		/// ----------
 		/// Weight: O(1)
 		/// DB Weight:
@@ -2734,7 +2737,7 @@ impl<T: Config> Pallet<T> {
 
 			let mut total_staked: BalanceOf<T> = T::NumberToBalance::convert(0);
 			// Current era total staked = validator_staked + market_staked
-			total_staked.saturating_add(staked).saturating_add(market_staked);
+			total_staked = total_staked.saturating_add(staked).saturating_add(market_staked);
 
 			let issuance = T::Currency::total_issuance();
 			// Get the reward (validator_market_payout, rest)
@@ -2767,11 +2770,11 @@ impl<T: Config> Pallet<T> {
 			));
 
 			// Todo: unlock the staking
-			// T::MarketInterface::unlock();
+			T::MarketInterface::unlock();
 
 			// 3.Set ending era reward.
 			//<ErasValidatorReward<T>>::insert(&active_era.index, validator_payout);
-			T::Currency::deposit_into_existing(&T::MarketInterface::storage_pot(), market_payout).ok();
+			T::Currency::deposit_creating(&T::MarketInterface::storage_pot(), market_payout);
 			<ErasValidatorReward<T>>::insert(&active_era.index, validator_payout);
 			T::RewardRemainder::on_unbalanced(T::Currency::issue(rest));
 		}

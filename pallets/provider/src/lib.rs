@@ -9,6 +9,8 @@ use sp_runtime::traits::Saturating;
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
 
+
+
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://substrate.dev/docs/en/knowledgebase/runtime/frame>
@@ -25,9 +27,7 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -67,7 +67,6 @@ pub mod pallet {
     #[pallet::getter(fn resource)]
     pub(super) type Resources<T: Config> = StorageMap<_, Twox64Concat, u64, ComputingResource<T::BlockNumber, T::AccountId>, OptionQuery>;
 
-
     /// resource index
     #[pallet::storage]
     #[pallet::getter(fn resource_index)]
@@ -82,7 +81,6 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn provider_total_resource_points)]
     pub(super) type ProviderTotalResourcePoints<T: Config> = StorageValue<_, u128, ValueQuery>;
-
 
     /// number of resources
     #[pallet::storage]
@@ -132,10 +130,10 @@ pub mod pallet {
     // The genesis config type.
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
-        pub resource: Vec<(u64,ComputingResource<T::BlockNumber, T::AccountId>)>,
+        pub resource: Vec<(u64, ComputingResource<T::BlockNumber, T::AccountId>)>,
         pub resource_index: u64,
         pub resource_count: u64,
-        pub future_expired_resource: Vec<(T::BlockNumber,Vec<u64>)>,
+        pub future_expired_resource: Vec<(T::BlockNumber, Vec<u64>)>,
         pub provider: Vec<(T::AccountId, Vec<u64>)>,
     }
 
@@ -162,11 +160,11 @@ pub mod pallet {
             for (a, b) in &self.resource {
                 <Resources<T>>::insert(a, b);
             }
-            for(a,b) in &self.future_expired_resource {
-                <FutureExpiredResource<T>>::insert(a,b);
+            for (a, b) in &self.future_expired_resource {
+                <FutureExpiredResource<T>>::insert(a, b);
             }
-            for(a,b) in &self.provider {
-                <Provider<T>>::insert(a,b);
+            for (a, b) in &self.provider {
+                <Provider<T>>::insert(a, b);
             }
         }
     }
@@ -197,19 +195,23 @@ pub mod pallet {
             let provider_list = ProviderOnlineList::<T>::get();
             let mut total_duration_points = 0;
             for provider in provider_list {
-                // update total duration points
-                total_duration_points += 10;
+
+                // get the peer list
+                let peer_list = Provider::<T>::get(provider.clone()).unwrap();
+
+                let peer_nums = peer_list.len();
+
+                total_duration_points += 10 * peer_nums;
                 // get the old  point
                 let mut provider_point = ProviderTotalPoints::<T>::get(provider.clone()).unwrap();
-                provider_point.updata_points(0, 10);
+                provider_point.updata_points(0, 10 * peer_nums as u64);
                 ProviderTotalPoints::<T>::insert(provider.clone(), provider_point);
             }
 
             // update the provider total duration points
             let mut _total_duration_points = ProviderTotalDurationPoints::<T>::get();
-            _total_duration_points += total_duration_points;
+            _total_duration_points += total_duration_points as u128;
             ProviderTotalDurationPoints::<T>::set(_total_duration_points);
-
 
             //Determine whether there is a current block in the block association information
             if FutureExpiredResource::<T>::contains_key(now) {
@@ -218,9 +220,23 @@ pub mod pallet {
                     Some(t) => {
                         t.into_iter().for_each(|resource_index| {
                             // Determine whether there is a resource in the Vec of an expired resource
-                            //get the resource corresponding to the index
+                            // get the resource corresponding to the index
                             let resource_option = Resources::<T>::get(resource_index);
-                            if resource_option.is_some() {
+                            if resource_option.clone().is_some() {
+
+                                let resource = resource_option.clone().unwrap();
+
+                                Self::clear_points_info(
+                                    resource.account_id.clone(),
+                                    resource.clone(),
+                                );
+
+                                T::MarketInterface::withdraw_provider(
+                                    resource.account_id.clone(),
+                                    (resource.config.cpu + resource.config.memory) * 100_000_000_000_000,
+                                    resource.index as u128,
+                                );
+
                                 let account_id = resource_option.unwrap().account_id;
                                 // delete associated resource
                                 let account_resources = Provider::<T>::get(&account_id);
@@ -228,7 +244,7 @@ pub mod pallet {
                                     let resource: Vec<u64> =
                                         account_resources.unwrap()
                                             .into_iter().filter(|x| *x != resource_index.clone()).collect();
-                                    Provider::<T>::insert(account_id, resource);
+                                    Provider::<T>::insert(account_id.clone(), resource);
                                 }
 
                                 //remove resource
@@ -265,12 +281,18 @@ pub mod pallet {
         ResourcesExpired,
 
         NotEnoughStakingAount,
+
+        ResourceNotOwnToYou,
+
+        ResourceStatusNotAllowWithdraw,
     }
+
     // Dispatchable functions allows users to interact with the pallet and invoke state changes.
     // These functions materialize as "extrinsics", which are often compared to transactions.
     // Dispatchable functions must be annotated with a weight and must return a DispatchResult.
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+
         /// register resources
         #[frame_support::transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
@@ -292,18 +314,20 @@ pub mod pallet {
 
             // 1. new_index < current_index, may be repeat Registration
             if new_index < current_index {
-                // get the history registraton info
-                let compute_resource = Resources::<T>::get(new_index).unwrap();
-                // check the peerid is eq
-                if peer_id.eq(&compute_resource.peer_id) {
-                    // todo: may be send the event
-                    // repeat Registration, do nothing
-                    return Ok(());
+                if Resources::<T>::contains_key(new_index) {
+                    // get the history registraton info
+                    let compute_resource = Resources::<T>::get(new_index).unwrap();
+                    // check the peerid is eq
+                    if peer_id.eq(&compute_resource.peer_id) {
+                        // todo: may be send the event
+                        // repeat Registration, do nothing
+                        return Ok(());
+                    }
                 }
             }
             // now need to make the new registration
             // Get the resource index
-            let index = new_index.min(current_index);
+            let index = current_index;
 
             // Staking part
             // 1. compute the provider total staked
@@ -319,17 +343,19 @@ pub mod pallet {
             }
             // compute the total staked
             let new_total_staked = Self::compute_provider_staked_amount(
-                new_total_cpus,
-                new_total_memory,
+                cpu,
+                memory,
             );
             // update the staked info into market
-            T::MarketInterface::update_provider_staked(who.clone(), T::BalanceToNumber::convert(new_total_staked));
+            T::MarketInterface::update_provider_staked(
+                who.clone(),
+                T::BalanceToNumber::convert(new_total_staked),
+                index,
+            );
 
             // 2. Provider Staking
             match T::MarketInterface::bond(who.clone(), MarketUserStatus::Provider) {
-                Ok(()) => {
-
-                },
+                Ok(()) => {},
                 Err(error) => {
                     Err(error)?
                 }
@@ -337,7 +363,9 @@ pub mod pallet {
 
             // updata the online provider list
             let mut provider_list = ProviderOnlineList::<T>::get();
-            provider_list.push(who.clone());
+            if !provider_list.contains(&who.clone()) {
+                provider_list.push(who.clone());
+            }
             ProviderOnlineList::<T>::set(provider_list);
 
             // give the source points
@@ -347,7 +375,7 @@ pub mod pallet {
 
             // update the total resource points
             let mut provider_total_resoucre_points = ProviderTotalResourcePoints::<T>::get();
-            provider_total_resoucre_points += resource_poinst as u128;
+            provider_total_resoucre_points += cpu as u128 + memory as u128;
             ProviderTotalResourcePoints::<T>::set(provider_total_resoucre_points);
 
             // crate the resource config, use cpu, memory, system, cpu_model
@@ -498,17 +526,19 @@ pub mod pallet {
         }
 
         /// delete resource
+        /// todo bug: use old index and the same peer id will be invaild
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn remove_resource(
+        pub fn withdraw (
             account_id: OriginFor<T>,
             index: u64,
         ) -> DispatchResult {
             let who = ensure_signed(account_id)?;
+            // ensure the source exit
             ensure!(Resources::<T>::contains_key(index),Error::<T>::ResourceNotFound);
             let resource = Resources::<T>::get(index.clone()).unwrap();
-
+            // ensure the source owned by who
             ensure!(resource.account_id == who.clone(), Error::<T>::IllegalRequest);
-
+            // ensure the resource's status can be remove
             ensure!(resource.status == ResourceStatus::Unused || resource.status == ResourceStatus::Offline, Error::<T>::CannotBeDeleted);
 
             // delete associated resource
@@ -534,9 +564,52 @@ pub mod pallet {
                 FutureExpiredResource::<T>::insert(end_of_rent, new_resource);
             }
 
-
             //delete resource
             Resources::<T>::remove(&index);
+
+            // if user did not exit provider source, let it out of the online provider list
+            if Provider::<T>::contains_key(who.clone()) {
+                let list = Provider::<T>::get(who.clone()).unwrap();
+                if list.len() == 0 {
+                    let mut provider_online_list = ProviderOnlineList::<T>::get();
+                    let mut index = 0;
+                    for provider in &provider_online_list {
+                        if provider.eq(&who.clone()) {
+                            break;
+                        }
+                        index += 1;
+                    }
+                    provider_online_list.remove(index);
+                    ProviderOnlineList::<T>::set(provider_online_list);
+                }
+            }
+
+            // update the provider total cpu
+            let provider_total_cpu = ProviderTotalCpu::<T>::get(who.clone()).unwrap();
+            ProviderTotalCpu::<T>::insert(who.clone(), provider_total_cpu - resource.config.cpu);
+
+            // update the provider total memory
+            let provider_total_memory = ProviderTotalMemory::<T>::get(who.clone()).unwrap();
+            ProviderTotalMemory::<T>::insert(who.clone(), provider_total_memory - resource.config.memory);
+
+            // update the provider total source points
+            let mut provider_total_resource_points = ProviderTotalResourcePoints::<T>::get();
+            provider_total_resource_points -= resource.config.cpu as u128 + resource.config.memory as u128;
+            ProviderTotalResourcePoints::<T>::set(provider_total_resource_points);
+
+            // update the provider points
+            let mut provider_points = ProviderTotalPoints::<T>::get(who.clone()).unwrap();
+            provider_points.total_points -= resource.config.cpu as u128 + resource.config.memory as u128;
+            provider_points.resource_points -= resource.config.cpu + resource.config.memory;
+            ProviderTotalPoints::<T>::insert(who.clone(), provider_points);
+
+            // update the staking info
+            T::MarketInterface::withdraw_provider(
+                who.clone(),
+                (resource.config.cpu + resource.config.memory) * 100_000_000_000_000,
+                resource.index as u128,
+            );
+
 
             Self::deposit_event(Event::RemoveSuccess(who, index));
 
@@ -586,6 +659,36 @@ impl<T: Config> Pallet<T> {
         T::NumberToBalance::convert(staked)
     }
 
+    /// the func use to deal the thing that clear the provider info which
+    /// use to compute reward
+    fn clear_points_info(who: T::AccountId, resource: ComputingResource<T::BlockNumber, T::AccountId>) {
+        // update the provider total cpu
+        let provider_total_cpu = ProviderTotalCpu::<T>::get(who.clone()).unwrap();
+        ProviderTotalCpu::<T>::insert(who.clone(), provider_total_cpu - resource.config.cpu);
+
+        // update the provider total memory
+        let provider_total_memory = ProviderTotalMemory::<T>::get(who.clone()).unwrap();
+        ProviderTotalMemory::<T>::insert(who.clone(), provider_total_memory - resource.config.memory);
+
+        // update the provider total source points
+        let mut provider_total_resource_points = ProviderTotalResourcePoints::<T>::get();
+        provider_total_resource_points -= resource.config.cpu as u128 + resource.config.memory as u128;
+        ProviderTotalResourcePoints::<T>::set(provider_total_resource_points);
+
+        // update the provider points
+        let mut provider_points = ProviderTotalPoints::<T>::get(who.clone()).unwrap();
+        provider_points.total_points -= resource.config.cpu as u128 + resource.config.memory as u128;
+        provider_points.resource_points -= resource.config.cpu + resource.config.memory;
+        ProviderTotalPoints::<T>::insert(who.clone(), provider_points);
+
+        // update the staking info
+        T::MarketInterface::withdraw_provider(
+            who.clone(),
+            (resource.config.cpu + resource.config.memory) * 100_000_000_000_000,
+            resource.index as u128,
+        );
+    }
+
 }
 
 impl<T: Config> OrderInterface for Pallet<T> {
@@ -600,6 +703,8 @@ impl<T: Config> OrderInterface for Pallet<T> {
     fn update_computing_resource(index: u64, resource_info: ComputingResource<Self::BlockNumber, Self::AccountId>) {
         Self::update_computing_resource(index, resource_info).ok();
     }
+
+
 }
 
 impl<T: Config> ProviderInterface for Pallet<T> {

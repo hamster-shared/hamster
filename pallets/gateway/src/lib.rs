@@ -70,7 +70,18 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn gateways)]
     pub(super) type Gateways<T: Config> = StorageValue<_, Vec<Vec<u8>>, ValueQuery>;
-    
+
+    /// Account and peerid map
+    #[pallet::storage]
+    #[pallet::getter(fn account_peerid_map)]
+    pub(super) type AccountPeerMap<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        Vec<Vec<u8>>,
+        OptionQuery,
+    >;
+
     /// number of gateway nodes
     #[pallet::storage]
     #[pallet::getter(fn gateway_node_count)]
@@ -149,6 +160,10 @@ pub mod pallet {
         CurrentTotalPoints(u128),
 
         RatioAndReward(Perbill, u128),
+
+        WithdrawGatewaySuccess(T::AccountId, Vec<u8>),
+
+        ClearGatewayInfoSuccess(T::AccountId, Vec<u8>),
     }
 
     // Errors inform users that something went wrong.
@@ -212,11 +227,22 @@ pub mod pallet {
                             Gateways::<T>::put(peerIds);
                         }
                         //remove gateway node
-                        GatewayNodes::<T>::remove(peer_id);
+                        GatewayNodes::<T>::remove(peer_id.clone());
                         // reduce count
                         let count = GatewayNodeCount::<T>::get();
                         GatewayNodeCount::<T>::set(count - 1);
 
+                        // 0. apply unlock, use market interface func withdraw_gateway
+                        match T::MarketInterface::withdraw_gateway(gateway_node.account_id.clone(), peer_id.clone()) {
+                            Ok(()) => {
+                                Self::deposit_event(Event::WithdrawGatewaySuccess(
+                                    gateway_node.account_id.clone(),
+                                    peer_id.clone()));
+                            },
+                            Err(_) => {
+
+                            }
+                        }
                     }
                 }
             }
@@ -267,6 +293,17 @@ pub mod pallet {
             if let Err(index) = peerIds.binary_search(&peer_id){
                 peerIds.insert(index,peer_id.clone());
                 Gateways::<T>::put(peerIds);
+
+                // update user account_peerid map
+                if AccountPeerMap::<T>::contains_key(who.clone()) {
+                    let mut peer_list = AccountPeerMap::<T>::get(who.clone()).unwrap();
+                    peer_list.push(peer_id);
+                    AccountPeerMap::<T>::insert(who.clone(), peer_list);
+                } else {
+                    let mut peer_list = Vec::new();
+                    peer_list.push(peer_id);
+                    AccountPeerMap::<T>::insert(who.clone(), peer_list);
+                }
             }
             // increase the total
             let count = GatewayNodeCount::<T>::get();
@@ -298,6 +335,28 @@ pub mod pallet {
             GatewayNodes::<T>::insert(peer_id, gateway_node.clone());
 
             Self::deposit_event(Event::HealthCheckSuccess(who.clone(), block_number));
+            Ok(())
+        }
+
+        /// user enter the peerid to withdraw and downline the gateway node
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn withdraw(
+            account_id: OriginFor<T>,
+            peer_id: Vec<u8>,
+        ) -> DispatchResult {
+
+            let who = ensure_signed(account_id)?;
+
+            // 0. apply unlock, use market interface func withdraw_gateway
+            match T::MarketInterface::withdraw_gateway(who.clone(), peer_id.clone()) {
+                Ok(()) => {
+                    Self::deposit_event(Event::WithdrawGatewaySuccess(who.clone(), peer_id));
+                },
+                Err(error) => {
+                    Err(error)?
+                }
+            }
+
             Ok(())
         }
     }
@@ -374,7 +433,67 @@ impl <T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pa
         Self::deposit_event(Event::ClearPoinstSuccess);
     }
 
-    fn clear_gateway_info(who: <T as frame_system::Config>::AccountId) {
+    fn clear_gateway_info(who: <T as frame_system::Config>::AccountId, peer_id: Vec<u8>) {
+        // 0. get the peer_id list from Gateways
+        let mut peer_id_list = Gateways::<T>::get();
 
+        // 1. get the peer_id's index in the peer_id_list
+        let mut index = 0;
+        for p in &peer_id_list {
+            if p.eq(&peer_id) {
+                break;
+            }
+            index += 1;
+        }
+
+        // 2. remove the peer_id from peer_id_list
+        peer_id_list.remove(index);
+
+        // 3. reset the list
+        Gateways::<T>::put(peer_id_list);
+
+        // 4. remove the peer id from Gateway Node
+        GatewayNodes::<T>::remove(peer_id.clone());
+
+        // 5. reset the gateway num
+        let mut gateway_num = GatewayNodeCount::<T>::get();
+        gateway_num -= 1;
+        GatewayNodeCount::<T>::set(gateway_num);
+
+        // 6. remove the map account and peerid
+        let mut account_peer_list =  AccountPeerMap::<T>::get(who.clone()).unwrap();
+
+        // 7. get the peer index
+        let mut index = 0;
+        for p in &account_peer_list {
+            if p.eq(&peer_id) {
+                break;
+            }
+            index += 1;
+        }
+
+        // 8. remove the peer id in the map account
+        account_peer_list.remove(index);
+
+        // 9. update
+        AccountPeerMap::<T>::insert(who.clone(), account_peer_list);
+
+        Self::deposit_event(Event::ClearGatewayInfoSuccess(who.clone(), peer_id.clone()));
+
+    }
+
+    fn accont_own_peerid(who: <T as frame_system::Config>::AccountId, peerid: Vec<u8>) -> bool {
+        if !AccountPeerMap::<T>::contains_key(who.clone()) {
+            return false;
+        }
+
+        let peer_list = AccountPeerMap::<T>::get(who.clone()).unwrap();
+
+        // determine the peerid exit int the peer_list
+        if !peer_list.contains(&peerid) {
+            return false;
+        }
+
+        return true;
     }
 }

@@ -164,6 +164,9 @@ pub trait MarketInterface<AccountId> {
 
     fn unlock();
 
-    fn update_provider_staked(who: AccountId, amount: u128);
+    fn update_provider_staked(who: AccountId, amount: u128, index: u64);
 
+    fn withdraw_gateway(who: AccountId, peerid: Vec<u8>) -> Result<(), DispatchError>;
+
+    fn withdraw_provider(who: AccountId, amount: u64, source_index: u128)-> Result<(), DispatchError>;
 }
