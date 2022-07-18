@@ -5,7 +5,6 @@ use frame_support::{dispatch::DispatchResult,
 use frame_support::sp_runtime::traits::Convert;
 use frame_system::pallet_prelude::*;
 use sp_runtime::Perbill;
-use sp_runtime::traits::Saturating;
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
 
@@ -31,7 +30,6 @@ type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Con
 
 #[frame_support::pallet]
 pub mod pallet {
-    use sp_runtime::traits::Saturating;
     use primitives::Balance;
     use primitives::p_market::{MarketInterface, MarketUserStatus};
     use primitives::p_provider;
@@ -623,7 +621,7 @@ pub mod pallet {
                 who.clone(),
                 (resource.config.cpu + resource.config.memory) * 100_000_000_000_000,
                 resource.index as u128,
-            );
+            )?;
 
 
             Self::deposit_event(Event::RemoveSuccess(who, index));
@@ -718,7 +716,7 @@ impl<T: Config> Pallet<T> {
             who.clone(),
             (resource.config.cpu + resource.config.memory) * 100_000_000_000_000,
             resource.index as u128,
-        );
+        ).expect("TODO: panic message");
     }
 
 }

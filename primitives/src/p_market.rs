@@ -1,15 +1,11 @@
 use codec::{Decode, Encode};
-use frame_support::Parameter;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use sp_core::Bytes;
 use sp_debug_derive::RuntimeDebug;
-use sp_runtime::traits::AtLeast32BitUnsigned;
-use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
 use sp_runtime::DispatchError;
 
-use crate::{Balance, EraIndex};
+use crate::{EraIndex};
 
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]

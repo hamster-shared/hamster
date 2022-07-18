@@ -6,7 +6,7 @@ use sp_std::vec::Vec;
 use frame_support::Parameter;
 use sp_runtime::traits::AtLeast32BitUnsigned;
 
-use crate::{AccountId, EraIndex};
+use crate::{EraIndex};
 
 /// Gateway node
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]

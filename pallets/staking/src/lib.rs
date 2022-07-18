@@ -280,7 +280,6 @@ pub mod slashing;
 pub mod inflation;
 pub mod weights;
 
-use core::convert::TryInto;
 use pallet_gateway::GatewayInterface;
 use pallet_market::MarketInterface;
 
@@ -320,11 +319,8 @@ use frame_system::{
 	offchain::SendTransactionTypes,
 };
 use frame_election_provider_support::{ElectionProvider, VoteWeight, Supports, data_provider};
-use frame_support::traits::Len;
 pub use weights::WeightInfo;
 pub use pallet::*;
-use primitives::Balance;
-use primitives::p_staking::StakingInterface;
 
 const STAKING_ID: LockIdentifier = *b"staking ";
 pub(crate) const LOG_TARGET: &'static str = "runtime::staking";
@@ -838,7 +834,7 @@ pub mod migrations {
 
 #[frame_support::pallet]
 pub mod pallet {
-	use pallet_market::Event::CreateStakingAccountSuccessful;
+	// use pallet_market::Event::CreateStakingAccountSuccessful;
 	use super::*;
 
 	#[pallet::pallet]
@@ -1360,7 +1356,7 @@ pub mod pallet {
 
 		EraDuration(u64, u64),
 
-		Validator_Payout(BalanceOf<T>),
+		ValidatorPayout(BalanceOf<T>),
 
 		TestStakedAndPortion(u128, BalanceOf<T>),
 	}
@@ -2168,7 +2164,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			era: EraIndex,
 		) -> DispatchResultWithPostInfo {
-			let user = ensure_signed(origin)?;
+			ensure_signed(origin)?;
 			// put the money from user to staking_pot
 
 			let mut totalstaked = ErasTotalStake::<T>::get(era);
@@ -2744,7 +2740,7 @@ impl<T: Config> Pallet<T> {
 			let (validator_market_payout, rest) = T::EraPayout::era_payout(total_staked, issuance, era_duration);
 			// let (validator_payout, rest) = T::EraPayout::era_payout(staked, issuance, era_duration);
 			// Test the validator_market_payout
-			Self::deposit_event(Event::<T>::Validator_Payout(validator_market_payout));
+			Self::deposit_event(Event::<T>::ValidatorPayout(validator_market_payout));
 
 			// 1. compute the validator and market payout
 			let (validator_payout, market_payout) = Self::compute_validator_market_payout(
@@ -3582,12 +3578,6 @@ where
 /// Check that list is sorted and has no duplicates.
 fn is_sorted_and_unique(list: &[u32]) -> bool {
 	list.windows(2).all(|w| w[0] < w[1])
-}
-
-impl<T: Config> StakingInterface for Pallet<T> {
-	fn EraIndex() -> primitives::EraIndex {
-		ActiveEra::<T>::get().unwrap().index
-	}
 }
 
 

@@ -11,7 +11,6 @@ use frame_support::{dispatch::DispatchResult,
 use frame_support::sp_runtime::traits::Convert;
 use frame_system::pallet_prelude::*;
 use primitives::EraIndex;
-use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
 use sp_runtime::traits::Zero;
 use sp_runtime::Perbill;
@@ -29,7 +28,6 @@ const GATEWAY_PDGE_AMOUNT: u128 = 100;
 
 #[frame_support::pallet]
 pub mod pallet {
-    use primitives::Balance;
     use super::*;
 
     /// Configure the pallet by specifying the parameters and types on which it depends.
@@ -131,6 +129,9 @@ pub mod pallet {
         }
     }
 
+
+
+
     // The build of genesis for the pallet.
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
@@ -214,16 +215,16 @@ pub mod pallet {
                 // get a list of gateway nodes
                 let gateway_nodes = GatewayNodes::<T>::iter();
 
-                for (i, mut gateway_node) in gateway_nodes {
+                for (_, gateway_node) in gateway_nodes {
                     // get the interval from the last heartbeat report
                     let duration = now - gateway_node.registration_time;
                     // Check if heartbeat interval is exceeded
                     if duration > T::GatewayNodeHeartbeatInterval::get() {
                         let peer_id = gateway_node.peer_id;
-                        let mut peerIds = Gateways::<T>::get();
-                        if let Ok(index) = peerIds.binary_search(&peer_id){
-                            peerIds.remove(index);
-                            Gateways::<T>::put(peerIds);
+                        let mut peer_ids = Gateways::<T>::get();
+                        if let Ok(index) = peer_ids.binary_search(&peer_id){
+                            peer_ids.remove(index);
+                            Gateways::<T>::put(peer_ids);
                         }
                         //remove gateway node
                         GatewayNodes::<T>::remove(peer_id.clone());
@@ -291,11 +292,11 @@ pub mod pallet {
             // increase gateway nodes
             GatewayNodes::<T>::insert(peer_id.clone(), gateway_node.clone());
 
-            let mut peerIds = Gateways::<T>::get();
+            let mut peer_ids = Gateways::<T>::get();
             // todo if the index exit? why can show this ?
-            if let Err(index) = peerIds.binary_search(&peer_id){
-                peerIds.insert(index,peer_id.clone());
-                Gateways::<T>::put(peerIds);
+            if let Err(index) = peer_ids.binary_search(&peer_id){
+                peer_ids.insert(index,peer_id.clone());
+                Gateways::<T>::put(peer_ids);
 
                 // update user account_peerid map
                 if AccountPeerMap::<T>::contains_key(who.clone()) {

@@ -21,7 +21,7 @@
 //! divided by the total token supply.
 
 use sp_runtime::{Perbill, traits::AtLeast32BitUnsigned, curve::PiecewiseLinear};
-use crate::log;
+// use crate::log;
 
 /// The total payout to all validators (and their nominators) per era and maximum payout.
 ///
