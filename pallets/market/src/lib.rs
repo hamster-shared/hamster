@@ -43,7 +43,6 @@ pub mod pallet {
     use frame_system::Origin;
 
     // use log::Level::Error;
-    use log::log;
     use pallet_balances::NegativeImbalance;
     use sp_runtime::Perbill;
     use sp_runtime::traits::Saturating;
@@ -494,12 +493,12 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn bond(
             origin: OriginFor<T>,
-            // status: p_market::MarketUserStatus,
             status: MarketUserStatus,
         ) -> DispatchResult {
 
             let who = ensure_signed(origin)?;
 
+            // get the user free balance
             let use_free_balance = T::Currency::free_balance(&who.clone());
 
             // Computer staked amount
@@ -701,7 +700,7 @@ pub mod pallet {
                 GatewayReward::<T>::remove(who.clone());
             }
 
-            // // Send the amount which total payout this time
+            // Send the amount which total payout this time
             Self::deposit_event(Event::RewardIssuedSucces(total_reward));
 
             Ok(())
@@ -1481,8 +1480,13 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
             }
             index += 1;
         }
-        source_list.remove(index);
-        Providers::<T>::insert(who.clone(), source_list);
+        if index == 0 {
+            Providers::<T>::remove(who.clone());
+        } else {
+            source_list.remove(index);
+            Providers::<T>::insert(who.clone(), source_list);
+        }
+
 
         // 9. get back the staked amount
         Self::get_amount(who.clone(), T::NumberToBalance::convert(amount as u128))
