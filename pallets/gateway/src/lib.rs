@@ -190,7 +190,7 @@ pub mod pallet {
             let gateway_nodes = GatewayNodes::<T>::iter();
             // Accumulated points
             let mut total_points: u128 = 0;
-            // Update the gateway node pointc
+            // Update the gateway node points
             for(_, ref gateway_node) in gateway_nodes {
                 total_points += 10;
                 // Determine the gateway node has been recorded
@@ -226,11 +226,11 @@ pub mod pallet {
                             peer_ids.remove(index);
                             Gateways::<T>::put(peer_ids);
                         }
-                        //remove gateway node
-                        GatewayNodes::<T>::remove(peer_id.clone());
-                        // reduce count
-                        let count = GatewayNodeCount::<T>::get();
-                        GatewayNodeCount::<T>::set(count - 1);
+                        // //remove gateway node
+                        // GatewayNodes::<T>::remove(peer_id.clone());
+                        // // reduce count
+                        // let count = GatewayNodeCount::<T>::get();
+                        // GatewayNodeCount::<T>::set(count - 1);
 
                         // 0. apply unlock, use market interface func withdraw_gateway
                         match T::MarketInterface::withdraw_gateway(gateway_node.account_id.clone(), peer_id.clone()) {
