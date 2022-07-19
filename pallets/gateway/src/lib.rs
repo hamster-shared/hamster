@@ -441,23 +441,40 @@ impl <T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pa
         // 0. get the peer_id list from Gateways
         let mut peer_id_list = Gateways::<T>::get();
 
-        // 1. get the peer_id's index in the peer_id_list
-        let mut index = 0;
-        for p in &peer_id_list {
-            if p.eq(&peer_id) {
-                break;
+        if peer_id_list.contains(&peer_id) {
+            // 1. get the peer_id's index in the peer_id_list
+            let mut index = 0;
+            for p in &peer_id_list {
+                if p.eq(&peer_id) {
+                    break;
+                }
+                index += 1;
             }
-            index += 1;
+
+            // 2. remove the peer_id from peer_id_list
+            peer_id_list.remove(index);
+
+            // 3. reset the list
+            Gateways::<T>::put(peer_id_list);
         }
 
-        // 2. remove the peer_id from peer_id_list
-        peer_id_list.remove(index);
-
-        // 3. reset the list
-        Gateways::<T>::put(peer_id_list);
-
-        // 4. remove the peer id from Gateway Node
-        GatewayNodes::<T>::remove(peer_id.clone());
+        // // 1. get the peer_id's index in the peer_id_list
+        // let mut index = 0;
+        // for p in &peer_id_list {
+        //     if p.eq(&peer_id) {
+        //         break;
+        //     }
+        //     index += 1;
+        // }
+        //
+        // // 2. remove the peer_id from peer_id_list
+        // peer_id_list.remove(index);
+        //
+        // // 3. reset the list
+        // Gateways::<T>::put(peer_id_list);
+        //
+        // // 4. remove the peer id from Gateway Node
+        // GatewayNodes::<T>::remove(peer_id.clone());
 
         // 5. reset the gateway num
         let mut gateway_num = GatewayNodeCount::<T>::get();

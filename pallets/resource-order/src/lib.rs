@@ -179,8 +179,6 @@ pub mod pallet {
         }
     }
 
-
-
     // Pallets use events to inform users when important changes are made.
     // https://substrate.dev/docs/en/knowledgebase/runtime/events
     #[pallet::event]
@@ -349,7 +347,6 @@ pub mod pallet {
             // resource status changed from unused to locked
             resource_info.update_status(ResourceStatus::Locked);
 
-
             // save resource state
             T::OrderInterface::update_computing_resource(resource_index, resource_info);
             // add order to order collection
@@ -362,7 +359,6 @@ pub mod pallet {
             Self::deposit_event(Event::CreateOrderSuccess(who, order_index, resource_index, rent_duration, public_key));
             Ok(())
         }
-
 
         /// order execution
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
@@ -432,7 +428,6 @@ pub mod pallet {
                     BlockWithAgreement::<T>::remove(old_end);
                 }
 
-
                 // Save the new block number and the corresponding expiring agreement number
                 Self::do_insert_block_with_agreement(agreement.end, agreement_index).ok();
                 // save resource state
@@ -475,7 +470,6 @@ pub mod pallet {
                     now,
                 );
 
-
                 // order status changes to completed
                 order.finish_order();
                 // resource status changed from locked to in use
@@ -484,7 +478,6 @@ pub mod pallet {
                 resource_info.rental_statistics.add_rental_count();
                 // increase usage time
                 resource_info.rental_statistics.add_rental_duration(T::BlockNumberToNumber::convert(order.rent_duration) as u32 / 600);
-
 
                 // Add protocol expiration block number and protocol number
                 Self::do_insert_block_with_agreement(end, agreement_index).ok();
@@ -553,10 +546,6 @@ pub mod pallet {
                 }
             }
 
-
-
-
-
             // transfer
             T::Currency::transfer(&who.clone(), &Self::staking_pool(), bond_price, ExistenceRequirement::AllowDeath)?;
 
@@ -607,7 +596,6 @@ pub mod pallet {
 
             Ok(())
         }
-
 
         /// get back rental bonus amount
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]

@@ -664,7 +664,7 @@ pub mod pallet {
                     ExistenceRequirement::KeepAlive,
                 )?;
                 // Remove the reward info
-                GatewayReward::<T>::remove(who.clone());
+                ProviderReward::<T>::remove(who.clone());
             }
 
             // Send the amount which total payout this time
