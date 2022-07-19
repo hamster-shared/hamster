@@ -388,14 +388,11 @@ impl pallet_template::Config for Runtime {
 impl pallet_market::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
-	type OrderInterface = Provider;
 	type BlockNumberToNumber = ConvertInto;
 	type NumberToBalance = ConvertInto;
 	type BalanceToNumber = ConvertInto;
-	type HealthCheckInterval = HealthCheckInterval;
 	type UnixTime = Timestamp;
 	type GatewayInterface = Gateway;
-	type StakingInterface = Staking;
 	type ProviderInterface = Provider;
 }
 
