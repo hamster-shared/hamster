@@ -83,7 +83,12 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn gateway_node_count)]
     pub(super) type GatewayNodeCount<T: Config> = StorageValue<_, u64, ValueQuery>;
-    
+
+    /// unlock peer id list
+    #[pallet::storage]
+    #[pallet::getter(fn unlock_peer_id_list)]
+    pub(super) type UnlockPeerIdList<T: Config> = StorageValue<_, Vec<Vec<u8>>, ValueQuery>;
+
     /// Gateway node points
     #[pallet::storage]
     #[pallet::getter(fn gateway_node_points)]
@@ -232,6 +237,15 @@ pub mod pallet {
                         // let count = GatewayNodeCount::<T>::get();
                         // GatewayNodeCount::<T>::set(count - 1);
 
+                        let mut unlock_peer_list = UnlockPeerIdList::<T>::get();
+                        if unlock_peer_list.contains(&peer_id) {
+                            break;
+                        }
+
+                        // update the unlock list
+                        unlock_peer_list.push(peer_id.clone());
+                        UnlockPeerIdList::<T>::set(unlock_peer_list);
+
                         // 0. apply unlock, use market interface func withdraw_gateway
                         match T::MarketInterface::withdraw_gateway(gateway_node.account_id.clone(), peer_id.clone()) {
                             Ok(()) => {
@@ -267,6 +281,12 @@ pub mod pallet {
             // if !Self::binding_staking_info(who.clone()) {
             //     return Err(Error::<T>::BingStakingInfoFailed.into());
             // }
+
+            // check the peer id is already exit in the unlock list
+            let unlock_id_list = UnlockPeerIdList::<T>::get();
+            if unlock_id_list.contains(&peer_id) {
+                return Ok(());
+            }
 
             if GatewayNodes::<T>::contains_key(peer_id.clone()) {
                 return Ok(());
@@ -350,6 +370,15 @@ pub mod pallet {
         ) -> DispatchResult {
 
             let who = ensure_signed(account_id)?;
+
+            let mut unlock_peer_list = UnlockPeerIdList::<T>::get();
+            if unlock_peer_list.contains(&peer_id) {
+                return Ok(());
+            }
+
+            // update the unlock list
+            unlock_peer_list.push(peer_id.clone());
+            UnlockPeerIdList::<T>::set(unlock_peer_list);
 
             // 0. apply unlock, use market interface func withdraw_gateway
             match T::MarketInterface::withdraw_gateway(who.clone(), peer_id.clone()) {
@@ -498,6 +527,18 @@ impl <T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pa
 
         // 9. update
         AccountPeerMap::<T>::insert(who.clone(), account_peer_list);
+
+        // 10. update the unlock list
+        let mut unlock_list = UnlockPeerIdList::<T>::get();
+        let mut index = 0;
+        for peerid in &unlock_list {
+            if peerid.eq(&peer_id) {
+                unlock_list.remove(index);
+                break;
+            }
+            index += 1;
+        }
+        UnlockPeerIdList::<T>::set(unlock_list);
 
         Self::deposit_event(Event::ClearGatewayInfoSuccess(who.clone(), peer_id.clone()));
 

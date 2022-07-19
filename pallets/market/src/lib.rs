@@ -1015,7 +1015,7 @@ impl<T: Config> Pallet<T> {
                 &Self::staking_pot(),
                 &who.clone(),
                 T::NumberToBalance::convert(100_000_000_000_000),
-                ExistenceRequirement::KeepAlive,
+                ExistenceRequirement::AllowDeath,
             ).expect("transfer staked amount to user from staking pot failed");
 
             // 12. reset the staker info
