@@ -600,7 +600,7 @@ pub mod pallet {
                     &Self::market_reward_pot(),
                     &who.clone(),
                     T::NumberToBalance::convert(reward),
-                    ExistenceRequirement::KeepAlive,
+                    ExistenceRequirement::AllowDeath,
                 )?;
                 // Remove the reward info
                 GatewayReward::<T>::remove(who.clone());
@@ -630,7 +630,7 @@ pub mod pallet {
                     &Self::market_reward_pot(),
                     &who.clone(),
                     T::NumberToBalance::convert(reward),
-                    ExistenceRequirement::KeepAlive,
+                    ExistenceRequirement::AllowDeath,
                 )?;
                 // Remove the reward info
                 GatewayReward::<T>::remove(who.clone());
@@ -661,7 +661,7 @@ pub mod pallet {
                     &Self::market_reward_pot(),
                     &who.clone(),
                     T::NumberToBalance::convert(reward),
-                    ExistenceRequirement::KeepAlive,
+                    ExistenceRequirement::AllowDeath,
                 )?;
                 // Remove the reward info
                 ProviderReward::<T>::remove(who.clone());
@@ -736,7 +736,7 @@ impl<T: Config> Pallet<T> {
             &who,
             &Self::staking_pot(),
             amount,
-            ExistenceRequirement::KeepAlive,
+            ExistenceRequirement::AllowDeath,
         )
     }
 
@@ -746,7 +746,7 @@ impl<T: Config> Pallet<T> {
           &Self::staking_pot(),
             &who,
             amount,
-            ExistenceRequirement::KeepAlive,
+            ExistenceRequirement::AllowDeath,
         )
     }
 
@@ -930,7 +930,7 @@ impl<T: Config> Pallet<T> {
                 &Self::staking_pot(),
                 &client,
                 T::NumberToBalance::convert(100_000_000_000_000),
-                ExistenceRequirement::KeepAlive,
+                ExistenceRequirement::AllowDeath,
             ).expect("transfer staked amount to user from staking pot failed");
 
             // 5. reduce the client nums

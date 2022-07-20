@@ -591,9 +591,9 @@ parameter_types! {
 	// health check interval
 	pub const HealthCheckInterval: BlockNumber = 10 * MINUTES;
 	// gateway node timed removal interval
-	pub const GatewayNodeTimedRemovalInterval: BlockNumber = 30 * MINUTES;
+	pub const GatewayNodeTimedRemovalInterval: BlockNumber = 5 * MINUTES;
 	//gateway node heartbeat reporting interval
-	pub const GatewayNodeHeartbeatInterval: BlockNumber = 10 * MINUTES;
+	pub const GatewayNodeHeartbeatInterval: BlockNumber = 6 * MINUTES;
 }
 
 /// ResourceOrder
