@@ -14,7 +14,7 @@ use primitives::EraIndex;
 use sp_std::vec::Vec;
 use sp_runtime::traits::Zero;
 use sp_runtime::Perbill;
-
+use frame_support::traits::OnRuntimeUpgrade;
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://substrate.dev/docs/en/knowledgebase/runtime/frame>
@@ -115,7 +115,15 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn currenct_total_points)]
     pub(super) type CurrentTotalPoints<T: Config> = StorageValue<_, u128, ValueQuery>;
-    
+
+    /// True if network has been upgraded to this version.
+    /// Storage version of the pallet.
+    ///
+    /// This is set to v1.0.0 for new networks.
+    #[pallet::storage]
+    #[pallet::getter(fn storage_version)]
+    pub(crate) type StorageVersion<T: Config> = StorageValue<_, Releases, ValueQuery>;
+
     // The genesis config type.
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
@@ -133,8 +141,6 @@ pub mod pallet {
             }
         }
     }
-
-
 
 
     // The build of genesis for the pallet.
@@ -190,6 +196,11 @@ pub mod pallet {
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+
+        // fn on_runtime_upgrade() -> Weight {
+        //     0
+        // }
+
         fn on_initialize(now: T::BlockNumber) -> Weight {
             // get a list of online gateway nodes
             let gateway_nodes = GatewayNodes::<T>::iter();
@@ -281,7 +292,6 @@ pub mod pallet {
             // if !Self::binding_staking_info(who.clone()) {
             //     return Err(Error::<T>::BingStakingInfoFailed.into());
             // }
-
             // check the peer id is already exit in the unlock list
             let unlock_id_list = UnlockPeerIdList::<T>::get();
             if unlock_id_list.contains(&peer_id) {
@@ -392,6 +402,7 @@ pub mod pallet {
 
             Ok(())
         }
+
     }
 }
 
@@ -559,3 +570,25 @@ impl <T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pa
         return true;
     }
 }
+
+// Determine whether we run the storage migration logic
+#[derive(Encode, Decode, Clone, Copy, PartialEq, Eq, RuntimeDebug)]
+pub enum Releases {
+    V1_0_0,
+    V2_0_0,
+}
+
+impl Default for Releases {
+    fn default() -> Self {
+        Releases::V1_0_0
+    }
+}
+
+pub mod migrations {
+    use super::*;
+
+    pub mod v2 {
+        use super::*;
+        }
+    }
+

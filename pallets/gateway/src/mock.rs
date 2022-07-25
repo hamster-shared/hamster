@@ -95,8 +95,11 @@ impl pallet_gateway::Config for Test {
     type Event = Event;
     type Currency = Balances;
     type BalanceToNumber = ConvertInto;
+    type NumberToBalance = ConvertInto;
     type GatewayNodeTimedRemovalInterval = GatewayNodeTimedRemovalInterval;
     type GatewayNodeHeartbeatInterval = GatewayNodeHeartbeatInterval;
+
+    type MarketInterface = Market;
 }
 
 // Build genesis storage according to the mock runtime.

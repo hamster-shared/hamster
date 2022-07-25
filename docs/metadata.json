@@ -21,5 +21,9 @@
   "Income": {
     "last_eraindex": "EraIndex",
     "total_income": "u128"
+  },
+  "TestStorageMove": {
+    "test_storage": "u128",
+    "new_storage": "u64"
   }
 }
