@@ -21,13 +21,14 @@ use frame_support::traits::OnRuntimeUpgrade;
 
 pub use pallet::*;
 pub use primitives::p_gateway::*;
-pub use pallet_market::MarketInterface;
+pub use primitives::p_market::*;
 
 type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 const GATEWAY_PDGE_AMOUNT: u128 = 100;
 
 #[frame_support::pallet]
 pub mod pallet {
+    use primitives::p_market::MarketUserStatus;
     use super::*;
 
     /// Configure the pallet by specifying the parameters and types on which it depends.
@@ -302,7 +303,7 @@ pub mod pallet {
                 return Ok(());
             }
 
-            match T::MarketInterface::bond(who.clone(), pallet_market::MarketUserStatus::Gateway) {
+            match T::MarketInterface::bond(who.clone(), primitives::p_market::MarketUserStatus::Gateway) {
                 Ok(()) => {
 
                 },

@@ -17,8 +17,9 @@ use sp_std::vec::Vec;
 pub use pallet::*;
 pub use primitives::p_provider::*;
 pub use primitives::p_resource_order::*;
-pub use pallet_market::MarketInterface;
+pub use primitives::p_market::*;
 use primitives::EraIndex;
+use primitives::p_market::MarketInterface;
 
 #[cfg(test)]
 mod mock;
@@ -31,7 +32,6 @@ type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Con
 #[frame_support::pallet]
 pub mod pallet {
     use primitives::Balance;
-    use primitives::p_market::{MarketInterface, MarketUserStatus};
     use primitives::p_provider;
     use super::*;
 

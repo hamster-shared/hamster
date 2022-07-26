@@ -44,7 +44,7 @@ std = [
     'log/std',
     'primitives/std',
     'sp-core/std',
-    'pallet-market/std',
+    
 ]
 try-runtime = ['frame-support/try-runtime']
 [dependencies.codec]
@@ -90,10 +90,7 @@ git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
-[dependencies.pallet-market]
-default-features = false
-path = '../market'
-version = '3.0.0'
+
 
 
 [dependencies]

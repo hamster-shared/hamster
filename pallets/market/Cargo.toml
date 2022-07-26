@@ -44,6 +44,9 @@ std = [
     'log/std',
     'primitives/std',
     'sp-core/std',
+    'pallet-gateway/std',
+    'pallet-provider/std',
+
 ]
 try-runtime = ['frame-support/try-runtime']
 [dependencies.codec]
@@ -87,6 +90,16 @@ version = '3.0.0'
 default-features = false
 git = 'https://gitee.com/mohaijiang/substrate.git'
 tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.pallet-gateway]
+default-features = false
+path = '../gateway'
+version = '3.0.0'
+
+[dependencies.pallet-provider]
+default-features = false
+path = '../provider'
 version = '3.0.0'
 
 [dependencies.pallet-balances]

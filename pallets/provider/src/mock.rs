@@ -93,7 +93,9 @@ impl pallet_provider::Config for Test {
 	type Event = Event;
 	type Currency = Balances;
 	type BalanceToNumber = ConvertInto;
+	type NumberToBalance = ();
 	type ResourceInterval = ResourceInterval;
+	type MarketInterface = ();
 }
 
 // Build genesis storage according to the mock runtime.
