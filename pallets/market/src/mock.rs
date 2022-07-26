@@ -10,7 +10,7 @@ use primitives::p_provider::ProviderInterface;
 
 use frame_system as system;
 use primitives::Balance;
-use crate::Event;
+// use crate::Event;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -64,12 +64,12 @@ impl system::Config for Test {
     type BlockHashCount = BlockHashCount;
     type Version = ();
     type PalletInfo = PalletInfo;
-    type AccountData = ();
+    type AccountData = pallet_balances::AccountData<u64>;
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
     type SS58Prefix = SS58Prefix;
-    type OnSetCode = Timestamp;
+    type OnSetCode = ();
 }
 
 impl pallet_market::Config for Test {
@@ -78,9 +78,9 @@ impl pallet_market::Config for Test {
     type GatewayInterface = Gateway;
     type ProviderInterface = Provider;
     type BlockNumberToNumber = ConvertInto;
-    type NumberToBalance = ConvertInto;
+    type NumberToBalance = ();
     type BalanceToNumber = ConvertInto;
-    type UnixTime = ();
+    type UnixTime = Timestamp;
 }
 
 parameter_types! {
@@ -110,17 +110,19 @@ impl pallet_gateway::Config for Test {
     type Event = Event;
     type Currency = Balances;
     type BalanceToNumber = ConvertInto;
-    type NumberToBalance = ConvertInto;
+    type NumberToBalance = ();
     type GatewayNodeTimedRemovalInterval = GatewayNodeTimedRemovalInterval;
     type GatewayNodeHeartbeatInterval = GatewayNodeHeartbeatInterval;
     type MarketInterface = Market;
 }
 
+
 impl pallet_provider::Config for Test {
     type Event = Event;
     type Currency = Balances;
     type BalanceToNumber = ConvertInto;
-    type NumberToBalance = ConvertInto;
+    type NumberToBalance = ();
+    type ResourceInterval = ResourceInterval;
     type MarketInterface = Market;
 }
 
