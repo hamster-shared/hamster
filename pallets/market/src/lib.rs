@@ -1350,7 +1350,6 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
             UserTotalStaked::<T>::insert(who.clone(), user_staked);
         }
 
-
         Self::deposit_event(Event::StakingSuccess(
             who.clone(),
             Self::market_status_to_u8(status.clone()),
@@ -1457,6 +1456,5 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         Self::get_amount(who.clone(), T::NumberToBalance::convert(amount as u128))
 
     }
-
 
 }
