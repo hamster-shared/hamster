@@ -1,10 +1,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub mod p_resource_order;
-pub mod p_provider;
 pub mod constants;
+pub mod p_chunkcycle;
 pub mod p_gateway;
 pub mod p_market;
+pub mod p_provider;
+pub mod p_resource_order;
 pub mod p_staking;
 
 use sp_runtime::{

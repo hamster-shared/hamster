@@ -1,35 +1,45 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+extern crate alloc;
+
 #[cfg(test)]
 mod mock;
 
 #[cfg(test)]
 mod tests;
 
-use frame_support::{dispatch::DispatchResult,
-                    pallet_prelude::*, traits::Currency};
+use alloc::boxed::Box;
+use core::convert::TryInto;
 use frame_support::sp_runtime::traits::Convert;
-use frame_system::pallet_prelude::*;
-use primitives::EraIndex;
-use sp_std::vec::Vec;
-use sp_runtime::traits::Zero;
-use sp_runtime::Perbill;
+#[warn(unused_imports)]
 use frame_support::traits::OnRuntimeUpgrade;
+use frame_support::traits::UnixTime;
+
+use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::Currency};
+use frame_system::offchain::{SendSignedTransaction, Signer};
+use frame_system::pallet_prelude::*;
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://substrate.dev/docs/en/knowledgebase/runtime/frame>
-
 pub use pallet::*;
 pub use primitives::p_gateway::*;
 pub use primitives::p_market::*;
+use primitives::EraIndex;
+use sp_runtime::traits::Zero;
+use sp_runtime::{DispatchResultWithInfo, Perbill};
+use sp_std::vec::Vec;
 
-type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+type BalanceOf<T> =
+    <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 const GATEWAY_PDGE_AMOUNT: u128 = 100;
+const FORBLOCK: u128 = 500;
 
 #[frame_support::pallet]
 pub mod pallet {
-    use primitives::p_market::MarketUserStatus;
     use super::*;
+    use sp_runtime::traits::{One, Saturating};
+
+    use primitives::p_market::MarketUserStatus;
 
     /// Configure the pallet by specifying the parameters and types on which it depends.
     #[pallet::config]
@@ -53,6 +63,9 @@ pub mod pallet {
         type GatewayNodeHeartbeatInterval: Get<Self::BlockNumber>;
 
         type MarketInterface: MarketInterface<Self::AccountId>;
+
+        type UnixTime: UnixTime;
+
     }
 
     #[pallet::pallet]
@@ -62,7 +75,13 @@ pub mod pallet {
     /// gateway node information
     #[pallet::storage]
     #[pallet::getter(fn gateway)]
-    pub(super) type GatewayNodes<T: Config> = StorageMap<_,Twox64Concat,Vec<u8>, GatewayNode<T::BlockNumber, T::AccountId>, OptionQuery>;
+    pub(super) type GatewayNodes<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        Vec<u8>,
+        GatewayNode<T::BlockNumber, T::AccountId>,
+        OptionQuery,
+    >;
 
     ///list of gateway nodes
     #[pallet::storage]
@@ -72,13 +91,8 @@ pub mod pallet {
     /// Account and peerid map
     #[pallet::storage]
     #[pallet::getter(fn account_peerid_map)]
-    pub(super) type AccountPeerMap<T: Config> = StorageMap<
-        _,
-        Twox64Concat,
-        T::AccountId,
-        Vec<Vec<u8>>,
-        OptionQuery,
-    >;
+    pub(super) type AccountPeerMap<T: Config> =
+        StorageMap<_, Twox64Concat, T::AccountId, Vec<Vec<u8>>, OptionQuery>;
 
     /// number of gateway nodes
     #[pallet::storage]
@@ -93,30 +107,41 @@ pub mod pallet {
     /// Gateway node points
     #[pallet::storage]
     #[pallet::getter(fn gateway_node_points)]
-    pub(super) type GatewayNodePoints<T: Config> = StorageMap<
-        _,
-        Twox64Concat,
-        T::AccountId,
-        u128,
-        OptionQuery,
-    >;
+    pub(super) type GatewayNodePoints<T: Config> =
+        StorageMap<_, Twox64Concat, T::AccountId, u128, OptionQuery>;
 
     /// Era total points
     #[pallet::storage]
     #[pallet::getter(fn era_total_points)]
-    pub(super) type EraTotalPoints<T: Config> = StorageMap<
-        _,
-        Twox64Concat,
-        EraIndex,
-        u128,
-        OptionQuery,
-    >;
+    pub(super) type EraTotalPoints<T: Config> =
+        StorageMap<_, Twox64Concat, EraIndex, u128, OptionQuery>;
 
     /// Gateway current total points
     #[pallet::storage]
     #[pallet::getter(fn currenct_total_points)]
     pub(super) type CurrentTotalPoints<T: Config> = StorageValue<_, u128, ValueQuery>;
 
+    #[pallet::storage]
+    #[pallet::getter(fn test_storage)]
+    pub(super) type TestStorage<T: Config> = StorageMap<_, Twox64Concat, u128, u128, OptionQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn for_status)]
+    pub(super) type ForStatus<T: Config> = StorageValue<_, bool, ValueQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn for_index)]
+    pub(super) type ForIndex<T: Config> = StorageValue<_, u128, ValueQuery>;
+
+    // #[pallet::storage]
+    // #[pallet::getter(fn test_func)]
+    // pub(super) type TestFunc<T: Config> = StorageMap<
+    //     _,
+    //     Twox64Concat,
+    //     u8,
+    //     Box<dyn Fn()>,
+    //     OptionQuery,
+    // >;
     /// True if network has been upgraded to this version.
     /// Storage version of the pallet.
     ///
@@ -128,7 +153,7 @@ pub mod pallet {
     // The genesis config type.
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
-        pub gateway: Vec<(Vec<u8>,GatewayNode<T::BlockNumber, T::AccountId>)>,
+        pub gateway: Vec<(Vec<u8>, GatewayNode<T::BlockNumber, T::AccountId>)>,
         pub gateway_node_count: u64,
     }
 
@@ -142,7 +167,6 @@ pub mod pallet {
             }
         }
     }
-
 
     // The build of genesis for the pallet.
     #[pallet::genesis_build]
@@ -176,6 +200,14 @@ pub mod pallet {
         WithdrawGatewaySuccess(T::AccountId, Vec<u8>),
 
         ClearGatewayInfoSuccess(T::AccountId, Vec<u8>),
+
+        SetSomeInfo(u64, u64),
+
+        FOR(u128),
+
+        TIME(u64),
+
+        PrintString(Vec<u8>),
     }
 
     // Errors inform users that something went wrong.
@@ -193,30 +225,47 @@ pub mod pallet {
         NotEnoughAmount,
 
         BingStakingInfoFailed,
+
+        OffchainSignedTxError,
+        NoAcctForSigning,
     }
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-
         // fn on_runtime_upgrade() -> Weight {
         //     0
         // }
+        fn offchain_worker(_n: BlockNumberFor<T>) {
+            todo!()
 
+
+        }
         fn on_initialize(now: T::BlockNumber) -> Weight {
+            if true == ForStatus::<T>::get() {
+                Pallet::<T>::for_block();
+            }
+
             // get a list of online gateway nodes
+
+            // TODO update the points each era
             let gateway_nodes = GatewayNodes::<T>::iter();
+
             // Accumulated points
             let mut total_points: u128 = 0;
             // Update the gateway node points
-            for(_, ref gateway_node) in gateway_nodes {
+            for (_, gateway_node) in gateway_nodes {
                 total_points += 10;
                 // Determine the gateway node has been recorded
                 if GatewayNodePoints::<T>::contains_key(gateway_node.account_id.clone()) {
                     // Get the info
-                    let mut gateway_node_points = GatewayNodePoints::<T>::get(gateway_node.account_id.clone()).unwrap();
+                    let mut gateway_node_points =
+                        GatewayNodePoints::<T>::get(gateway_node.account_id.clone()).unwrap();
                     // Update the info
                     gateway_node_points += 10;
-                    GatewayNodePoints::<T>::insert(gateway_node.account_id.clone(), gateway_node_points);
+                    GatewayNodePoints::<T>::insert(
+                        gateway_node.account_id.clone(),
+                        gateway_node_points,
+                    );
                 } else {
                     GatewayNodePoints::<T>::insert(gateway_node.account_id.clone(), 10);
                 }
@@ -228,7 +277,6 @@ pub mod pallet {
 
             // health examination
             if (now % T::GatewayNodeTimedRemovalInterval::get()).is_zero() {
-
                 // get a list of gateway nodes
                 let gateway_nodes = GatewayNodes::<T>::iter();
 
@@ -239,7 +287,7 @@ pub mod pallet {
                     if duration > T::GatewayNodeHeartbeatInterval::get() {
                         let peer_id = gateway_node.peer_id;
                         let mut peer_ids = Gateways::<T>::get();
-                        if let Ok(index) = peer_ids.binary_search(&peer_id){
+                        if let Ok(index) = peer_ids.binary_search(&peer_id) {
                             peer_ids.remove(index);
                             Gateways::<T>::put(peer_ids);
                         }
@@ -259,15 +307,17 @@ pub mod pallet {
                         UnlockPeerIdList::<T>::set(unlock_peer_list);
 
                         // 0. apply unlock, use market interface func withdraw_gateway
-                        match T::MarketInterface::withdraw_gateway(gateway_node.account_id.clone(), peer_id.clone()) {
+                        match T::MarketInterface::withdraw_gateway(
+                            gateway_node.account_id.clone(),
+                            peer_id.clone(),
+                        ) {
                             Ok(()) => {
                                 Self::deposit_event(Event::WithdrawGatewaySuccess(
                                     gateway_node.account_id.clone(),
-                                    peer_id.clone()));
-                            },
-                            Err(_) => {
-
+                                    peer_id.clone(),
+                                ));
                             }
+                            Err(_) => {}
                         }
                     }
                 }
@@ -281,12 +331,47 @@ pub mod pallet {
     // Dispatchable functions must be annotated with a weight and must return a DispatchResult.
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn insert(origin: OriginFor<T>) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+
+            // insert 2000 value in the storage for test
+            for i in 1..2001 {
+                TestStorage::<T>::insert(i, i);
+            }
+            // update the for status
+            ForStatus::<T>::put(true);
+            Ok(())
+        }
+
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn for_time(origin: OriginFor<T>) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+            Self::deposit_event(Event::TIME(T::UnixTime::now().as_secs()));
+            let iter = TestStorage::<T>::iter();
+            let mut temp = Vec::new();
+            for (key, value) in iter {
+                temp.push((key, value));
+            }
+            Self::deposit_event(Event::TIME(T::UnixTime::now().as_secs()));
+            Ok(())
+        }
+
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn iter_time(origin: OriginFor<T>) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+            Self::deposit_event(Event::TIME(T::UnixTime::now().as_secs()));
+            let iter = TestStorage::<T>::iter();
+
+            iter.collect::<Vec<(u128, u128)>>();
+
+            Self::deposit_event(Event::TIME(T::UnixTime::now().as_secs()));
+            Ok(())
+        }
+        // TODO: limit 1000 node
         /// register gateway node
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn register_gateway_node(
-            account_id: OriginFor<T>,
-            peer_id: Vec<u8>,
-        ) -> DispatchResult {
+        pub fn register_gateway_node(account_id: OriginFor<T>, peer_id: Vec<u8>) -> DispatchResult {
             let who = ensure_signed(account_id)?;
 
             // Binding the staking info, and determine whether success
@@ -303,30 +388,36 @@ pub mod pallet {
                 return Ok(());
             }
 
-            match T::MarketInterface::bond(who.clone(), primitives::p_market::MarketUserStatus::Gateway) {
-                Ok(()) => {
+            // match T::MarketInterface::bond(
+            //     who.clone(),
+            //     primitives::p_market::MarketUserStatus::Gateway,
+            // ) {
+            //     Ok(()) => {}
+            //     Err(error) => Err(error)?,
+            // }
 
-                },
-                Err(error) => {
-                    Err(error)?
-                }
+            if let Err(e) = T::MarketInterface::bond(
+                who.clone(),
+                primitives::p_market::MarketUserStatus::Gateway,
+            ) {
+                Err(e)?
             }
 
             // get the current block height
             let block_number = <frame_system::Pallet<T>>::block_number();
 
             // gateway node information
-            let gateway_node = GatewayNode::new(
-                who.clone(), peer_id.clone(),block_number,
-            );
+            let gateway_node = GatewayNode::new(who.clone(), peer_id.clone(), block_number);
 
             // increase gateway nodes
             GatewayNodes::<T>::insert(peer_id.clone(), gateway_node.clone());
 
             let mut peer_ids = Gateways::<T>::get();
-            // todo if the index exit? why can show this ?
-            if let Err(index) = peer_ids.binary_search(&peer_id){
-                peer_ids.insert(index,peer_id.clone());
+
+            // get the insert index of the peer id
+            if let Err(index) = peer_ids.binary_search(&peer_id) {
+                peer_ids.insert(index, peer_id.clone());
+                // Update the peer id list
                 Gateways::<T>::put(peer_ids);
 
                 // update user account_peerid map
@@ -344,22 +435,29 @@ pub mod pallet {
             let count = GatewayNodeCount::<T>::get();
             GatewayNodeCount::<T>::set(count + 1);
 
-            Self::deposit_event(Event::RegisterGatewayNodeSuccess(who,block_number, gateway_node.peer_id));
+            Self::deposit_event(Event::RegisterGatewayNodeSuccess(
+                who,
+                block_number,
+                gateway_node.peer_id,
+            ));
             Ok(())
         }
-        
+
         /// gateway node heartbeat
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn heartbeat(
-            origin: OriginFor<T>,
-            peer_id: Vec<u8>,
-        )-> DispatchResult {
+        pub fn heartbeat(origin: OriginFor<T>, peer_id: Vec<u8>) -> DispatchResult {
             let who = ensure_signed(origin)?;
             // get gateway node
-            ensure!(GatewayNodes::<T>::contains_key(peer_id.clone()),Error::<T>::GatewayNodeNotFound);
+            ensure!(
+                GatewayNodes::<T>::contains_key(peer_id.clone()),
+                Error::<T>::GatewayNodeNotFound
+            );
             let mut gateway_node = GatewayNodes::<T>::get(peer_id.clone()).unwrap();
             // determine whether it is me
-            ensure!(who.clone() == gateway_node.account_id,Error::<T>::GatewayNodeNotOwnedByYou);
+            ensure!(
+                who.clone() == gateway_node.account_id,
+                Error::<T>::GatewayNodeNotOwnedByYou
+            );
             // get the current block height
             let block_number = <frame_system::Pallet<T>>::block_number();
 
@@ -375,11 +473,7 @@ pub mod pallet {
 
         /// user enter the peerid to withdraw and downline the gateway node
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn withdraw(
-            account_id: OriginFor<T>,
-            peer_id: Vec<u8>,
-        ) -> DispatchResult {
-
+        pub fn withdraw(account_id: OriginFor<T>, peer_id: Vec<u8>) -> DispatchResult {
             let who = ensure_signed(account_id)?;
 
             let mut unlock_peer_list = UnlockPeerIdList::<T>::get();
@@ -395,19 +489,60 @@ pub mod pallet {
             match T::MarketInterface::withdraw_gateway(who.clone(), peer_id.clone()) {
                 Ok(()) => {
                     Self::deposit_event(Event::WithdrawGatewaySuccess(who.clone(), peer_id));
-                },
-                Err(error) => {
-                    Err(error)?
                 }
+                Err(error) => Err(error)?,
             }
 
             Ok(())
         }
-
     }
 }
 
 impl<T: Config> Pallet<T> {
+    pub fn test<F, C>(f: F, list: C)
+    where
+        F: Fn(C),
+    {
+        f(list);
+
+        let mut temp: Vec<(u8, Box<dyn Fn()>)> = Vec::new();
+
+        temp.push((1, Box::new(Self::test2)));
+    }
+
+    pub fn test2() {
+        Self::test3();
+    }
+
+    pub fn test3() {}
+
+    pub fn for_block() {
+        // for
+        // get the test sorage
+        // get the for index
+        let mut for_index = ForIndex::<T>::get();
+
+        let test_storage = TestStorage::<T>::iter().skip(for_index as usize);
+        let mut temp_index = 0;
+        for (key, value) in test_storage {
+            if temp_index > FORBLOCK {
+                break;
+            };
+            TestStorage::<T>::insert(key, value + 1);
+            temp_index += 1;
+        }
+        if temp_index < FORBLOCK {
+            // set the for status: false
+            ForStatus::<T>::put(false);
+            // set the for index: 0
+            ForIndex::<T>::put(0);
+        } else {
+            ForIndex::<T>::put(for_index + temp_index);
+        }
+
+        Self::deposit_event(Event::FOR(for_index + temp_index));
+    }
+
     // Binding staking information
     pub fn binding_staking_info(who: T::AccountId) -> bool {
         // determine who has already binding
@@ -427,8 +562,8 @@ impl<T: Config> Pallet<T> {
     }
 }
 
-impl <T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pallet<T> {
-
+impl<T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pallet<T> {
+    /// TODO: let the compute into the pallet market
     /// compute_gateway_reward
     /// Calculate the reward for each node, though func:  save_gateway_reward that saves the reward
     /// Gateway node reward = (selfpoint / totalpoints) * total_reward
@@ -439,18 +574,13 @@ impl <T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pa
         let total_points = CurrentTotalPoints::<T>::get();
         // Get the gateway node and its points
         let gateway_points = GatewayNodePoints::<T>::iter();
+
         for (who, point) in gateway_points {
             // Calculate the rate of gateway rewards
-            let ratio  = Perbill::from_rational(
-                point,
-                total_points,
-            );
+            let ratio = Perbill::from_rational(point, total_points);
             // Calculate the reward of gateway node
-            let reward = T::BalanceToNumber::convert(
-                ratio * T::NumberToBalance::convert(total_reward)
-            );
-            // Todo: Send the meg for test
-            Self::deposit_event(Event::<T>::RatioAndReward(ratio, reward));
+            let reward =
+                T::BalanceToNumber::convert(ratio * T::NumberToBalance::convert(total_reward));
             // Save the gateway reward information
             T::MarketInterface::save_gateway_reward(who.clone(), reward, index);
         }
@@ -469,6 +599,7 @@ impl <T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pa
         // todo
         // Get the online gateway node and their points
         let gateway_node_points = GatewayNodePoints::<T>::iter();
+        // TODO remove all
         for (who, _) in gateway_node_points {
             // Reset the gateway node points = remve the points information
             GatewayNodePoints::<T>::remove(who.clone());
@@ -499,31 +630,13 @@ impl <T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pa
             Gateways::<T>::put(peer_id_list);
         }
 
-        // // 1. get the peer_id's index in the peer_id_list
-        // let mut index = 0;
-        // for p in &peer_id_list {
-        //     if p.eq(&peer_id) {
-        //         break;
-        //     }
-        //     index += 1;
-        // }
-        //
-        // // 2. remove the peer_id from peer_id_list
-        // peer_id_list.remove(index);
-        //
-        // // 3. reset the list
-        // Gateways::<T>::put(peer_id_list);
-        //
-        // // 4. remove the peer id from Gateway Node
-        // GatewayNodes::<T>::remove(peer_id.clone());
-
         // 5. reset the gateway num
         let mut gateway_num = GatewayNodeCount::<T>::get();
         gateway_num -= 1;
         GatewayNodeCount::<T>::set(gateway_num);
 
         // 6. remove the map account and peerid
-        let mut account_peer_list =  AccountPeerMap::<T>::get(who.clone()).unwrap();
+        let mut account_peer_list = AccountPeerMap::<T>::get(who.clone()).unwrap();
 
         // 7. get the peer index
         let mut index = 0;
@@ -553,9 +666,8 @@ impl <T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pa
         UnlockPeerIdList::<T>::set(unlock_list);
 
         Self::deposit_event(Event::ClearGatewayInfoSuccess(who.clone(), peer_id.clone()));
-
     }
-
+    // TODO rename
     fn accont_own_peerid(who: <T as frame_system::Config>::AccountId, peerid: Vec<u8>) -> bool {
         if !AccountPeerMap::<T>::contains_key(who.clone()) {
             return false;
@@ -590,6 +702,5 @@ pub mod migrations {
 
     pub mod v2 {
         use super::*;
-        }
     }
-
+}

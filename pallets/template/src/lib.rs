@@ -2,11 +2,9 @@
 
 use frame_support::sp_runtime::traits::Convert;
 
-
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://substrate.dev/docs/en/knowledgebase/runtime/frame>
-
 pub use pallet::*;
 pub use primitives::p_provider::*;
 pub use primitives::p_resource_order::*;
@@ -38,7 +36,6 @@ pub mod pallet {
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
 
-
         /// block height to number
         type BlockNumberToNumber: Convert<Self::BlockNumber, u128> + Convert<u32, Self::BlockNumber>;
     }
@@ -58,7 +55,6 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn dummy)]
     pub(super) type Dummy<T: Config> = StorageValue<_, u32>;
-
 
     // Pallets use events to inform users when important changes are made.
     // https://substrate.dev/docs/en/knowledgebase/runtime/events
@@ -124,7 +120,6 @@ pub mod pallet {
             }
         }
 
-
         #[pallet::weight(T::WeightInfo::set_dummy_benchmark(* new_value))]
         pub fn set_dummy(
             origin: OriginFor<T>,
@@ -145,7 +140,6 @@ pub mod pallet {
             // All good, no refund.
             Ok(())
         }
-
 
         #[pallet::weight(T::WeightInfo::accumulate_dummy(* increase_by))]
         pub fn accumulate_dummy(origin: OriginFor<T>, increase_by: u32) -> DispatchResult {
@@ -180,4 +174,3 @@ pub mod pallet {
         }
     }
 }
-

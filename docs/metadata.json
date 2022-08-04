@@ -25,5 +25,11 @@
   "TestStorageMove": {
     "test_storage": "u128",
     "new_storage": "u64"
+  },
+  "TotalStakingAmount": {
+    "total_staking": "u128",
+    "total_provider_staking": "u128",
+    "total_gateway_staking": "u128",
+    "total_client_staking": "u128"
   }
 }

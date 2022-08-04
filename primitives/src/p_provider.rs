@@ -1,18 +1,19 @@
+use crate::EraIndex;
 use codec::{Decode, Encode};
-use sp_debug_derive::RuntimeDebug;
+use frame_support::Parameter;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use sp_std::vec::Vec;
-use frame_support::Parameter;
+use sp_debug_derive::RuntimeDebug;
 use sp_runtime::traits::AtLeast32BitUnsigned;
-use crate::EraIndex;
-
+use sp_std::vec::Vec;
 
 /// ComputingResources
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ComputingResource<BlockNumber, AccountId>
-    where BlockNumber: Parameter + AtLeast32BitUnsigned {
+where
+    BlockNumber: Parameter + AtLeast32BitUnsigned,
+{
     /// computing power resource index
     pub index: u64,
     /// provider account
@@ -27,19 +28,21 @@ pub struct ComputingResource<BlockNumber, AccountId>
     pub rental_info: ResourceRentalInfo<BlockNumber>,
     /// resource lease status
     pub status: ResourceStatus,
-
 }
 
 impl<BlockNumber, AccountId> ComputingResource<BlockNumber, AccountId>
-    where BlockNumber: Parameter + AtLeast32BitUnsigned
+where
+    BlockNumber: Parameter + AtLeast32BitUnsigned,
 {
-    pub fn new(index: u64,
-               account_id: AccountId,
-               peer_id: Vec<u8>,
-               config: ResourceConfig,
-               rental_statistics: ResourceRentalStatistics,
-               rental_info: ResourceRentalInfo<BlockNumber>,
-               status: ResourceStatus) -> Self {
+    pub fn new(
+        index: u64,
+        account_id: AccountId,
+        peer_id: Vec<u8>,
+        config: ResourceConfig,
+        rental_statistics: ResourceRentalStatistics,
+        rental_info: ResourceRentalInfo<BlockNumber>,
+        status: ResourceStatus,
+    ) -> Self {
         ComputingResource {
             index,
             account_id,
@@ -57,7 +60,7 @@ impl<BlockNumber, AccountId> ComputingResource<BlockNumber, AccountId>
     }
 
     /// increase rental time
-    pub fn add_resource_duration(&mut self,duration:BlockNumber) {
+    pub fn add_resource_duration(&mut self, duration: BlockNumber) {
         self.rental_info.rent_duration += duration.clone();
         self.rental_info.end_of_rent += duration;
     }
@@ -93,7 +96,6 @@ impl ProviderPoints {
     }
 }
 
-
 #[derive(Encode, Decode, RuntimeDebug, PartialEq, Eq, Copy, Clone)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum ResourceStatus {
@@ -106,7 +108,6 @@ pub enum ResourceStatus {
     /// Disconnected
     Offline,
 }
-
 
 /// resource configuration
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
@@ -128,7 +129,6 @@ impl ResourceConfig {
         }
     }
 }
-
 
 /// resource statistics
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
@@ -159,7 +159,6 @@ impl ResourceRentalStatistics {
         }
     }
 
-
     /// increase the number of leases
     pub fn add_rental_count(&mut self) {
         self.rental_count = self.rental_count + 1;
@@ -181,7 +180,6 @@ impl ResourceRentalStatistics {
     }
 }
 
-
 /// resource rental information
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -195,9 +193,10 @@ pub struct ResourceRentalInfo<BlockNumber> {
 }
 
 impl<BlockNumber> ResourceRentalInfo<BlockNumber> {
-    pub fn new(rent_unit_price: u128,
-               rent_duration: BlockNumber,
-               end_of_rent: BlockNumber,
+    pub fn new(
+        rent_unit_price: u128,
+        rent_duration: BlockNumber,
+        end_of_rent: BlockNumber,
     ) -> Self {
         ResourceRentalInfo {
             rent_unit_price,
@@ -207,7 +206,10 @@ impl<BlockNumber> ResourceRentalInfo<BlockNumber> {
     }
 
     /// set rental unit price
-    pub fn set_rent_unit_price(&mut self, rent_unit_price: u128) -> &mut ResourceRentalInfo<BlockNumber> {
+    pub fn set_rent_unit_price(
+        &mut self,
+        rent_unit_price: u128,
+    ) -> &mut ResourceRentalInfo<BlockNumber> {
         self.rent_unit_price = rent_unit_price;
         self
     }
@@ -228,4 +230,3 @@ pub trait ProviderInterface {
 
     fn clear_points_info(index: EraIndex);
 }
-

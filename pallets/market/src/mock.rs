@@ -1,12 +1,10 @@
 use crate as pallet_market;
-use sp_core::H256;
 use frame_support::parameter_types;
+use sp_core::H256;
 use sp_runtime::{
-    traits::{BlakeTwo256,ConvertInto, IdentityLookup}, testing::Header,
+    testing::Header,
+    traits::{BlakeTwo256, ConvertInto, IdentityLookup},
 };
-
-use primitives::p_gateway::GatewayInterface;
-use primitives::p_provider::ProviderInterface;
 
 use frame_system as system;
 use primitives::Balance;
@@ -25,12 +23,12 @@ pub const HOURS: BlockNumber = MINUTES * 60;
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
-	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+    pub enum Test where
+        Block = Block,
+        NodeBlock = Block,
+        UncheckedExtrinsic = UncheckedExtrinsic,
+    {
+        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
         Market: pallet_market::{Pallet, Call, Storage, Event<T>},
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
         Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
@@ -40,10 +38,10 @@ frame_support::construct_runtime!(
 );
 
 parameter_types! {
-	pub const BlockHashCount: u64 = 250;
-	pub const SS58Prefix: u8 = 42;
+    pub const BlockHashCount: u64 = 250;
+    pub const SS58Prefix: u8 = 42;
     // polling interval
-	pub const ResourceInterval: BlockNumber = 3 * HOURS;
+    pub const ResourceInterval: BlockNumber = 3 * HOURS;
 }
 
 impl system::Config for Test {
@@ -84,7 +82,7 @@ impl pallet_market::Config for Test {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: u64 = 1;
+    pub const ExistentialDeposit: u64 = 1;
 }
 
 impl pallet_balances::Config for Test {
@@ -101,9 +99,9 @@ impl pallet_balances::Config for Test {
 
 parameter_types! {
      // polling interval
-	pub const GatewayNodeTimedRemovalInterval: BlockNumber = 3 * HOURS;
-	// health check interval
-	pub const GatewayNodeHeartbeatInterval: BlockNumber = 10 * MINUTES;
+    pub const GatewayNodeTimedRemovalInterval: BlockNumber = 3 * HOURS;
+    // health check interval
+    pub const GatewayNodeHeartbeatInterval: BlockNumber = 10 * MINUTES;
 }
 
 impl pallet_gateway::Config for Test {
@@ -116,7 +114,6 @@ impl pallet_gateway::Config for Test {
     type MarketInterface = Market;
 }
 
-
 impl pallet_provider::Config for Test {
     type Event = Event;
     type Currency = Balances;
@@ -127,7 +124,7 @@ impl pallet_provider::Config for Test {
 }
 
 parameter_types! {
-	pub const MinimumPeriod: u64 = 5;
+    pub const MinimumPeriod: u64 = 5;
 }
 
 impl pallet_timestamp::Config for Test {
@@ -138,5 +135,8 @@ impl pallet_timestamp::Config for Test {
 }
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
+    system::GenesisConfig::default()
+        .build_storage::<Test>()
+        .unwrap()
+        .into()
 }

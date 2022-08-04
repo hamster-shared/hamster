@@ -27,6 +27,7 @@ runtime-benchmarks = [
     'pallet-timestamp/runtime-benchmarks',
     'pallet-resource-order/runtime-benchmarks',
     'sp-runtime/runtime-benchmarks',
+    'pallet-market/runtime-benchmarks',
 ]
 std = [
     "sp-authority-discovery/std",
@@ -69,6 +70,7 @@ std = [
     "pallet-provider/std",
     "pallet-gateway/std",
     "pallet-market/std",
+    "pallet-chunkcycle/std",
 ]
 [dependencies.codec]
 default-features = false
@@ -338,4 +340,9 @@ version = '3.0.0'
 [dependencies.pallet-market]
 default-features = false
 path = '../pallets/market'
+version = '3.0.0'
+
+[dependencies.pallet-chunkcycle]
+default-features = false
+path = '../pallets/chunkcycle'
 version = '3.0.0'
