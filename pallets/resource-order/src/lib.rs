@@ -20,6 +20,7 @@ pub use pallet::*;
 pub use primitives::p_provider::*;
 pub use primitives::p_resource_order::*;
 pub use pallet_market::MarketInterface;
+pub use primitives::p_market::MarketUserStatus;
 
 #[cfg(test)]
 mod mock;
@@ -386,10 +387,13 @@ pub mod pallet {
             // get order amount
             let order_price = order.price;
             // get pledge information
-            ensure!(Staking::<T>::contains_key(who.clone()),Error::<T>::InsufficientStaking);
-            let mut staking_info = Staking::<T>::get(who.clone()).unwrap();
+            // ensure!(Staking::<T>::contains_key(who.clone()),Error::<T>::InsufficientStaking);
+            // let mut staking_info = Staking::<T>::get(who.clone()).unwrap();
             // determine whether the pledge deposit is sufficient,and lock the amount
-            ensure!(&staking_info.lock_amount(order_price),Error::<T>::InsufficientStaking);
+            // ensure!(&staking_info.lock_amount(order_price),Error::<T>::InsufficientStaking);
+
+            // TODO check the account has already staking
+            ensure!(T::MarketInterface::has_staking(who.clone(), MarketUserStatus::Provider), Error::<T>::InsufficientStaking);
 
             // get the current block height
             let block_number = <frame_system::Pallet<T>>::block_number();
@@ -437,7 +441,7 @@ pub mod pallet {
                 // save order
                 ResourceOrders::<T>::insert(order_index, order.clone());
                 // save the pledge
-                Staking::<T>::insert(who.clone(), staking_info);
+                // Staking::<T>::insert(who.clone(), staking_info);
 
                 Self::deposit_event(Event::OrderExecSuccess(who.clone(), order_index, resource_index, agreement_index));
             } else {
@@ -492,7 +496,7 @@ pub mod pallet {
                 // save order
                 ResourceOrders::<T>::insert(order_index, order.clone());
                 // save the pledge
-                Staking::<T>::insert(who.clone(), staking_info);
+                // Staking::<T>::insert(who.clone(), staking_info);
                 // save resource state
                 T::OrderInterface::update_computing_resource(resource_index, resource_info.clone());
 

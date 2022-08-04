@@ -165,4 +165,6 @@ pub trait MarketInterface<AccountId> {
     fn withdraw_gateway(who: AccountId, peerid: Vec<u8>) -> Result<(), DispatchError>;
 
     fn withdraw_provider(who: AccountId, amount: u64, source_index: u128)-> Result<(), DispatchError>;
+    
+    fn has_staking(who: AccountId, status: MarketUserStatus) -> bool;
 }

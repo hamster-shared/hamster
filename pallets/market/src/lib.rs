@@ -1039,6 +1039,10 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pallet<T> {
+    fn has_staking(who: <T as frame_system::Config>::AccountId, status: MarketUserStatus) -> bool {
+        StakerInfo::<T>::contains_key(status, who)
+    }
+    
     // Check the accountid have staking accoutid
     fn staking_accountid_exit(who: <T as frame_system::Config>::AccountId) -> bool {
         StakingAccontId::<T>::contains_key(who.clone())
