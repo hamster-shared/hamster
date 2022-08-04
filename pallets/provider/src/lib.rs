@@ -391,7 +391,7 @@ pub mod pallet {
             let block_number = <frame_system::Pallet<T>>::block_number();
             // calculate persistent blocks
             let rent_blocks =
-                TryInto::<T::BlockNumber>::try_into(&rent_duration_hour * 600).ok().unwrap();
+                TryInto::<T::BlockNumber>::try_into(&rent_duration_hour * 10).ok().unwrap();
             // the block number at which the calculation ends
             let end_of_block = block_number + rent_blocks;
             // create the resource rental information

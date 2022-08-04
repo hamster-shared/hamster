@@ -1444,22 +1444,14 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         let provider_nums = ProviderCurrentNums::<T>::get();
         ProviderCurrentNums::<T>::set(provider_nums - 1);
 
-        // 10. update the Providers
-        let mut source_list = Providers::<T>::get(who.clone());
-        let mut index = 0;
-        for i in &source_list {
-            if i.eq(&source_index) {
-                break;
-            }
-            index += 1;
-        }
-        if index == 0 {
-            Providers::<T>::remove(who.clone());
-        } else {
-            source_list.remove(index);
-            Providers::<T>::insert(who.clone(), source_list);
-        }
+        // 10. get the resoure list
+        let source_list = Providers::<T>::get(who.clone());
 
+       // 11. get the new source list
+        let new_source_list = source_list.iter().filter(|x| **x != source_index).collect::<Vec<_>>();
+
+        // 12. update the source list on Providers
+        Providers::<T>::insert(who.clone(), new_source_list);
 
         // 9. get back the staked amount
         Self::get_amount(who.clone(), T::NumberToBalance::convert(amount as u128))
