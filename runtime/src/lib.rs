@@ -632,7 +632,7 @@ parameter_types! {
 
 impl pallet_chunkcycle::Config for Runtime {
     type Event = Event;
-    type ChunkCycleInterface = Gateway;
+    type ForChunkCycleInterface = Market;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

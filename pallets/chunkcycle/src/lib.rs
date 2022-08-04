@@ -6,6 +6,7 @@ pub use pallet::*;
 pub use primitives::p_chunkcycle::*;
 pub use primitives::p_provider::*;
 pub use primitives::p_resource_order::*;
+pub use sp_std::vec::Vec;
 
 const FORBLOCK: u128 = 500;
 
@@ -22,7 +23,7 @@ pub mod pallet {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-        type ChunkCycleInterface: ForChunkCycle;
+        type ForChunkCycleInterface: ForChunkCycle;
     }
 
     #[pallet::pallet]
@@ -49,7 +50,7 @@ pub mod pallet {
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-        fn on_initialize(now: T::BlockNumber) -> Weight {
+        fn on_initialize(_now: T::BlockNumber) -> Weight {
             // determine need to compute list
             if false == TaskStatus::<T>::get() {
                 return 0;
@@ -82,7 +83,7 @@ impl<T: Config> Pallet<T> {
 
    pub fn cycle_compute() -> (u128, u128){
       // 1. get the list of task
-       let mut task_list = TaskList::<T>::get();
+       let task_list = TaskList::<T>::get();
 
        // 2. get the task index
        let task_index = TaskIndex::<T>::get();
@@ -94,34 +95,35 @@ impl<T: Config> Pallet<T> {
        let for_index = ForIndex::<T>::get();
 
        // 5. compute the list and get the for index
-       return (Self::compute(&compute_list.0, &compute_list.1, for_index), task_index);
+       return (Self::compute(&compute_list.0, for_index), task_index);
    }
 
-    pub fn compute(ds: &ForDs<T::AccountId>, for_type: &ForType, index: u128) -> u128 {
+    pub fn compute(ds: &ForDs<T::AccountId>, for_index: u128) -> u128 {
         return match ds {
             ForDs::Gateway(gateway_list) => {
-                Self::compute_gateway(gateway_list)
+                Self::compute_gateway(gateway_list, for_index)
             }
             ForDs::Provider(provider_list) => {
-                Self::compute_provider(provider_list)
+                Self::compute_provider(provider_list, for_index)
             }
             ForDs::Client(client_list) => {
-                Self::compute_client(client_list)
+                Self::compute_client(client_list, for_index)
             }
         }
     }
 
-    pub fn compute_gateway(gateway_list: &Vec<T::AccountId>) -> u128 {
+    pub fn compute_gateway(_gateway_list: &Vec<T::AccountId>, for_index: u128) -> u128 {
         // compute the gateway
+
         0
     }
 
-    pub fn compute_provider(provider_list: &Vec<(T::AccountId, ProviderPoints)>) -> u128 {
+    pub fn compute_provider(_provider_list: &Vec<(T::AccountId, ProviderPoints)>, for_index: u128) -> u128 {
         // compute the provider
         0
     }
 
-    pub fn compute_client(client_list: &Vec<T::AccountId>) -> u128 {
+    pub fn compute_client(_client_list: &Vec<T::AccountId>, for_index: u128) -> u128 {
         // compute the client
         0
     }
@@ -144,7 +146,7 @@ impl<T: Config> Pallet<T> {
             TaskIndex::<T>::set(0);
             ForIndex::<T>::set(0);
             // clear the task list
-            TaskList::<T>::set(vec![]);
+            TaskList::<T>::set(Vec::new());
             return;
         }
 

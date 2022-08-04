@@ -24,9 +24,9 @@ use sp_std::vec::Vec;
 pub use pallet::*;
 use primitives::p_gateway::GatewayInterface;
 use primitives::p_market::MarketUserStatus::{Client, Gateway, Provider};
-pub use primitives::p_market::*;
 pub use primitives::p_provider::*;
 pub use primitives::p_resource_order::*;
+pub use primitives::{p_chunkcycle::ForChunkCycle, p_market::*};
 use primitives::EraIndex;
 
 type BalanceOf<T> =
@@ -1491,5 +1491,19 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
 
     fn staking_exit(who: <T as frame_system::Config>::AccountId) -> bool {
         Staking::<T>::contains_key(who)
+    }
+}
+
+impl<T: Config> ForChunkCycle for Pallet<T> {
+    fn gateway_chunk_cycle() {
+        todo!()
+    }
+
+    fn provider_chunk_cycle() {
+        todo!()
+    }
+
+    fn client_chunk_cycle() {
+        todo!()
     }
 }

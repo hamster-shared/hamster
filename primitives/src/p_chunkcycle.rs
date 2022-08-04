@@ -8,7 +8,9 @@ use sp_std::boxed::Box;
 use sp_std::vec::Vec;
 
 pub trait ForChunkCycle {
-    fn for_chunk_cycle();
+    fn gateway_chunk_cycle();
+    fn provider_chunk_cycle();
+    fn client_chunk_cycle();
 }
 
 /// This trait used to put the compute list into task list

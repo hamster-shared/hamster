@@ -24,6 +24,7 @@ use frame_system::pallet_prelude::*;
 pub use pallet::*;
 pub use primitives::p_gateway::*;
 pub use primitives::p_market::*;
+pub use primitives::p_chunkcycle::*;
 use primitives::EraIndex;
 use sp_runtime::traits::Zero;
 use sp_runtime::{DispatchResultWithInfo, Perbill};
@@ -235,11 +236,11 @@ pub mod pallet {
         // fn on_runtime_upgrade() -> Weight {
         //     0
         // }
-        fn offchain_worker(_n: BlockNumberFor<T>) {
-            todo!()
-
-
-        }
+        // fn offchain_worker(_n: BlockNumberFor<T>) {
+        //     todo!()
+        //
+        //
+        // }
         fn on_initialize(now: T::BlockNumber) -> Weight {
             if true == ForStatus::<T>::get() {
                 Pallet::<T>::for_block();
@@ -683,6 +684,8 @@ impl<T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pal
         return true;
     }
 }
+
+
 
 // Determine whether we run the storage migration logic
 #[derive(Encode, Decode, Clone, Copy, PartialEq, Eq, RuntimeDebug)]
