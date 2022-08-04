@@ -1,5 +1,5 @@
 [build-dependencies.substrate-wasm-builder]
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '4.0.0'
 
@@ -78,39 +78,39 @@ version = '2.0.0'
 
 [dependencies.frame-benchmarking]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 optional = true
 tag = 'monthly-2021-07'
 version = '3.1.0'
 
 [dependencies.frame-executive]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.frame-support]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.frame-system]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.frame-system-benchmarking]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 optional = true
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.frame-system-rpc-runtime-api]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
@@ -120,31 +120,31 @@ version = '0.3.1'
 
 [dependencies.pallet-babe]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.pallet-balances]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.pallet-grandpa]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.1.0'
 
 [dependencies.pallet-randomness-collective-flip]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.pallet-sudo]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
@@ -155,109 +155,109 @@ version = '3.0.0'
 
 [dependencies.pallet-timestamp]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.pallet-transaction-payment]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.pallet-transaction-payment-rpc-runtime-api]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.sp-api]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.sp-block-builder]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.sp-consensus-babe]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '0.9.0'
 
 [dependencies.sp-core]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.sp-inherents]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.sp-offchain]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.sp-runtime]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.sp-session]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.sp-std]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.sp-transaction-pool]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.sp-version]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.sp-staking]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.pallet-staking-reward-curve]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.pallet-session]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 # [dependencies.pallet-staking]
 # default-features = false
-# git = 'https://gitee.com/mohaijiang/substrate.git'
+# git = 'https://github.com/paritytech/substrate.git'
 # tag = 'monthly-2021-07'
 # version = '3.0.0'
 
@@ -268,74 +268,62 @@ version = '3.0.0'
 
 [dependencies.frame-election-provider-support]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.pallet-election-provider-multi-phase]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.sp-npos-elections]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.sp-authority-discovery]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.pallet-authority-discovery]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.pallet-authorship]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.pallet-offences]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.pallet-scheduler]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
 [dependencies.pallet-utility]
 default-features = false
-git = 'https://gitee.com/mohaijiang/substrate.git'
+git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
-[dependencies.pallet-resource-order]
-default-features = false
-path = '../pallets/resource-order'
-version = '3.0.0'
+[dependencies]
+pallet-resource-order = {default-features = false, path = '../pallets/resource-order', version = '3.0.0'}
+pallet-provider = {default-features = false, path = '../pallets/provider', version = '3.0.0'}
+pallet-gateway =  {default-features = false, path = '../pallets/gateway', version = '3.0.0'}
+pallet-burn = {default-features=false, path = '../pallets/burn', version = '3.0.0' }
+pallet-market = {default-features = false, path = '../pallets/market', version = '3.0.0' }
 
-[dependencies.pallet-provider]
-default-features = false
-path = '../pallets/provider'
-version = '3.0.0'
-
-[dependencies.pallet-gateway]
-default-features = false
-path = '../pallets/gateway'
-version = '3.0.0'
-
-[dependencies.pallet-market]
-default-features = false
-path = '../pallets/market'
-version = '3.0.0'

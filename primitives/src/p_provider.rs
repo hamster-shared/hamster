@@ -51,11 +51,6 @@ impl<BlockNumber, AccountId> ComputingResource<BlockNumber, AccountId>
         }
     }
 
-    /// update unit price
-    pub fn update_resource_price(&mut self, rent_unit_price: u128) {
-        self.rental_info.set_rent_unit_price(rent_unit_price);
-    }
-
     /// increase rental time
     pub fn add_resource_duration(&mut self,duration:BlockNumber) {
         self.rental_info.rent_duration += duration.clone();
@@ -187,7 +182,7 @@ impl ResourceRentalStatistics {
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ResourceRentalInfo<BlockNumber> {
     /// rental unit price
-    pub rent_unit_price: u128,
+    // pub rent_unit_price: u128,
     /// provide rental time
     pub rent_duration: BlockNumber,
     /// end rental block
@@ -195,22 +190,16 @@ pub struct ResourceRentalInfo<BlockNumber> {
 }
 
 impl<BlockNumber> ResourceRentalInfo<BlockNumber> {
-    pub fn new(rent_unit_price: u128,
+    pub fn new(
                rent_duration: BlockNumber,
                end_of_rent: BlockNumber,
     ) -> Self {
         ResourceRentalInfo {
-            rent_unit_price,
             rent_duration,
             end_of_rent,
         }
     }
 
-    /// set rental unit price
-    pub fn set_rent_unit_price(&mut self, rent_unit_price: u128) -> &mut ResourceRentalInfo<BlockNumber> {
-        self.rent_unit_price = rent_unit_price;
-        self
-    }
 }
 
 pub trait ProviderInterface {

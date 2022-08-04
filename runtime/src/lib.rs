@@ -59,6 +59,8 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 /// Import the template pallet.
 pub use pallet_template;
 
+pub use pallet_burn;
+
 /// Import the market pallet
 pub use pallet_market;
 
@@ -142,7 +144,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	//   `spec_version`, and `authoring_version` are the same between Wasm and native.
 	// This value is set to 100 to notify Polkadot-JS App (https://polkadot.js.org/apps) to use
 	//   the compatible custom types.
-	spec_version: 102,
+	spec_version: 104,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -392,6 +394,12 @@ impl pallet_market::Config for Runtime {
 	type UnixTime = Timestamp;
 	type GatewayInterface = Gateway;
 	type ProviderInterface = Provider;
+}
+
+impl pallet_burn::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type WeightInfo = pallet_burn::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -663,6 +671,7 @@ construct_runtime!(
 		Provider: pallet_provider::{Pallet, Call, Storage, Event<T>},
 		Gateway: pallet_gateway::{Pallet, Call, Storage, Event<T>},
 		Market: pallet_market::{Pallet, Call, Storage, Event<T>},
+		Burn: pallet_burn::{Pallet, Call, Storage, Event<T>},
 
 	}
 );
