@@ -47,4 +47,6 @@ pub trait GatewayInterface<AccountId> {
     fn clear_gateway_info(who: AccountId, peer_id: Vec<u8>);
 
     fn accont_own_peerid(who: AccountId, peerid: Vec<u8>) -> bool;
+
+    fn get_reward_list() -> Vec<(AccountId, Vec<Vec<u8>>)>;
 }

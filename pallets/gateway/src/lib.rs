@@ -8,39 +8,31 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-use alloc::boxed::Box;
-use core::convert::TryInto;
 use frame_support::sp_runtime::traits::Convert;
-#[warn(unused_imports)]
-use frame_support::traits::OnRuntimeUpgrade;
-use frame_support::traits::UnixTime;
 
 use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::Currency};
-use frame_system::offchain::{SendSignedTransaction, Signer};
 use frame_system::pallet_prelude::*;
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://substrate.dev/docs/en/knowledgebase/runtime/frame>
 pub use pallet::*;
+pub use primitives::p_chunkcycle::*;
 pub use primitives::p_gateway::*;
 pub use primitives::p_market::*;
-pub use primitives::p_chunkcycle::*;
 use primitives::EraIndex;
 use sp_runtime::traits::Zero;
 use sp_runtime::{DispatchResultWithInfo, Perbill};
 use sp_std::vec::Vec;
+use sp_std::convert::TryInto;
 
 type BalanceOf<T> =
     <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 const GATEWAY_PDGE_AMOUNT: u128 = 100;
-const FORBLOCK: u128 = 500;
+const GATEWAY_LIMIT: u128 = 1000;
 
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use sp_runtime::traits::{One, Saturating};
-
-    use primitives::p_market::MarketUserStatus;
 
     /// Configure the pallet by specifying the parameters and types on which it depends.
     #[pallet::config]
@@ -51,10 +43,10 @@ pub mod pallet {
         /// currency to pay fees and hold balances
         type Currency: Currency<Self::AccountId>;
 
+        /// digital transfer amount
+        type NumberToBalance: Convert<u128, BalanceOf<Self>>;
         /// amount converted to numbers
         type BalanceToNumber: Convert<BalanceOf<Self>, u128>;
-
-        type NumberToBalance: Convert<u128, BalanceOf<Self>>;
 
         /// gateway node timed removal interval
         #[pallet::constant]
@@ -65,7 +57,6 @@ pub mod pallet {
 
         type MarketInterface: MarketInterface<Self::AccountId>;
 
-        type UnixTime: UnixTime;
 
     }
 
@@ -100,10 +91,6 @@ pub mod pallet {
     #[pallet::getter(fn gateway_node_count)]
     pub(super) type GatewayNodeCount<T: Config> = StorageValue<_, u64, ValueQuery>;
 
-    /// unlock peer id list
-    #[pallet::storage]
-    #[pallet::getter(fn unlock_peer_id_list)]
-    pub(super) type UnlockPeerIdList<T: Config> = StorageValue<_, Vec<Vec<u8>>, ValueQuery>;
 
     /// Gateway node points
     #[pallet::storage]
@@ -122,30 +109,6 @@ pub mod pallet {
     #[pallet::getter(fn currenct_total_points)]
     pub(super) type CurrentTotalPoints<T: Config> = StorageValue<_, u128, ValueQuery>;
 
-    #[pallet::storage]
-    #[pallet::getter(fn test_storage)]
-    pub(super) type TestStorage<T: Config> = StorageMap<_, Twox64Concat, u128, u128, OptionQuery>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn for_status)]
-    pub(super) type ForStatus<T: Config> = StorageValue<_, bool, ValueQuery>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn for_index)]
-    pub(super) type ForIndex<T: Config> = StorageValue<_, u128, ValueQuery>;
-
-    // #[pallet::storage]
-    // #[pallet::getter(fn test_func)]
-    // pub(super) type TestFunc<T: Config> = StorageMap<
-    //     _,
-    //     Twox64Concat,
-    //     u8,
-    //     Box<dyn Fn()>,
-    //     OptionQuery,
-    // >;
-    /// True if network has been upgraded to this version.
-    /// Storage version of the pallet.
-    ///
     /// This is set to v1.0.0 for new networks.
     #[pallet::storage]
     #[pallet::getter(fn storage_version)]
@@ -156,6 +119,8 @@ pub mod pallet {
     pub struct GenesisConfig<T: Config> {
         pub gateway: Vec<(Vec<u8>, GatewayNode<T::BlockNumber, T::AccountId>)>,
         pub gateway_node_count: u64,
+        pub account_peer_map: Vec<(T::AccountId, Vec<Vec<u8>>)>,
+        pub gateways: Vec<Vec<u8>>,
     }
 
     // The default value for the genesis config type.
@@ -165,6 +130,8 @@ pub mod pallet {
             Self {
                 gateway: Default::default(),
                 gateway_node_count: Default::default(),
+                account_peer_map: Default::default(),
+                gateways: Default::default(),
             }
         }
     }
@@ -177,6 +144,11 @@ pub mod pallet {
             for (a, b) in &self.gateway {
                 <GatewayNodes<T>>::insert(a, b);
             }
+            for(account, peerids) in &self.account_peer_map {
+                <AccountPeerMap<T>>::insert(account, peerids);
+            }
+
+            <Gateways<T>>::set(self.gateways.clone());
         }
     }
 
@@ -229,53 +201,18 @@ pub mod pallet {
 
         OffchainSignedTxError,
         NoAcctForSigning,
+
+        GatewayNodeAlreadyExit,
+
+        StakingNotExit,
+
+        LockAmountFailed,
     }
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-        // fn on_runtime_upgrade() -> Weight {
-        //     0
-        // }
-        // fn offchain_worker(_n: BlockNumberFor<T>) {
-        //     todo!()
-        //
-        //
-        // }
+
         fn on_initialize(now: T::BlockNumber) -> Weight {
-            if true == ForStatus::<T>::get() {
-                Pallet::<T>::for_block();
-            }
-
-            // get a list of online gateway nodes
-
-            // TODO update the points each era
-            let gateway_nodes = GatewayNodes::<T>::iter();
-
-            // Accumulated points
-            let mut total_points: u128 = 0;
-            // Update the gateway node points
-            for (_, gateway_node) in gateway_nodes {
-                total_points += 10;
-                // Determine the gateway node has been recorded
-                if GatewayNodePoints::<T>::contains_key(gateway_node.account_id.clone()) {
-                    // Get the info
-                    let mut gateway_node_points =
-                        GatewayNodePoints::<T>::get(gateway_node.account_id.clone()).unwrap();
-                    // Update the info
-                    gateway_node_points += 10;
-                    GatewayNodePoints::<T>::insert(
-                        gateway_node.account_id.clone(),
-                        gateway_node_points,
-                    );
-                } else {
-                    GatewayNodePoints::<T>::insert(gateway_node.account_id.clone(), 10);
-                }
-            }
-            // Update the total points
-            let mut _total_points = CurrentTotalPoints::<T>::get();
-            _total_points += total_points;
-            CurrentTotalPoints::<T>::set(_total_points);
-
             // health examination
             if (now % T::GatewayNodeTimedRemovalInterval::get()).is_zero() {
                 // get a list of gateway nodes
@@ -286,40 +223,7 @@ pub mod pallet {
                     let duration = now - gateway_node.registration_time;
                     // Check if heartbeat interval is exceeded
                     if duration > T::GatewayNodeHeartbeatInterval::get() {
-                        let peer_id = gateway_node.peer_id;
-                        let mut peer_ids = Gateways::<T>::get();
-                        if let Ok(index) = peer_ids.binary_search(&peer_id) {
-                            peer_ids.remove(index);
-                            Gateways::<T>::put(peer_ids);
-                        }
-                        // //remove gateway node
-                        // GatewayNodes::<T>::remove(peer_id.clone());
-                        // // reduce count
-                        // let count = GatewayNodeCount::<T>::get();
-                        // GatewayNodeCount::<T>::set(count - 1);
-
-                        let mut unlock_peer_list = UnlockPeerIdList::<T>::get();
-                        if unlock_peer_list.contains(&peer_id) {
-                            break;
-                        }
-
-                        // update the unlock list
-                        unlock_peer_list.push(peer_id.clone());
-                        UnlockPeerIdList::<T>::set(unlock_peer_list);
-
-                        // 0. apply unlock, use market interface func withdraw_gateway
-                        match T::MarketInterface::withdraw_gateway(
-                            gateway_node.account_id.clone(),
-                            peer_id.clone(),
-                        ) {
-                            Ok(()) => {
-                                Self::deposit_event(Event::WithdrawGatewaySuccess(
-                                    gateway_node.account_id.clone(),
-                                    peer_id.clone(),
-                                ));
-                            }
-                            Err(_) => {}
-                        }
+                        Pallet::<T>::offline_gateway_node(gateway_node.account_id.clone(), gateway_node.peer_id.clone());
                     }
                 }
             }
@@ -332,78 +236,42 @@ pub mod pallet {
     // Dispatchable functions must be annotated with a weight and must return a DispatchResult.
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn insert(origin: OriginFor<T>) -> DispatchResult {
-            let who = ensure_signed(origin)?;
 
-            // insert 2000 value in the storage for test
-            for i in 1..2001 {
-                TestStorage::<T>::insert(i, i);
-            }
-            // update the for status
-            ForStatus::<T>::put(true);
-            Ok(())
-        }
-
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn for_time(origin: OriginFor<T>) -> DispatchResult {
-            let who = ensure_signed(origin)?;
-            Self::deposit_event(Event::TIME(T::UnixTime::now().as_secs()));
-            let iter = TestStorage::<T>::iter();
-            let mut temp = Vec::new();
-            for (key, value) in iter {
-                temp.push((key, value));
-            }
-            Self::deposit_event(Event::TIME(T::UnixTime::now().as_secs()));
-            Ok(())
-        }
-
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn iter_time(origin: OriginFor<T>) -> DispatchResult {
-            let who = ensure_signed(origin)?;
-            Self::deposit_event(Event::TIME(T::UnixTime::now().as_secs()));
-            let iter = TestStorage::<T>::iter();
-
-            iter.collect::<Vec<(u128, u128)>>();
-
-            Self::deposit_event(Event::TIME(T::UnixTime::now().as_secs()));
-            Ok(())
-        }
-        // TODO: limit 1000 node
         /// register gateway node
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn register_gateway_node(account_id: OriginFor<T>, peer_id: Vec<u8>) -> DispatchResult {
             let who = ensure_signed(account_id)?;
 
-            // Binding the staking info, and determine whether success
-            // if !Self::binding_staking_info(who.clone()) {
-            //     return Err(Error::<T>::BingStakingInfoFailed.into());
-            // }
-            // check the peer id is already exit in the unlock list
-            let unlock_id_list = UnlockPeerIdList::<T>::get();
-            if unlock_id_list.contains(&peer_id) {
-                return Ok(());
+            // 1. check the gateway node nus now < 1000
+            let gateway_node_count = GatewayNodeCount::<T>::get();
+            if gateway_node_count >= 1000 {
+                return Err(Error::<T>::TryAgain.into());
             }
 
-            if GatewayNodes::<T>::contains_key(peer_id.clone()) {
-                return Ok(());
-            }
+            // 2. check the gatway node is not registered
+            ensure!(
+                !GatewayNodes::<T>::contains_key(peer_id.clone()),
+                Error::<T>::GatewayNodeAlreadyExit
+            );
 
-            // match T::MarketInterface::bond(
-            //     who.clone(),
-            //     primitives::p_market::MarketUserStatus::Gateway,
-            // ) {
-            //     Ok(()) => {}
-            //     Err(error) => Err(error)?,
-            // }
+            // 3. check the user has staking
+            ensure!(
+                T::MarketInterface::staking_exit(who.clone()),
+                Error::<T>::StakingNotExit
+            );
 
-            if let Err(e) = T::MarketInterface::bond(
-                who.clone(),
-                primitives::p_market::MarketUserStatus::Gateway,
-            ) {
-                Err(e)?
-            }
+            // 4. lock the staking amount
+            ensure!(
+                T::MarketInterface::change_stake_amount(
+                    who.clone(),
+                    ChangeAmountType::Lock,
+                    100_000_000_000_000,
+                    MarketUserStatus::Gateway
+                ),
+                Error::<T>::LockAmountFailed
+            );
 
+            // 5. deal the change of gateway node
             // get the current block height
             let block_number = <frame_system::Pallet<T>>::block_number();
 
@@ -420,27 +288,20 @@ pub mod pallet {
                 peer_ids.insert(index, peer_id.clone());
                 // Update the peer id list
                 Gateways::<T>::put(peer_ids);
-
-                // update user account_peerid map
-                if AccountPeerMap::<T>::contains_key(who.clone()) {
-                    let mut peer_list = AccountPeerMap::<T>::get(who.clone()).unwrap();
-                    peer_list.push(peer_id);
-                    AccountPeerMap::<T>::insert(who.clone(), peer_list);
-                } else {
-                    let mut peer_list = Vec::new();
-                    peer_list.push(peer_id);
-                    AccountPeerMap::<T>::insert(who.clone(), peer_list);
-                }
             }
-            // increase the total
-            let count = GatewayNodeCount::<T>::get();
-            GatewayNodeCount::<T>::set(count + 1);
+
+            // update the Account Peer Map
+            Self::update_account_peer_map(who.clone(), peer_id.clone());
+
+            // update the gateway node coutn
+            GatewayNodeCount::<T>::set(gateway_node_count + 1);
 
             Self::deposit_event(Event::RegisterGatewayNodeSuccess(
                 who,
                 block_number,
                 gateway_node.peer_id,
             ));
+
             Ok(())
         }
 
@@ -472,27 +333,25 @@ pub mod pallet {
             Ok(())
         }
 
-        /// user enter the peerid to withdraw and downline the gateway node
+        /// Take the specified peer offline
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn withdraw(account_id: OriginFor<T>, peer_id: Vec<u8>) -> DispatchResult {
+        pub fn offline(account_id: OriginFor<T>, peer_id: Vec<u8>) -> DispatchResult {
             let who = ensure_signed(account_id)?;
 
-            let mut unlock_peer_list = UnlockPeerIdList::<T>::get();
-            if unlock_peer_list.contains(&peer_id) {
-                return Ok(());
-            }
+            // 1. check the gateway node exit
+            ensure!(
+                GatewayNodes::<T>::contains_key(peer_id.clone()),
+                Error::<T>::GatewayNodeNotFound
+            );
 
-            // update the unlock list
-            unlock_peer_list.push(peer_id.clone());
-            UnlockPeerIdList::<T>::set(unlock_peer_list);
+            // 2. check the gateway node is owned to you
+            ensure!(
+                GatewayNodes::<T>::get(peer_id.clone()).unwrap().account_id == who.clone(),
+                Error::<T>::GatewayNodeNotOwnedByYou
+            );
 
-            // 0. apply unlock, use market interface func withdraw_gateway
-            match T::MarketInterface::withdraw_gateway(who.clone(), peer_id.clone()) {
-                Ok(()) => {
-                    Self::deposit_event(Event::WithdrawGatewaySuccess(who.clone(), peer_id));
-                }
-                Err(error) => Err(error)?,
-            }
+            // 3. deal the change of gateway node
+            Self::offline_gateway_node(who.clone(), peer_id.clone());
 
             Ok(())
         }
@@ -500,48 +359,49 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-    pub fn test<F, C>(f: F, list: C)
-    where
-        F: Fn(C),
-    {
-        f(list);
 
-        let mut temp: Vec<(u8, Box<dyn Fn()>)> = Vec::new();
+    pub fn offline_gateway_node(who: T::AccountId, peer_id: Vec<u8>) {
+       // 1. update the gateway node count
+        let gateway_node_count = GatewayNodeCount::<T>::get();
+        GatewayNodeCount::<T>::set(gateway_node_count.saturating_sub(1));
 
-        temp.push((1, Box::new(Self::test2)));
-    }
-
-    pub fn test2() {
-        Self::test3();
-    }
-
-    pub fn test3() {}
-
-    pub fn for_block() {
-        // for
-        // get the test sorage
-        // get the for index
-        let mut for_index = ForIndex::<T>::get();
-
-        let test_storage = TestStorage::<T>::iter().skip(for_index as usize);
-        let mut temp_index = 0;
-        for (key, value) in test_storage {
-            if temp_index > FORBLOCK {
-                break;
-            };
-            TestStorage::<T>::insert(key, value + 1);
-            temp_index += 1;
+        // 2. update the gateways list
+        let mut peer_ids = Gateways::<T>::get();
+        if let Ok(index) = peer_ids.binary_search(&peer_id) {
+            peer_ids.remove(index);
+            Gateways::<T>::put(peer_ids);
         }
-        if temp_index < FORBLOCK {
-            // set the for status: false
-            ForStatus::<T>::put(false);
-            // set the for index: 0
-            ForIndex::<T>::put(0);
+
+        // 3. update the GatewayNode
+        GatewayNodes::<T>::remove(peer_id.clone());
+
+        // 4. update the Account Peer Map
+        let mut account_peer_list = AccountPeerMap::<T>::get(who.clone()).unwrap();
+        if let Ok(index) = account_peer_list.binary_search(&peer_id) {
+            account_peer_list.remove(index);
+        }
+        if account_peer_list.is_empty() {
+            AccountPeerMap::<T>::remove(who.clone());
         } else {
-            ForIndex::<T>::put(for_index + temp_index);
+            AccountPeerMap::<T>::insert(who.clone(), account_peer_list);
+        }
+    }
+
+
+    pub fn update_account_peer_map(who: T::AccountId, peer_id: Vec<u8>) {
+        let mut account_peer_map: Vec<Vec<u8>>;
+
+        if AccountPeerMap::<T>::contains_key(who.clone()) {
+            account_peer_map = AccountPeerMap::<T>::get(who.clone()).unwrap();
+        } else {
+            account_peer_map = Vec::new();
         }
 
-        Self::deposit_event(Event::FOR(for_index + temp_index));
+        if let Err(index) = account_peer_map.binary_search(&peer_id) {
+            account_peer_map.insert(index, peer_id.clone());
+        }
+
+        AccountPeerMap::<T>::insert(who.clone(), account_peer_map);
     }
 
     // Binding staking information
@@ -564,6 +424,10 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pallet<T> {
+
+
+
+
     /// TODO: let the compute into the pallet market
     /// compute_gateway_reward
     /// Calculate the reward for each node, though func:  save_gateway_reward that saves the reward
@@ -654,17 +518,7 @@ impl<T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pal
         // 9. update
         AccountPeerMap::<T>::insert(who.clone(), account_peer_list);
 
-        // 10. update the unlock list
-        let mut unlock_list = UnlockPeerIdList::<T>::get();
-        let mut index = 0;
-        for peerid in &unlock_list {
-            if peerid.eq(&peer_id) {
-                unlock_list.remove(index);
-                break;
-            }
-            index += 1;
-        }
-        UnlockPeerIdList::<T>::set(unlock_list);
+
 
         Self::deposit_event(Event::ClearGatewayInfoSuccess(who.clone(), peer_id.clone()));
     }
@@ -683,9 +537,11 @@ impl<T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pal
 
         return true;
     }
+
+    fn get_reward_list() -> Vec<(<T as frame_system::Config>::AccountId, Vec<Vec<u8>>)> {
+        AccountPeerMap::<T>::iter().map(|(who, peer_list)| (who.clone(), peer_list.clone())).collect()
+    }
 }
-
-
 
 // Determine whether we run the storage migration logic
 #[derive(Encode, Decode, Clone, Copy, PartialEq, Eq, RuntimeDebug)]
@@ -701,9 +557,6 @@ impl Default for Releases {
 }
 
 pub mod migrations {
-    use super::*;
 
-    pub mod v2 {
-        use super::*;
-    }
+    pub mod v2 {}
 }

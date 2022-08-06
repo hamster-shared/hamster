@@ -6,6 +6,16 @@
       "Client"
     ]
   },
+
+  "StakingAmount": {
+
+    "amount": "u128",
+
+    "active_amount": "u128",
+
+    "lock_amount": "u128"
+  },
+
   "UserInfo": {
     "staked_amount": "u128"
   },

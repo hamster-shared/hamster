@@ -2,12 +2,12 @@ use crate as pallet_gateway;
 use crate::*;
 use frame_support::parameter_types;
 use frame_system as system;
+
 use primitives::p_gateway::GatewayNode as node;
 use sp_core::H256;
-use sp_runtime::{
-    testing::Header,
-    traits::{BlakeTwo256, ConvertInto, IdentityLookup},
-};
+use sp_runtime::{BuildStorage, testing::Header, traits::{BlakeTwo256, ConvertInto, IdentityLookup}};
+use primitives::AccountId;
+
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -38,6 +38,9 @@ frame_support::construct_runtime!(
         System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
         Gateway: pallet_gateway::{Pallet, Call, Storage, Event<T>},
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
+        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
+        Market: pallet_market::{Pallet, Call, Storage, Config<T>, Event<T>},
+        Provider: pallet_provider::{Pallet, Call, Storage, Config<T>, Event<T>},
     }
 );
 
@@ -96,64 +99,130 @@ impl pallet_gateway::Config for Test {
     type Event = Event;
     type Currency = Balances;
     type BalanceToNumber = ConvertInto;
-    type NumberToBalance = ConvertInto;
+    type NumberToBalance = ();
     type GatewayNodeTimedRemovalInterval = GatewayNodeTimedRemovalInterval;
     type GatewayNodeHeartbeatInterval = GatewayNodeHeartbeatInterval;
 
     type MarketInterface = Market;
 }
 
+impl pallet_market::Config for Test {
+    type Event = Event;
+    type Currency = Balances;
+    type BlockNumberToNumber = ConvertInto;
+    type NumberToBalance = ();
+    type BalanceToNumber = ConvertInto;
+    type UnixTime = Timestamp;
+    type GatewayInterface = Gateway;
+    type ProviderInterface = Provider;
+}
+
+parameter_types! {
+    pub const MinimumPeriod: u64 = 5;
+}
+
+impl pallet_timestamp::Config for Test {
+    type Moment = u64;
+    type OnTimestampSet = ();
+    type MinimumPeriod = MinimumPeriod;
+    type WeightInfo = ();
+}
+
+impl pallet_provider::Config for Test {
+    type Event = Event;
+    type Currency = Balances;
+    type BalanceToNumber = ConvertInto;
+    type NumberToBalance = ();
+    type ResourceInterval = ResourceInterval;
+    type MarketInterface = Market;
+}
+
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    system::GenesisConfig::default()
-        .build_storage::<Test>()
-        .unwrap()
-        .into()
-}
-
-pub fn test_heartbeart_ext() -> sp_io::TestExternalities {
     let mut t = system::GenesisConfig::default()
         .build_storage::<Test>()
         .unwrap()
         .into();
 
-    let peer_id = "some_peerid".as_bytes().to_vec();
-    let gateway_node: GatewayNode<u64, u64> = node::new(1, peer_id.clone(), 1);
+    let staking_amount = StakingAmount::new(1000_000_000_000_000);
+    pallet_market::GenesisConfig::<Test> {
+        staking: vec![(1, staking_amount.clone()), (2, staking_amount.clone())],
+    }
+    .assimilate_storage(&mut t)
+    .unwrap();
+
+    let mut ext = sp_io::TestExternalities::new(t);
+    ext
+}
+
+pub fn test_offline_ext() -> sp_io::TestExternalities {
+    let mut t = system::GenesisConfig::default()
+        .build_storage::<Test>()
+        .unwrap()
+        .into();
+
+    let gateway_node = node::new(
+        1,
+        "peer_id".as_bytes().to_vec(),
+        1 as BlockNumber,
+    );
 
     pallet_gateway::GenesisConfig::<Test> {
-        gateway: vec![(peer_id, gateway_node)],
-
+        gateway: vec![("peer_id".as_bytes().to_vec(), gateway_node)],
         gateway_node_count: 1,
+        account_peer_map: vec![(1, vec!["peer_id".as_bytes().to_vec()])],
+        gateways: vec!["peer_id".as_bytes().to_vec()]
     }
-    .assimilate_storage(&mut t)
-    .unwrap();
+        .assimilate_storage(&mut t)
+        .unwrap();
 
-    let mut ext = sp_io::TestExternalities::new(t);
-    ext.execute_with(|| System::set_block_number(1));
+
+    let ext = sp_io::TestExternalities::new(t);
     ext
 }
+// pub fn test_heartbeart_ext() -> sp_io::TestExternalities {
+//     let mut t = system::GenesisConfig::default()
+//         .build_storage::<Test>()
+//         .unwrap()
+//         .into();
 
-pub fn test_punlish_ext() -> sp_io::TestExternalities {
-    let mut t = system::GenesisConfig::default()
-        .build_storage::<Test>()
-        .unwrap()
-        .into();
+//     let peer_id = "some_peerid".as_bytes().to_vec();
+//     let gateway_node: GatewayNode<u64, u64> = node::new(1, peer_id.clone(), 1);
 
-    let peer_id1 = "some_peerid".as_bytes().to_vec();
-    let gateway_node1: GatewayNode<u64, u64> = node::new(1, peer_id1.clone(), 1);
+//     pallet_gateway::GenesisConfig::<Test> {
+//         gateway: vec![(peer_id, gateway_node)],
 
-    let peer_id2 = "another_peerid".as_bytes().to_vec();
-    let gateway_node2 = node::new(2, peer_id2.clone(), 1);
+//         gateway_node_count: 1,
+//     }
+//     .assimilate_storage(&mut t)
+//     .unwrap();
 
-    pallet_gateway::GenesisConfig::<Test> {
-        gateway: vec![(peer_id1, gateway_node1), (peer_id2, gateway_node2)],
+//     let mut ext = sp_io::TestExternalities::new(t);
+//     ext.execute_with(|| System::set_block_number(1));
+//     ext
+// }
 
-        gateway_node_count: 2,
-    }
-    .assimilate_storage(&mut t)
-    .unwrap();
+// pub fn test_punlish_ext() -> sp_io::TestExternalities {
+//     let mut t = system::GenesisConfig::default()
+//         .build_storage::<Test>()
+//         .unwrap()
+//         .into();
 
-    let mut ext = sp_io::TestExternalities::new(t);
-    ext.execute_with(|| System::set_block_number(1));
-    ext
-}
+//     let peer_id1 = "some_peerid".as_bytes().to_vec();
+//     let gateway_node1: GatewayNode<u64, u64> = node::new(1, peer_id1.clone(), 1);
+
+//     let peer_id2 = "another_peerid".as_bytes().to_vec();
+//     let gateway_node2 = node::new(2, peer_id2.clone(), 1);
+
+//     pallet_gateway::GenesisConfig::<Test> {
+//         gateway: vec![(peer_id1, gateway_node1), (peer_id2, gateway_node2)],
+
+//         gateway_node_count: 2,
+//     }
+//     .assimilate_storage(&mut t)
+//     .unwrap();
+
+//     let mut ext = sp_io::TestExternalities::new(t);
+//     ext.execute_with(|| System::set_block_number(1));
+//     ext
+// }

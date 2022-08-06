@@ -27,7 +27,7 @@ use sp_version::RuntimeVersion;
 
 // A few exports that help ease life for downstream crates.
 use frame_election_provider_support::onchain;
-use frame_support::log;
+
 pub use frame_support::{
     construct_runtime, debug, parameter_types,
     traits::{
@@ -63,7 +63,6 @@ pub use pallet_template;
 pub use pallet_market;
 
 use pallet_authority_discovery;
-use sp_runtime::generic::SignedPayload;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -623,7 +622,6 @@ impl pallet_gateway::Config for Runtime {
     type GatewayNodeHeartbeatInterval = GatewayNodeHeartbeatInterval;
     type MarketInterface = Market;
     type NumberToBalance = ConvertInto;
-    type UnixTime = Timestamp;
 }
 
 parameter_types! {

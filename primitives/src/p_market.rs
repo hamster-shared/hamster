@@ -222,7 +222,12 @@ pub trait MarketInterface<AccountId> {
         source_index: u128,
     ) -> Result<(), DispatchError>;
 
-    fn change_stake_amount(who: AccountId, change_type: ChangeAmountType, amount: u128);
+    fn change_stake_amount(
+        who: AccountId,
+        change_type: ChangeAmountType,
+        amount: u128,
+        status: MarketUserStatus,
+    ) -> bool;
 
     fn staking_exit(who: AccountId) -> bool;
 

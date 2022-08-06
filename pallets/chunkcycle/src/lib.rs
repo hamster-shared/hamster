@@ -1,11 +1,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::sp_runtime::traits::Convert;
-
+use frame_support::pallet_prelude::*;
+use frame_system::pallet_prelude::*;
 pub use pallet::*;
-pub use primitives::p_chunkcycle::*;
-pub use primitives::p_provider::*;
-pub use primitives::p_resource_order::*;
+use primitives::{p_chunkcycle::*, p_provider::*};
 pub use sp_std::vec::Vec;
 
 const FORBLOCK: u128 = 500;
@@ -13,9 +11,6 @@ const FORBLOCK: u128 = 500;
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
-    use frame_system::pallet_prelude::*;
-    use primitives::BlockNumber;
 
     /// Configure the pallet by specifying the parameters and types on which it depends.
     #[pallet::config]
@@ -34,7 +29,8 @@ pub mod pallet {
     /// (list, compute type)
     #[pallet::storage]
     #[pallet::getter(fn task_list)]
-    pub(super) type TaskList<T: Config> = StorageValue<_, Vec<(ForDs<T::AccountId>, ForType)>, ValueQuery>;
+    pub(super) type TaskList<T: Config> =
+        StorageValue<_, Vec<(ForDs<T::AccountId>, ForType)>, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn task_tatus)]
@@ -59,7 +55,7 @@ pub mod pallet {
             // compute and get the for index
             let (for_index, task_index) = Self::cycle_compute();
 
-           Self::check_and_update(for_index, task_index);
+            Self::check_and_update(for_index, task_index);
 
             0
         }
@@ -74,42 +70,33 @@ pub mod pallet {
     pub enum Error<T> {}
 
     #[pallet::call]
-    impl<T: Config> Pallet<T> {
-
-    }
+    impl<T: Config> Pallet<T> {}
 }
 
 impl<T: Config> Pallet<T> {
+    pub fn cycle_compute() -> (u128, u128) {
+        // 1. get the list of task
+        let task_list = TaskList::<T>::get();
 
-   pub fn cycle_compute() -> (u128, u128){
-      // 1. get the list of task
-       let task_list = TaskList::<T>::get();
+        // 2. get the task index
+        let task_index = TaskIndex::<T>::get();
 
-       // 2. get the task index
-       let task_index = TaskIndex::<T>::get();
+        // 3. get the compute list
+        let compute_list = task_list[task_index as usize].clone();
 
-       // 3. get the compute list
-       let compute_list = task_list[task_index as usize].clone();
+        // 4. get the for index
+        let for_index = ForIndex::<T>::get();
 
-       // 4. get the for index
-       let for_index = ForIndex::<T>::get();
-
-       // 5. compute the list and get the for index
-       return (Self::compute(&compute_list.0, for_index), task_index);
-   }
+        // 5. compute the list and get the for index
+        return (Self::compute(&compute_list.0, for_index), task_index);
+    }
 
     pub fn compute(ds: &ForDs<T::AccountId>, for_index: u128) -> u128 {
         return match ds {
-            ForDs::Gateway(gateway_list) => {
-                Self::compute_gateway(gateway_list, for_index)
-            }
-            ForDs::Provider(provider_list) => {
-                Self::compute_provider(provider_list, for_index)
-            }
-            ForDs::Client(client_list) => {
-                Self::compute_client(client_list, for_index)
-            }
-        }
+            ForDs::Gateway(gateway_list) => Self::compute_gateway(gateway_list, for_index),
+            ForDs::Provider(provider_list) => Self::compute_provider(provider_list, for_index),
+            ForDs::Client(client_list) => Self::compute_client(client_list, for_index),
+        };
     }
 
     pub fn compute_gateway(_gateway_list: &Vec<T::AccountId>, for_index: u128) -> u128 {
@@ -118,7 +105,10 @@ impl<T: Config> Pallet<T> {
         0
     }
 
-    pub fn compute_provider(_provider_list: &Vec<(T::AccountId, ProviderPoints)>, for_index: u128) -> u128 {
+    pub fn compute_provider(
+        _provider_list: &Vec<(T::AccountId, ProviderPoints)>,
+        for_index: u128,
+    ) -> u128 {
         // compute the provider
         0
     }
@@ -129,7 +119,7 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn check_and_update(now_index: u128, task_index: u128) {
-       // 1. check the for compute is finished or not
+        // 1. check the for compute is finished or not
         if now_index > FORBLOCK {
             // update the for_index
             let for_index = ForIndex::<T>::get();
