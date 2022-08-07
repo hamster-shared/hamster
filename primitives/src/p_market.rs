@@ -148,6 +148,7 @@ pub struct TotalStakingAmount {
     pub total_client_staking: u128,
 }
 
+// TODO BUG
 impl TotalStakingAmount {
     pub fn add_total_staking(&mut self, amount: u128) {
         self.total_staking = self.total_staking.saturating_add(amount);
@@ -157,27 +158,21 @@ impl TotalStakingAmount {
     }
     pub fn add_provider_staking(&mut self, amount: u128) {
         self.total_provider_staking = self.total_provider_staking.saturating_add(amount);
-        self.add_total_staking(amount);
     }
     pub fn sub_provider_staking(&mut self, amount: u128) {
         self.total_provider_staking = self.total_provider_staking.saturating_sub(amount);
-        self.sub_total_staking(amount);
     }
     pub fn add_gateway_staking(&mut self, amount: u128) {
         self.total_gateway_staking = self.total_gateway_staking.saturating_add(amount);
-        self.add_total_staking(amount);
     }
     pub fn sub_gateway_staking(&mut self, amount: u128) {
         self.total_gateway_staking = self.total_gateway_staking.saturating_sub(amount);
-        self.sub_total_staking(amount);
     }
     pub fn add_client_staking(&mut self, amount: u128) {
         self.total_client_staking = self.total_client_staking.saturating_add(amount);
-        self.add_total_staking(amount);
     }
     pub fn sub_client_staking(&mut self, amount: u128) {
         self.total_client_staking = self.total_client_staking.saturating_sub(amount);
-        self.sub_total_staking(amount);
     }
 }
 

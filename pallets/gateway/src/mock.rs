@@ -4,10 +4,13 @@ use frame_support::parameter_types;
 use frame_system as system;
 
 use primitives::p_gateway::GatewayNode as node;
-use sp_core::H256;
-use sp_runtime::{BuildStorage, testing::Header, traits::{BlakeTwo256, ConvertInto, IdentityLookup}};
 use primitives::AccountId;
-
+use sp_core::H256;
+use sp_runtime::{
+    testing::Header,
+    traits::{BlakeTwo256, ConvertInto, IdentityLookup},
+    BuildStorage,
+};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -161,21 +164,16 @@ pub fn test_offline_ext() -> sp_io::TestExternalities {
         .unwrap()
         .into();
 
-    let gateway_node = node::new(
-        1,
-        "peer_id".as_bytes().to_vec(),
-        1 as BlockNumber,
-    );
+    let gateway_node = node::new(1, "peer_id".as_bytes().to_vec(), 1 as BlockNumber);
 
     pallet_gateway::GenesisConfig::<Test> {
         gateway: vec![("peer_id".as_bytes().to_vec(), gateway_node)],
         gateway_node_count: 1,
         account_peer_map: vec![(1, vec!["peer_id".as_bytes().to_vec()])],
-        gateways: vec!["peer_id".as_bytes().to_vec()]
+        gateways: vec!["peer_id".as_bytes().to_vec()],
     }
-        .assimilate_storage(&mut t)
-        .unwrap();
-
+    .assimilate_storage(&mut t)
+    .unwrap();
 
     let ext = sp_io::TestExternalities::new(t);
     ext

@@ -22,8 +22,8 @@ pub use primitives::p_market::*;
 use primitives::EraIndex;
 use sp_runtime::traits::Zero;
 use sp_runtime::{DispatchResultWithInfo, Perbill};
-use sp_std::vec::Vec;
 use sp_std::convert::TryInto;
+use sp_std::vec::Vec;
 
 type BalanceOf<T> =
     <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -56,8 +56,6 @@ pub mod pallet {
         type GatewayNodeHeartbeatInterval: Get<Self::BlockNumber>;
 
         type MarketInterface: MarketInterface<Self::AccountId>;
-
-
     }
 
     #[pallet::pallet]
@@ -80,7 +78,8 @@ pub mod pallet {
     #[pallet::getter(fn gateways)]
     pub(super) type Gateways<T: Config> = StorageValue<_, Vec<Vec<u8>>, ValueQuery>;
 
-    /// Account and peerid map
+    /// Account and peer id map
+    /// Use to map the account to the peer id
     #[pallet::storage]
     #[pallet::getter(fn account_peerid_map)]
     pub(super) type AccountPeerMap<T: Config> =
@@ -90,7 +89,6 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn gateway_node_count)]
     pub(super) type GatewayNodeCount<T: Config> = StorageValue<_, u64, ValueQuery>;
-
 
     /// Gateway node points
     #[pallet::storage]
@@ -144,7 +142,7 @@ pub mod pallet {
             for (a, b) in &self.gateway {
                 <GatewayNodes<T>>::insert(a, b);
             }
-            for(account, peerids) in &self.account_peer_map {
+            for (account, peerids) in &self.account_peer_map {
                 <AccountPeerMap<T>>::insert(account, peerids);
             }
 
@@ -211,7 +209,6 @@ pub mod pallet {
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-
         fn on_initialize(now: T::BlockNumber) -> Weight {
             // health examination
             if (now % T::GatewayNodeTimedRemovalInterval::get()).is_zero() {
@@ -223,7 +220,10 @@ pub mod pallet {
                     let duration = now - gateway_node.registration_time;
                     // Check if heartbeat interval is exceeded
                     if duration > T::GatewayNodeHeartbeatInterval::get() {
-                        Pallet::<T>::offline_gateway_node(gateway_node.account_id.clone(), gateway_node.peer_id.clone());
+                        Pallet::<T>::offline_gateway_node(
+                            gateway_node.account_id.clone(),
+                            gateway_node.peer_id.clone(),
+                        );
                     }
                 }
             }
@@ -236,7 +236,6 @@ pub mod pallet {
     // Dispatchable functions must be annotated with a weight and must return a DispatchResult.
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-
         /// register gateway node
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn register_gateway_node(account_id: OriginFor<T>, peer_id: Vec<u8>) -> DispatchResult {
@@ -353,15 +352,15 @@ pub mod pallet {
             // 3. deal the change of gateway node
             Self::offline_gateway_node(who.clone(), peer_id.clone());
 
+
             Ok(())
         }
     }
 }
 
 impl<T: Config> Pallet<T> {
-
     pub fn offline_gateway_node(who: T::AccountId, peer_id: Vec<u8>) {
-       // 1. update the gateway node count
+        // 1. update the gateway node count
         let gateway_node_count = GatewayNodeCount::<T>::get();
         GatewayNodeCount::<T>::set(gateway_node_count.saturating_sub(1));
 
@@ -385,8 +384,15 @@ impl<T: Config> Pallet<T> {
         } else {
             AccountPeerMap::<T>::insert(who.clone(), account_peer_list);
         }
-    }
 
+        // 5. unlock the staking amount
+        T::MarketInterface::change_stake_amount(
+            who.clone(),
+            ChangeAmountType::Unlock,
+            100_000_000_000_000,
+            MarketUserStatus::Gateway
+        );
+    }
 
     pub fn update_account_peer_map(who: T::AccountId, peer_id: Vec<u8>) {
         let mut account_peer_map: Vec<Vec<u8>>;
@@ -424,10 +430,6 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pallet<T> {
-
-
-
-
     /// TODO: let the compute into the pallet market
     /// compute_gateway_reward
     /// Calculate the reward for each node, though func:  save_gateway_reward that saves the reward
@@ -518,8 +520,6 @@ impl<T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pal
         // 9. update
         AccountPeerMap::<T>::insert(who.clone(), account_peer_list);
 
-
-
         Self::deposit_event(Event::ClearGatewayInfoSuccess(who.clone(), peer_id.clone()));
     }
     // TODO rename
@@ -538,8 +538,10 @@ impl<T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pal
         return true;
     }
 
-    fn get_reward_list() -> Vec<(<T as frame_system::Config>::AccountId, Vec<Vec<u8>>)> {
-        AccountPeerMap::<T>::iter().map(|(who, peer_list)| (who.clone(), peer_list.clone())).collect()
+    fn gateway_online_list() -> Vec<(<T as frame_system::Config>::AccountId, Vec<Vec<u8>>)> {
+        AccountPeerMap::<T>::iter()
+            .map(|(who, peer_list)| (who.clone(), peer_list.clone()))
+            .collect()
     }
 }
 

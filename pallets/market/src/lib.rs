@@ -270,9 +270,7 @@ pub mod pallet {
     #[cfg(feature = "std")]
     impl<T: Config> Default for GenesisConfig<T> {
         fn default() -> Self {
-            Self {
-                staking: vec![],
-            }
+            Self { staking: vec![] }
         }
     }
 
@@ -615,30 +613,6 @@ impl<T: Config> Pallet<T> {
         }
     }
 
-    /// change the u8 to MarketStatus
-    /// * 0: Provider
-    /// * 1: Gateway
-    /// * 2: Client
-    // fn u8_to_market_status(status: u8) -> Result<MarketUserStatus, Error<T>> {
-    //
-    //     match status {
-    //         0 => {
-    //             Ok(MarketUserStatus::Provider)
-    //         },
-    //
-    //         1 => {
-    //             Ok(MarketUserStatus::Gateway)
-    //         },
-    //
-    //         2 => {
-    //             Ok(MarketUserStatus::Client)
-    //         },
-    //
-    //         _ => {
-    //             return Err(Error::<T>::NotThisStatus.into());
-    //         }
-    //     }
-    // }
 
     /// change the MarketStatus to u8
     /// * Provider: 0
@@ -672,27 +646,6 @@ impl<T: Config> Pallet<T> {
             ExistenceRequirement::AllowDeath,
         )
     }
-
-    /// TODO: Not used for now
-    /// clearance_overdue_property
-    /// The function will transfer the overdue amount to the market_reward_pot
-    /// Todo: The The period is 60 Era
-    /// input:
-    ///     -index: EraIndex
-    // fn clearance_overdue_property(index: EraIndex) {
-    //
-    //     let mut total_overdue = 0;
-    //     let gateway_reward = GatewayReward::<T>::iter();
-    //     for (who, income) in gateway_reward {
-    //         if index - income.last_eraindex > 60 {
-    //             // Clear the reward information
-    //             total_overdue += income.total_income;
-    //             GatewayReward::<T>::remove(who.clone());
-    //         }
-    //     }
-    //     // Send the total ouerdue informathion
-    //     Self::deposit_event(Event::<T>::ClearanceOverdueProperty(total_overdue));
-    // }
 
     /// updata_staked_amount
     /// Calling the StakingInterface function: updata_staked_amount
@@ -957,6 +910,75 @@ impl<T: Config> Pallet<T> {
             // 16. remove the who from GatewayUnlockList
             GatewayUnlockList::<T>::remove(who.clone());
         }
+    }
+
+    fn lock_amount(who: T::AccountId, amount: u128, status: MarketUserStatus) -> bool {
+
+       // 1. get user staking amount
+        let mut staking_amount = Staking::<T>::get(who.clone()).unwrap();
+
+        // 2. lock amount
+       if !staking_amount.lock_amount(amount) {return false;}
+
+        // 3. update staking amount
+        Staking::<T>::insert(who.clone(), staking_amount);
+
+        // 4. update Market staking amount inforation
+        let mut market_staking_amount = TotalStaked::<T>::get();
+
+        market_staking_amount.add_total_staking(amount);
+
+        match status {
+            MarketUserStatus::Provider => {
+                market_staking_amount.add_provider_staking(amount);
+            }
+            MarketUserStatus::Client => {
+                market_staking_amount.add_client_staking(amount);
+            }
+            MarketUserStatus::Gateway => {
+                market_staking_amount.add_gateway_staking(amount);
+            }
+        }
+
+        // 5. update Market staking amount inforation
+        TotalStaked::<T>::set(market_staking_amount);
+
+        // 6. return
+        true
+    }
+
+    fn unlock_amount(who: T::AccountId, amount: u128, status: MarketUserStatus) -> bool {
+        // 1. get user staking amount
+        let mut staking_amount = Staking::<T>::get(who.clone()).unwrap();
+
+        // 2. unlock amount
+        if !staking_amount.unlock_amount(amount) {return false;}
+
+        // 3. update staking amount
+        Staking::<T>::insert(who.clone(), staking_amount);
+
+        // 4. update Market staking amount inforation
+        let mut market_staking_amount = TotalStaked::<T>::get();
+
+        market_staking_amount.sub_total_staking(amount);
+
+        match status {
+            MarketUserStatus::Provider => {
+                market_staking_amount.sub_provider_staking(amount);
+            }
+            MarketUserStatus::Client => {
+                market_staking_amount.sub_client_staking(amount);
+            }
+            MarketUserStatus::Gateway => {
+                market_staking_amount.sub_gateway_staking(amount);
+            }
+        }
+
+        // 5. update Market staking amount inforation
+        TotalStaked::<T>::set(market_staking_amount);
+
+        // 6. return
+        true
     }
 }
 
@@ -1414,23 +1436,22 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         Self::get_amount(who.clone(), T::NumberToBalance::convert(amount as u128))
     }
 
+    ///
     fn change_stake_amount(
         who: <T as frame_system::Config>::AccountId,
         change_type: ChangeAmountType,
         amount: u128,
         status: MarketUserStatus,
     ) -> bool {
-        // 1. get the account's staking info
-        let mut staking_amount = Staking::<T>::get(who.clone()).unwrap();
+        return match change_type {
+            ChangeAmountType::Lock => {
+                Self::lock_amount(who.clone(), amount, status)
+            }
 
-        // 2. check the change type
-        match change_type {
-            ChangeAmountType::Lock => {}
-
-            ChangeAmountType::Unlock => {}
+            ChangeAmountType::Unlock => {
+                Self::unlock_amount(who.clone(), amount, status)
+            }
         }
-
-        true
     }
 
     fn staking_exit(who: <T as frame_system::Config>::AccountId) -> bool {
