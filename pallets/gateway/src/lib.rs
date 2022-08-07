@@ -22,13 +22,12 @@ pub use primitives::p_market::*;
 use primitives::EraIndex;
 use sp_runtime::traits::Zero;
 use sp_runtime::{DispatchResultWithInfo, Perbill};
-use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
 
 type BalanceOf<T> =
     <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 const GATEWAY_PDGE_AMOUNT: u128 = 100;
-const GATEWAY_LIMIT: u128 = 1000;
+const GATEWAY_LIMIT: u64 = 1000;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -172,13 +171,6 @@ pub mod pallet {
 
         ClearGatewayInfoSuccess(T::AccountId, Vec<u8>),
 
-        SetSomeInfo(u64, u64),
-
-        FOR(u128),
-
-        TIME(u64),
-
-        PrintString(Vec<u8>),
     }
 
     // Errors inform users that something went wrong.
@@ -190,15 +182,6 @@ pub mod pallet {
         TryAgain,
         /// the owner of the gateway node does not belong to you
         GatewayNodeNotOwnedByYou,
-
-        GatewayNodeNotStakingAccoutId,
-
-        NotEnoughAmount,
-
-        BingStakingInfoFailed,
-
-        OffchainSignedTxError,
-        NoAcctForSigning,
 
         GatewayNodeAlreadyExit,
 
@@ -243,7 +226,7 @@ pub mod pallet {
 
             // 1. check the gateway node nus now < 1000
             let gateway_node_count = GatewayNodeCount::<T>::get();
-            if gateway_node_count >= 1000 {
+            if gateway_node_count >= GATEWAY_LIMIT {
                 return Err(Error::<T>::TryAgain.into());
             }
 
