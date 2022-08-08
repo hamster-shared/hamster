@@ -297,6 +297,10 @@ pub mod pallet {
         ResourceStatusNotAllowWithdraw,
 
         LockAmountFailed,
+
+        StakingNotExit,
+
+        ResourceAlreadyExist,
     }
 
     // Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -323,10 +327,17 @@ pub mod pallet {
         ) -> DispatchResult {
             let who = ensure_signed(account_id)?;
 
-            // 0. get the current index
-            let current_index = ResourceIndex::<T>::get();
+            // 0. check the user has staking
+            ensure!(
+                T::MarketInterface::staking_exit(who.clone()),
+                Error::<T>::StakingNotExit
+            );
 
-            // 1. new_index < current_index, may be repeat Registration
+            // 1. check the index and get the right index
+            // if new index < current index and the compute resource exit
+            // and the accountid is same, return error
+            // or change the new index to current index
+            let current_index = ResourceIndex::<T>::get();
             if new_index < current_index {
                 if Resources::<T>::contains_key(new_index) {
                     // get the history registraton info
@@ -334,8 +345,8 @@ pub mod pallet {
                     // check the peerid is eq
                     if peer_id.eq(&compute_resource.peer_id) {
                         // todo: may be send the event
-                        // repeat Registration, do nothing
-                        return Ok(());
+                        // repeat Registration, return err
+                        Err(Error::<T>::ResourceAlreadyExist)?
                     }
                 }
             }
@@ -343,8 +354,7 @@ pub mod pallet {
             // Get the resource index
             let index = current_index;
 
-            // Staking part
-            // 1. compute the staking amount
+            // 2. compute the staking amount
             let staking_amount = Self::compute_provider_staked_amount(
                 cpu,
                 memory,
@@ -362,12 +372,13 @@ pub mod pallet {
             );
 
             // 3. update the ProviderOnlineList
+            // if user not in the online list , add the user to the list
             let mut provider_online_list = ProviderOnlineList::<T>::get();
-            if let Ok(index) = provider_online_list.binary_search(&who) {
+            if let Err(index) = provider_online_list.binary_search(&who) {
                 provider_online_list.insert(index, who.clone());
             }
 
-            // 4. update the provider points
+            // 4. compute and update the provider points
             Self::update_provider_points(who.clone(), cpu, memory);
 
             // crate the resource config, use cpu, memory, system, cpu_model
@@ -436,25 +447,6 @@ pub mod pallet {
             let mut resources = Provider::<T>::get(who.clone()).unwrap();
             resources.push(index);
             Provider::<T>::insert(who.clone(), resources);
-
-            // update the provider total memory
-            if !ProviderTotalMemory::<T>::contains_key(who.clone()) {
-                // Initialize
-                ProviderTotalMemory::<T>::insert(who.clone(), 0);
-            }
-            let mut memorys = ProviderTotalMemory::<T>::get(who.clone()).unwrap();
-            memorys += memory;
-            ProviderTotalMemory::<T>::insert(who.clone(), memorys);
-
-            // update the provider total cpu
-            if !ProviderTotalCpu::<T>::contains_key(who.clone()) {
-                // Initialize
-                ProviderTotalCpu::<T>::insert(who.clone(), 0);
-            }
-
-            let mut cpus = ProviderTotalCpu::<T>::get(who.clone()).unwrap();
-            cpus += cpu;
-            ProviderTotalCpu::<T>::insert(who.clone(), cpus);
 
             Self::deposit_event(Event::RegisterResourceSuccess(
                 who,
@@ -711,8 +703,24 @@ impl<T: Config> Pallet<T> {
 
     /// update provider points
     fn update_provider_points(who: T::AccountId, cpu: u64, mem: u64) {
+        // 1. get provider total points
+        let mut provider_total_points: ProviderPoints;
+        if ProviderTotalPoints::<T>::contains_key(who.clone()) {
+           provider_total_points = ProviderTotalPoints::<T>::get(who.clone()).unwrap();
 
+        } else {
+            provider_total_points = ProviderPoints::new(0, 0, 0);
+        }
 
+        // 2. update provider total points and resource points
+        let points = cpu + mem;
+        provider_total_points.add_points(points, 0);
+        ProviderTotalPoints::<T>::insert(who.clone(), provider_total_points);
+
+        // 3. update total provider resource points
+        let mut provider_total_resource_points = ProviderTotalResourcePoints::<T>::get();
+        provider_total_resource_points += points as u128;
+        ProviderTotalResourcePoints::<T>::set(provider_total_resource_points);
     }
 
     /// modify resources
