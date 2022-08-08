@@ -295,6 +295,8 @@ pub mod pallet {
         ResourceNotOwnToYou,
 
         ResourceStatusNotAllowWithdraw,
+
+        LockAmountFailed,
     }
 
     // Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -342,49 +344,31 @@ pub mod pallet {
             let index = current_index;
 
             // Staking part
-            // 1. compute the provider total staked
-            let mut new_total_cpus = cpu;
-            let mut new_total_memory = memory;
-            if ProviderTotalCpu::<T>::contains_key(who.clone()) {
-                let old = ProviderTotalCpu::<T>::get(who.clone()).unwrap();
-                new_total_cpus += old;
-            }
-            if ProviderTotalMemory::<T>::contains_key(who.clone()) {
-                let old = ProviderTotalMemory::<T>::get(who.clone()).unwrap();
-                new_total_memory += old;
-            }
-            // compute the total staked
-            let new_total_staked = Self::compute_provider_staked_amount(cpu, memory);
-            // update the staked info into market
-            T::MarketInterface::update_provider_staked(
-                who.clone(),
-                T::BalanceToNumber::convert(new_total_staked),
-                index,
+            // 1. compute the staking amount
+            let staking_amount = Self::compute_provider_staked_amount(
+                cpu,
+                memory,
             );
 
-            // 2. Provider Staking
-            match T::MarketInterface::bond(who.clone(), MarketUserStatus::Provider) {
-                Ok(()) => {}
-                Err(error) => Err(error)?,
+            // 2. lock the staking amount
+            ensure!(
+                T::MarketInterface::change_stake_amount(
+                    who.clone(),
+                    ChangeAmountType::Lock,
+                    T::BalanceToNumber::convert(staking_amount),
+                    MarketUserStatus::Provider,
+                ),
+                Error::<T>::LockAmountFailed,
+            );
+
+            // 3. update the ProviderOnlineList
+            let mut provider_online_list = ProviderOnlineList::<T>::get();
+            if let Ok(index) = provider_online_list.binary_search(&who) {
+                provider_online_list.insert(index, who.clone());
             }
 
-            // updata the online provider list
-            let mut provider_list = ProviderOnlineList::<T>::get();
-            if !provider_list.contains(&who.clone()) {
-                provider_list.push(who.clone());
-            }
-            ProviderOnlineList::<T>::set(provider_list);
-
-            // give the source points
-            let resource_poinst = new_total_memory + new_total_cpus;
-            let _points =
-                p_provider::ProviderPoints::new(resource_poinst as u128, resource_poinst, 0);
-            ProviderTotalPoints::<T>::insert(who.clone(), _points);
-
-            // update the total resource points
-            let mut provider_total_resoucre_points = ProviderTotalResourcePoints::<T>::get();
-            provider_total_resoucre_points += cpu as u128 + memory as u128;
-            ProviderTotalResourcePoints::<T>::set(provider_total_resoucre_points);
+            // 4. update the provider points
+            Self::update_provider_points(who.clone(), cpu, memory);
 
             // crate the resource config, use cpu, memory, system, cpu_model
             let resource_config = ResourceConfig::new(
@@ -724,6 +708,13 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+
+    /// update provider points
+    fn update_provider_points(who: T::AccountId, cpu: u64, mem: u64) {
+
+
+    }
+
     /// modify resources
     fn update_computing_resource(
         index: u64,

@@ -44,7 +44,6 @@ fn test_register_for_one_account_one_peerid() {
         assert_eq!(total_staking.total_provider_staking, 0);
         assert_eq!(total_staking.total_gateway_staking, 100_000_000_000_000);
         assert_eq!(total_staking.total_client_staking, 0);
-
     });
 }
 
@@ -227,7 +226,9 @@ fn test_staking_info() {
     new_test_ext().execute_with(|| {
         System::set_block_number(1);
 
-        if let Err(e) = Gateway::register_gateway_node(Origin::signed(1), "peer_id".as_bytes().to_vec()) {
+        if let Err(e) =
+            Gateway::register_gateway_node(Origin::signed(1), "peer_id".as_bytes().to_vec())
+        {
             println!("{:?}", e);
         }
 
@@ -260,8 +261,6 @@ fn test_staking_info() {
         assert_eq!(total_staking.total_provider_staking, 0);
         assert_eq!(total_staking.total_gateway_staking, 0);
         assert_eq!(total_staking.total_client_staking, 0);
-
-
     })
 }
 

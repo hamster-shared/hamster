@@ -48,5 +48,5 @@ pub trait GatewayInterface<AccountId> {
 
     fn accont_own_peerid(who: AccountId, peerid: Vec<u8>) -> bool;
 
-    fn gateway_online_list() -> Vec<(AccountId, Vec<Vec<u8>>)>;
+    fn gateway_online_list() -> (Vec<(AccountId, Vec<Vec<u8>>)>, usize);
 }

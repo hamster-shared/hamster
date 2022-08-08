@@ -170,7 +170,6 @@ pub mod pallet {
         WithdrawGatewaySuccess(T::AccountId, Vec<u8>),
 
         ClearGatewayInfoSuccess(T::AccountId, Vec<u8>),
-
     }
 
     // Errors inform users that something went wrong.
@@ -335,7 +334,6 @@ pub mod pallet {
             // 3. deal the change of gateway node
             Self::offline_gateway_node(who.clone(), peer_id.clone());
 
-
             Ok(())
         }
     }
@@ -373,7 +371,7 @@ impl<T: Config> Pallet<T> {
             who.clone(),
             ChangeAmountType::Unlock,
             100_000_000_000_000,
-            MarketUserStatus::Gateway
+            MarketUserStatus::Gateway,
         );
     }
 
@@ -521,10 +519,11 @@ impl<T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pal
         return true;
     }
 
-    fn gateway_online_list() -> Vec<(<T as frame_system::Config>::AccountId, Vec<Vec<u8>>)> {
-        AccountPeerMap::<T>::iter()
+    fn gateway_online_list() -> (Vec<(<T as frame_system::Config>::AccountId, Vec<Vec<u8>>)>, usize) {
+        (AccountPeerMap::<T>::iter()
             .map(|(who, peer_list)| (who.clone(), peer_list.clone()))
-            .collect()
+            .collect(),
+            Gateways::<T>::get().len())
     }
 }
 

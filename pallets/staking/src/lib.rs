@@ -2812,16 +2812,16 @@ impl<T: Config> Pallet<T> {
             // current validator total staked
             let staked = Self::eras_total_stake(&active_era.index);
 
+            // get the market total staking balance
             let market_staked =
                 T::NumberToBalance::convert(T::MarketInterface::market_total_staked());
 
-            let mut total_staked: BalanceOf<T> = T::NumberToBalance::convert(0);
-            // Current era total staked = validator_staked + market_staked
-            total_staked = total_staked
-                .saturating_add(staked)
-                .saturating_add(market_staked);
+            // Get current era total staked = validator_staked + market_staked
+            let total_staked = staked.saturating_add(market_staked);
 
+            // get the total issuance of the system
             let issuance = T::Currency::total_issuance();
+
             // Get the reward (validator_market_payout, rest)
             let (validator_market_payout, rest) =
                 T::EraPayout::era_payout(total_staked, issuance, era_duration);
@@ -2829,24 +2829,19 @@ impl<T: Config> Pallet<T> {
             // Test the validator_market_payout
             Self::deposit_event(Event::<T>::ValidatorPayout(validator_market_payout));
 
-            // 1. compute the validator and market payout
+            // compute the validator and market payout
             let (validator_payout, market_payout) = Self::compute_validator_market_payout(
                 staked,
                 market_staked,
                 validator_market_payout,
             );
 
-            // 2. Compute market reward
+            // Compute market reward
             T::MarketInterface::compute_rewards(
                 active_era.index,
                 T::BalanceToNumber::convert(market_payout),
             );
 
-            Self::deposit_event(Event::<T>::EraPayout(
-                active_era.index,
-                validator_payout,
-                rest,
-            ));
 
             // used to test the reward portion
             Self::deposit_event(Event::<T>::EraTotalPayout(
@@ -2854,9 +2849,6 @@ impl<T: Config> Pallet<T> {
                 validator_payout,
                 rest,
             ));
-
-            // TODO unlock right now
-            T::MarketInterface::unlock();
 
             // 3.Set ending era reward.
             //<ErasValidatorReward<T>>::insert(&active_era.index, validator_payout);
