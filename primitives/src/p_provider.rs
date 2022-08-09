@@ -221,18 +221,11 @@ impl<BlockNumber> ResourceRentalInfo<BlockNumber> {
     }
 }
 
-pub trait ProviderInterface {
-    // type BlockNumber: Parameter + AtLeast32BitUnsigned;
-    // type AccountId;
-
-    /// get computing resource information
-    /// fn get_computing_resource_info(index: u64) -> ComputingResource<Self::BlockNumber, Self::AccountId>;
-
-    /// update computing resource information
-    // fn update_computing_resource
-    // (index: u64, resource: ComputingResource<Self::BlockNumber, Self::AccountId>);
+pub trait ProviderInterface<AccountId> {
 
     fn compute_providers_reward(total_reward: u128, index: EraIndex);
 
     fn clear_points_info(index: EraIndex);
+
+    fn get_providers_points()->(Vec<(AccountId, ProviderPoints)>, u128, u128);
 }

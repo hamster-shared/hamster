@@ -16,7 +16,7 @@ pub use pallet::*;
 pub use primitives::p_market::*;
 pub use primitives::p_provider::*;
 pub use primitives::p_resource_order::*;
-use primitives::EraIndex;
+use primitives::{EraIndex, p_provider};
 
 #[cfg(test)]
 mod mock;
@@ -825,7 +825,7 @@ impl<T: Config> OrderInterface for Pallet<T> {
     }
 }
 
-impl<T: Config> ProviderInterface for Pallet<T> {
+impl<T: Config> ProviderInterface<<T as frame_system::Config>::AccountId> for Pallet<T> {
     fn compute_providers_reward(total_reward: u128, index: EraIndex) {
         // 0. compute resource and duration reward part
         let resource_reward = Perbill::from_percent(60) * T::NumberToBalance::convert(total_reward);
@@ -858,6 +858,7 @@ impl<T: Config> ProviderInterface for Pallet<T> {
         }
     }
 
+
     fn clear_points_info(index: EraIndex) {
         let current_duration_total_points = ProviderTotalDurationPoints::<T>::get();
 
@@ -873,5 +874,12 @@ impl<T: Config> ProviderInterface for Pallet<T> {
             points_info.duration_points = 0;
             ProviderTotalPoints::<T>::insert(who.clone(), points_info);
         }
+    }
+
+    fn get_providers_points()->(Vec<(T::AccountId, p_provider::ProviderPoints)>, u128, u128){
+        (ProviderTotalPoints::<T>::iter().collect(),
+            ProviderTotalResourcePoints::<T>::get(),
+            ResourceCount::<T>::get() as u128,
+        )
     }
 }

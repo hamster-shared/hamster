@@ -70,7 +70,7 @@ pub mod pallet {
         type GatewayInterface: GatewayInterface<Self::AccountId>;
 
         /// provider interface
-        type ProviderInterface: ProviderInterface;
+        type ProviderInterface: ProviderInterface<Self::AccountId>;
 
         /// block height to number
         type BlockNumberToNumber: Convert<Self::BlockNumber, u128> + Convert<u32, Self::BlockNumber>;
@@ -803,6 +803,45 @@ impl<T: Config> Pallet<T> {
         }
     }
 
+    fn compute_provider_reward(total_payout: BalanceOf<T>) {
+        // 0. conpute the resource and time reward
+        let resource_reward = Perbill::from_percent(60) * total_payout;
+        let time_reward = Perbill::from_percent(40) * total_payout;
+
+        // 1. get the provider points list
+        let (provider_points_list, total_resource_points, count) = T::ProviderInterface::get_providers_points();
+
+        // compute the provider time reward
+        let t_reward = Perbill::from_rational(1, count) * time_reward;
+
+        for (who, points) in provider_points_list.iter() {
+            // 2. compute resource part reward
+            let resource_part = Perbill::from_rational(points.resource_points, total_resource_points as u64);
+            // compute the resource reward
+            let r_reward = resource_part * resource_reward;
+            // get the total reward
+            let total_reward = r_reward.saturating_add(t_reward);
+            // save the provider reward
+            // check the who exit in ProviderReward
+            if ProviderReward::<T>::contains_key(who.clone()) {
+                // get the income
+                let mut income = ProviderReward::<T>::get(who.clone()).unwrap();
+                // update the income
+                income.reward(T::BalanceToNumber::convert(total_reward));
+                // update the reward information
+                ProviderReward::<T>::insert(who.clone(), income);
+            } else {
+                // create the income
+                let income = Income {
+                    last_eraindex: 0,
+                    total_income: T::BalanceToNumber::convert(total_reward),
+                };
+                ProviderReward::<T>::insert(who.clone(), income);
+            }
+        }
+    }
+
+
     fn unlock_client(list: Vec<T::AccountId>) {
         // if the list len == 0, do nothing and return
         if list.len() == 0 {
@@ -1175,24 +1214,27 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         let client_staking = total_staking.total_client_staking;
 
         // 2. Compute payout
-        let (_provider_payout, gateway_payout, _client_payout) = Self::compute_payout(
+        let (provider_payout, gateway_payout, _client_payout) = Self::compute_payout(
             provider_staking,
             gateway_staking,
             client_staking,
             total_reward,
         );
 
-        // TODO Only compute the gateway now
+        // TODO Only compute the gateway and provider now
         // TODO Use the pallet_chunkcycle
         // 3.Compute every every node reward
         Self::compute_gateway_reward(gateway_payout);
-
-        // 4. Update the market reward information
-        EraRewards::<T>::insert(index, T::NumberToBalance::convert(total_reward));
-        // Save the history ear provider reward
-        // EraProviderRewards::<T>::insert(index, provider_reward);
         // Save the history ear gatway reward
         EraGatewayRewards::<T>::insert(index, gateway_payout);
+
+        // 4. Compute provider nodes reward
+        Self::compute_provider_reward(provider_payout);
+        // Save the history ear provider reward
+        EraProviderRewards::<T>::insert(index, provider_payout);
+
+        // 4. Update the market history reward information
+        EraRewards::<T>::insert(index, T::NumberToBalance::convert(total_reward));
         // Save the Client ear client reward
         // EraClientRewards::<T>::insert(index, client_reward.clone());
     }
