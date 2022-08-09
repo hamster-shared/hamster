@@ -201,27 +201,6 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_initialize(now: T::BlockNumber) -> Weight {
-            // Part1: updata provider points
-            // 0. get the online provider source list
-            let provider_list = ProviderOnlineList::<T>::get();
-            let mut total_duration_points = 0;
-            for provider in provider_list {
-                // get the peer list
-                let peer_list = Providers::<T>::get(provider.clone()).unwrap();
-
-                let peer_nums = peer_list.len();
-
-                total_duration_points += 10 * peer_nums;
-                // get the old  point
-                let mut provider_point = ProviderTotalPoints::<T>::get(provider.clone()).unwrap();
-                provider_point.add_points(0, 10 * peer_nums as u64);
-                ProviderTotalPoints::<T>::insert(provider.clone(), provider_point);
-            }
-
-            // update the provider total duration points
-            let mut _total_duration_points = ProviderTotalDurationPoints::<T>::get();
-            _total_duration_points += total_duration_points as u128;
-            ProviderTotalDurationPoints::<T>::set(_total_duration_points);
 
             //Determine whether there is a current block in the block association information
             if FutureExpiredResource::<T>::contains_key(now) {
@@ -232,37 +211,56 @@ pub mod pallet {
                             // Determine whether there is a resource in the Vec of an expired resource
                             // get the resource corresponding to the index
                             let resource_option = Resources::<T>::get(resource_index);
-                            if resource_option.clone().is_some() {
-                                let resource = resource_option.clone().unwrap();
-
-                                Self::clear_points_info(
-                                    resource.account_id.clone(),
-                                    resource.clone(),
-                                );
-
-                                // T::MarketInterface::withdraw_provider(
-                                //     resource.account_id.clone(),
-                                //     (resource.config.cpu + resource.config.memory) * 100_000_000_000_000,
-                                //     resource_index as u128,
-                                // );
-
-                                let account_id = resource_option.unwrap().account_id;
+                            if resource_option.is_some() {
+                                let resource = resource_option.unwrap();
+                                let account_id = resource.account_id;
                                 // delete associated resource
                                 let account_resources = Providers::<T>::get(&account_id);
                                 if account_resources.is_some() {
-                                    let resource: Vec<u64> = account_resources
+                                    let _resource: Vec<u64> = account_resources
                                         .unwrap()
                                         .into_iter()
                                         .filter(|x| *x != resource_index.clone())
                                         .collect();
-                                    Providers::<T>::insert(account_id.clone(), resource);
+                                    Providers::<T>::insert(account_id.clone(), _resource);
                                 }
 
+                                // check the user has other resource
+                                if let Some(list) = Providers::<T>::get(account_id.clone()) {
+                                    if list.len() == 0 {
+                                        // delete the user
+                                        Providers::<T>::remove(account_id.clone());
+                                        // update the provider online list
+                                        let mut provider_list = ProviderOnlineList::<T>::get();
+                                        if let Ok(index) = provider_list.binary_search(&account_id) {
+                                            provider_list.remove(index);
+                                            ProviderOnlineList::<T>::set(provider_list);
+                                        }
+                                    }
+
+                                }
                                 //remove resource
                                 Resources::<T>::remove(resource_index);
                                 // reduce count
                                 let count = ResourceCount::<T>::get();
                                 ResourceCount::<T>::set(count - 1);
+
+                                // update provider points
+                                let cpu = resource.config.cpu;
+                                let memory = resource.config.memory;
+                                Self::sub_provider_points(account_id.clone(), cpu, memory);
+
+                                // unlock the staking
+                                T::MarketInterface::change_stake_amount(
+                                    account_id.clone(),
+                                    ChangeAmountType::Unlock,
+                                    T::BalanceToNumber::convert(Self::compute_provider_staked_amount(
+                                        cpu,
+                                        memory,
+                                    )),
+                                    MarketUserStatus::Provider,
+                                );
+
                             }
                         });
                         // delete expired resource mappings
