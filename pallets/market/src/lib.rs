@@ -698,7 +698,6 @@ impl<T: Config> Pallet<T> {
         c_staked: u128,
         total_reward: u128,
     ) -> (BalanceOf<T>, BalanceOf<T>, BalanceOf<T>) {
-
         let total_payout = T::NumberToBalance::convert(total_reward);
 
         // TODO use storage
@@ -713,7 +712,9 @@ impl<T: Config> Pallet<T> {
         let _c_portion: u128 = c_staked.saturating_mul(1);
 
         // total portion = provider portion + gateway portion + client portion
-        let total_portion = _p_portion.saturating_add(_g_portion).saturating_add(_c_portion);
+        let total_portion = _p_portion
+            .saturating_add(_g_portion)
+            .saturating_add(_c_portion);
 
         // let p_portion = _p_portion / total_portion;
         let p_payout = Perbill::from_rational(_p_portion, total_portion) * total_payout;
@@ -772,9 +773,8 @@ impl<T: Config> Pallet<T> {
     /// compute gateway reward
     /// * input: total_payout: BalanceOf<T>
     fn compute_gateway_reward(total_payout: BalanceOf<T>) {
-
-       // 1. get the gateway online list
-       let (gateway_online_list, peer_nums) = T::GatewayInterface::gateway_online_list();
+        // 1. get the gateway online list
+        let (gateway_online_list, peer_nums) = T::GatewayInterface::gateway_online_list();
 
         for (who, list) in gateway_online_list.iter() {
             // 2. get the peer nums of who
@@ -802,7 +802,6 @@ impl<T: Config> Pallet<T> {
             }
         }
     }
-
 
     fn unlock_client(list: Vec<T::AccountId>) {
         // if the list len == 0, do nothing and return
@@ -1196,7 +1195,6 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         EraGatewayRewards::<T>::insert(index, gateway_payout);
         // Save the Client ear client reward
         // EraClientRewards::<T>::insert(index, client_reward.clone());
-
     }
 
     /// save_gateway_reward

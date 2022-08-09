@@ -94,6 +94,12 @@ impl ProviderPoints {
         self.resource_points += r_points;
         self.total_points += (d_points + r_points) as u128;
     }
+
+    pub fn sub_points(&mut self, r_points: u64, d_points: u64) {
+        self.duration_points -= d_points;
+        self.resource_points -= r_points;
+        self.total_points -= (d_points + r_points) as u128;
+    }
 }
 
 #[derive(Encode, Decode, RuntimeDebug, PartialEq, Eq, Copy, Clone)]

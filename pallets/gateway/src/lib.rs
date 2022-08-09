@@ -519,11 +519,16 @@ impl<T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pal
         return true;
     }
 
-    fn gateway_online_list() -> (Vec<(<T as frame_system::Config>::AccountId, Vec<Vec<u8>>)>, usize) {
-        (AccountPeerMap::<T>::iter()
-            .map(|(who, peer_list)| (who.clone(), peer_list.clone()))
-            .collect(),
-            Gateways::<T>::get().len())
+    fn gateway_online_list() -> (
+        Vec<(<T as frame_system::Config>::AccountId, Vec<Vec<u8>>)>,
+        usize,
+    ) {
+        (
+            AccountPeerMap::<T>::iter()
+                .map(|(who, peer_list)| (who.clone(), peer_list.clone()))
+                .collect(),
+            Gateways::<T>::get().len(),
+        )
     }
 }
 

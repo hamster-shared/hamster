@@ -382,12 +382,12 @@ impl pallet_template::Config for Runtime {
 impl pallet_market::Config for Runtime {
     type Event = Event;
     type Currency = Balances;
+    type GatewayInterface = Gateway;
+    type ProviderInterface = Provider;
     type BlockNumberToNumber = ConvertInto;
     type NumberToBalance = ConvertInto;
     type BalanceToNumber = ConvertInto;
     type UnixTime = Timestamp;
-    type GatewayInterface = Gateway;
-    type ProviderInterface = Provider;
 }
 
 parameter_types! {
@@ -617,11 +617,11 @@ impl pallet_provider::Config for Runtime {
 impl pallet_gateway::Config for Runtime {
     type Event = Event;
     type Currency = Balances;
+    type NumberToBalance = ConvertInto;
     type BalanceToNumber = ConvertInto;
     type GatewayNodeTimedRemovalInterval = GatewayNodeTimedRemovalInterval;
     type GatewayNodeHeartbeatInterval = GatewayNodeHeartbeatInterval;
     type MarketInterface = Market;
-    type NumberToBalance = ConvertInto;
 }
 
 parameter_types! {

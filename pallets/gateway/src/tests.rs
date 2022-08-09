@@ -7,11 +7,17 @@ fn test_register_for_one_account_one_peerid() {
     new_test_ext().execute_with(|| {
         System::set_block_number(1);
 
+        let total_staking = Market::total_staked();
+        println!("{:?}", total_staking);
+
         if let Err(e) =
             Gateway::register_gateway_node(Origin::signed(1), "1234".as_bytes().to_vec())
         {
             println!("{:?}", e);
         }
+
+        let total_staking = Market::total_staked();
+        println!("{:?}", total_staking);
 
         // check the GatewayNodeCount
         assert_eq!(Gateway::gateway_node_count(), 1);
@@ -34,6 +40,7 @@ fn test_register_for_one_account_one_peerid() {
 
         // check the staking info in market Staking
         let staking_info = Market::staking(1).unwrap();
+        println!("{:?}", staking_info);
         assert_eq!(staking_info.amount, 1000_000_000_000_000);
         assert_eq!(staking_info.active_amount, 900_000_000_000_000);
         assert_eq!(staking_info.lock_amount, 100_000_000_000_000);

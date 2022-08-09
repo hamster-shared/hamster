@@ -2842,7 +2842,6 @@ impl<T: Config> Pallet<T> {
                 T::BalanceToNumber::convert(market_payout),
             );
 
-
             // used to test the reward portion
             Self::deposit_event(Event::<T>::EraTotalPayout(
                 market_payout,

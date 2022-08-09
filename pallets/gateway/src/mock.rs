@@ -4,7 +4,7 @@ use frame_support::parameter_types;
 use frame_system as system;
 
 use primitives::p_gateway::GatewayNode as node;
-use primitives::AccountId;
+
 use sp_core::H256;
 use sp_runtime::{
     testing::Header,
