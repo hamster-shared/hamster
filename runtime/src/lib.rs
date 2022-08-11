@@ -667,7 +667,7 @@ construct_runtime!(
         ResourceOrder: pallet_resource_order::{Pallet, Call, Storage, Event<T>},
         Provider: pallet_provider::{Pallet, Call, Storage, Event<T>},
         Gateway: pallet_gateway::{Pallet, Call, Storage, Event<T>},
-        Market: pallet_market::{Pallet, Call, Storage, Event<T>},
+        Market: pallet_market::{Pallet, Call, Storage, Event<T>, Config<T>},
         Chunkcycle: pallet_chunkcycle::{Pallet, Call, Storage, Event<T>},
     }
 );

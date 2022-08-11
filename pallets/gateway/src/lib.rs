@@ -217,7 +217,7 @@ pub mod pallet {
                 T::MarketInterface::change_stake_amount(
                     who.clone(),
                     ChangeAmountType::Lock,
-                    100_000_000_000_000,
+                    T::MarketInterface::gateway_staking_fee(),
                     MarketUserStatus::Gateway
                 ),
                 Error::<T>::LockAmountFailed
@@ -341,7 +341,7 @@ impl<T: Config> Pallet<T> {
         T::MarketInterface::change_stake_amount(
             who.clone(),
             ChangeAmountType::Unlock,
-            100_000_000_000_000,
+            T::MarketInterface::gateway_staking_fee(),
             MarketUserStatus::Gateway,
         );
     }
@@ -364,7 +364,6 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pallet<T> {
-    // TODO rename
     fn account_own_peerid(who: <T as frame_system::Config>::AccountId, peerid: Vec<u8>) -> bool {
         if !AccountPeerMap::<T>::contains_key(who.clone()) {
             return false;

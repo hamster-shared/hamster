@@ -145,7 +145,6 @@ pub struct TotalStakingAmount {
     pub total_client_staking: u128,
 }
 
-// TODO BUG
 impl TotalStakingAmount {
     pub fn add_total_staking(&mut self, amount: u128) {
         self.total_staking = self.total_staking.saturating_add(amount);
@@ -192,4 +191,8 @@ pub trait MarketInterface<AccountId> {
     fn update_provider_income(who: AccountId, reward: u128);
 
     fn update_gateway_income(who: AccountId, reward: u128);
+
+    fn gateway_staking_fee() -> u128;
+
+    fn provider_staking_fee() -> u128;
 }

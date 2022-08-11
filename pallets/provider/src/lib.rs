@@ -319,7 +319,6 @@ pub mod pallet {
                     let compute_resource = Resources::<T>::get(new_index).unwrap();
                     // check the peerid is eq
                     if peer_id.eq(&compute_resource.peer_id) {
-                        // todo: may be send the event
                         // repeat Registration, return err
                         Err(Error::<T>::ResourceAlreadyExist)?
                     }
@@ -470,7 +469,6 @@ pub mod pallet {
         }
 
         /// add resource rental time
-        // todo:
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn add_resource_duration(
             account_id: OriginFor<T>,
@@ -712,10 +710,10 @@ impl<T: Config> Pallet<T> {
     /// * base_cpu = 100 UNIT base_memory = 100 UNIT
     fn compute_provider_staked_amount(cpus: u64, memory: u64) -> BalanceOf<T> {
         // Set the base staked fee
-        let base_staked: u64 = 100_000_000_000_000;
+        let base_staked = T::MarketInterface::provider_staking_fee();
         // compute the staked from cpus and memory
-        let staked: u128 = (cpus.saturating_mul(base_staked) as u128
-            + memory.saturating_mul(base_staked) as u128) as u128;
+        let staked: u128 = (cpus.saturating_mul(base_staked as u64) as u128
+            + memory.saturating_mul(base_staked as u64) as u128) as u128;
         // return the staked
         T::NumberToBalance::convert(staked)
     }

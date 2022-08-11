@@ -94,10 +94,21 @@ pub mod pallet {
     pub(super) type Staking<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, p_market::StakingAmount, OptionQuery>;
 
-    /// Gateway base fee
+    /// Gateway staking base fee, can be change by root account
     #[pallet::storage]
     #[pallet::getter(fn gateway_base_fee)]
     pub(super) type GatewayBaseFee<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
+    /// Provider staking base fee, can be change by root account
+    #[pallet::storage]
+    #[pallet::getter(fn provider_base_fee)]
+    pub(super) type ProviderBaseFee<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
+    /// Market staking base multiplier, can be change by root account
+    #[pallet::storage]
+    #[pallet::getter(fn market_base_multiplier)]
+    pub(super) type MarketBaseMultiplier<T: Config> =
+        StorageValue<_, (u128, u128, u128), ValueQuery>;
 
     // Total staking
     #[pallet::storage]
@@ -150,12 +161,20 @@ pub mod pallet {
     pub struct GenesisConfig<T: Config> {
         // T::AccountId, p_market::StakingAmount
         pub staking: Vec<(T::AccountId, p_market::StakingAmount)>,
+        pub gateway_base_fee: BalanceOf<T>,
+        pub market_base_multiplier: (u128, u128, u128),
+        pub provider_base_fee: BalanceOf<T>,
     }
 
     #[cfg(feature = "std")]
     impl<T: Config> Default for GenesisConfig<T> {
         fn default() -> Self {
-            Self { staking: vec![] }
+            Self {
+                staking: vec![],
+                gateway_base_fee: Default::default(),
+                market_base_multiplier: Default::default(),
+                provider_base_fee: Default::default(),
+            }
         }
     }
 
@@ -166,6 +185,9 @@ pub mod pallet {
             for (a, b) in &self.staking {
                 <Staking<T>>::insert(a, b);
             }
+            <GatewayBaseFee<T>>::put(self.gateway_base_fee);
+            <MarketBaseMultiplier<T>>::put(self.market_base_multiplier);
+            <ProviderBaseFee<T>>::put(self.provider_base_fee);
         }
     }
 
@@ -183,6 +205,12 @@ pub mod pallet {
 
         // User bond success, (user, Status, Staked amount)
         StakingSuccess(T::AccountId, BalanceOf<T>),
+
+        UpdateGatewayStakingFee(BalanceOf<T>),
+
+        UpdateProviderStakingFee(BalanceOf<T>),
+
+        UpdateMarketBaseMultiplier(u128, u128, u128),
     }
 
     #[pallet::hooks]
@@ -366,6 +394,47 @@ pub mod pallet {
 
             Ok(())
         }
+
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn update_gateway_staking_fee(
+            origin: OriginFor<T>,
+            amount: BalanceOf<T>,
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+
+            GatewayBaseFee::<T>::set(amount);
+
+            Self::deposit_event(Event::UpdateGatewayStakingFee(amount));
+            Ok(())
+        }
+
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn update_provider_staking_fee(
+            origin: OriginFor<T>,
+            amount: BalanceOf<T>,
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+
+            ProviderBaseFee::<T>::set(amount);
+
+            Self::deposit_event(Event::UpdateProviderStakingFee(amount));
+            Ok(())
+        }
+
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn update_market_base_multiplier(
+            origin: OriginFor<T>,
+            provider: u128,
+            gateway: u128,
+            client: u128,
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+
+            MarketBaseMultiplier::<T>::set((provider, gateway, client));
+
+            Self::deposit_event(Event::UpdateMarketBaseMultiplier(provider, gateway, client));
+            Ok(())
+        }
     }
 }
 
@@ -391,16 +460,17 @@ impl<T: Config> Pallet<T> {
     ) -> (BalanceOf<T>, BalanceOf<T>, BalanceOf<T>) {
         let total_payout = T::NumberToBalance::convert(total_reward);
 
-        // TODO use storage
+        let market_base_multiplier = MarketBaseMultiplier::<T>::get();
+
         // 1. compute the base amount
         // provider portion = 5 * p_staked
-        let _p_portion: u128 = p_staked.saturating_mul(5);
+        let _p_portion: u128 = p_staked.saturating_mul(market_base_multiplier.0);
 
         // gateway portion = 3 * g_staked
-        let _g_portion: u128 = g_staked.saturating_mul(3);
+        let _g_portion: u128 = g_staked.saturating_mul(market_base_multiplier.1);
 
         // client portion = c_staked
-        let _c_portion: u128 = c_staked.saturating_mul(1);
+        let _c_portion: u128 = c_staked.saturating_mul(market_base_multiplier.2);
 
         // total portion = provider portion + gateway portion + client portion
         let total_portion = _p_portion
@@ -515,7 +585,6 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         );
 
         // TODO Only compute the gateway and provider now
-        // TODO Use the pallet_chunkcycle
         // 3. Push the gateway online list and compute every every node reward
         let ds_gateway = T::GatewayInterface::gateway_online_list();
         T::ChunkCycleInterface::push(
@@ -600,6 +669,14 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
             };
             GatewayReward::<T>::insert(who.clone(), income);
         }
+    }
+
+    fn gateway_staking_fee() -> u128 {
+        T::BalanceToNumber::convert(GatewayBaseFee::<T>::get())
+    }
+
+    fn provider_staking_fee() -> u128 {
+        T::BalanceToNumber::convert(ProviderBaseFee::<T>::get())
     }
 }
 

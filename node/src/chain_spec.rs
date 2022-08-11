@@ -3,8 +3,8 @@ use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use hex_literal::hex;
 use node_template_runtime::{
     currency::DOLLARS, opaque::SessionKeys, AccountId, AuthorityDiscoveryConfig, BabeConfig,
-    Balance, BalancesConfig, GenesisConfig, GrandpaConfig, SessionConfig, Signature, StakerStatus,
-    StakingConfig, SudoConfig, SystemConfig, WASM_BINARY,
+    Balance, BalancesConfig, GenesisConfig, GrandpaConfig, MarketConfig, SessionConfig, Signature,
+    StakerStatus, StakingConfig, SudoConfig, SystemConfig, TTC, WASM_BINARY,
 };
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
@@ -389,5 +389,12 @@ fn testnet_genesis(
             ..Default::default()
         },
         authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
+
+        market: MarketConfig {
+            staking: vec![],
+            gateway_base_fee: 100 * TTC,
+            market_base_multiplier: (5, 3, 1),
+            provider_base_fee: 100 * TTC,
+        },
     }
 }
