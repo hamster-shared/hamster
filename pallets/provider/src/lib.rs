@@ -4,7 +4,6 @@ extern crate alloc;
 use frame_support::sp_runtime::traits::Convert;
 use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::Currency};
 use frame_system::pallet_prelude::*;
-use sp_runtime::Perbill;
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
 
@@ -16,7 +15,7 @@ pub use pallet::*;
 pub use primitives::p_market::*;
 pub use primitives::p_provider::*;
 pub use primitives::p_resource_order::*;
-use primitives::{EraIndex, p_provider};
+use primitives::{p_provider, EraIndex};
 
 #[cfg(test)]
 mod mock;
@@ -201,7 +200,6 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_initialize(now: T::BlockNumber) -> Weight {
-
             //Determine whether there is a current block in the block association information
             if FutureExpiredResource::<T>::contains_key(now) {
                 //Determine whether the expired resource corresponding to the current block is empty
@@ -232,12 +230,12 @@ pub mod pallet {
                                         Providers::<T>::remove(account_id.clone());
                                         // update the provider online list
                                         let mut provider_list = ProviderOnlineList::<T>::get();
-                                        if let Ok(index) = provider_list.binary_search(&account_id) {
+                                        if let Ok(index) = provider_list.binary_search(&account_id)
+                                        {
                                             provider_list.remove(index);
                                             ProviderOnlineList::<T>::set(provider_list);
                                         }
                                     }
-
                                 }
                                 //remove resource
                                 Resources::<T>::remove(resource_index);
@@ -254,13 +252,11 @@ pub mod pallet {
                                 T::MarketInterface::change_stake_amount(
                                     account_id.clone(),
                                     ChangeAmountType::Unlock,
-                                    T::BalanceToNumber::convert(Self::compute_provider_staked_amount(
-                                        cpu,
-                                        memory,
-                                    )),
+                                    T::BalanceToNumber::convert(
+                                        Self::compute_provider_staked_amount(cpu, memory),
+                                    ),
                                     MarketUserStatus::Provider,
                                 );
-
                             }
                         });
                         // delete expired resource mappings
@@ -688,7 +684,7 @@ impl<T: Config> Pallet<T> {
     ///
     fn sub_provider_points(who: T::AccountId, cpu: u64, memory: u64) {
         // 1. get the provider points
-        let mut provider_points = ProviderTotalPoints::<T>::get(who.clone());
+        let provider_points = ProviderTotalPoints::<T>::get(who.clone());
 
         // 2. sub the points
         if let Some(mut points) = provider_points {
@@ -749,62 +745,6 @@ impl<T: Config> Pallet<T> {
         // return the staked
         T::NumberToBalance::convert(staked)
     }
-
-    /// the func use to deal the thing that clear the provider info which
-    /// use to compute reward
-    fn clear_points_info(
-        who: T::AccountId,
-        resource: ComputingResource<T::BlockNumber, T::AccountId>,
-    ) {
-        // update the provider total cpu
-        let provider_total_cpu = ProviderTotalCpu::<T>::get(who.clone()).unwrap();
-        ProviderTotalCpu::<T>::insert(who.clone(), provider_total_cpu - resource.config.cpu);
-
-        // update the provider total memory
-        let provider_total_memory = ProviderTotalMemory::<T>::get(who.clone()).unwrap();
-        ProviderTotalMemory::<T>::insert(
-            who.clone(),
-            provider_total_memory - resource.config.memory,
-        );
-
-        // update the provider total source points
-        let mut provider_total_resource_points = ProviderTotalResourcePoints::<T>::get();
-        provider_total_resource_points -=
-            resource.config.cpu as u128 + resource.config.memory as u128;
-        ProviderTotalResourcePoints::<T>::set(provider_total_resource_points);
-
-        // update the provider points
-        let mut provider_points = ProviderTotalPoints::<T>::get(who.clone()).unwrap();
-        provider_points.total_points -=
-            resource.config.cpu as u128 + resource.config.memory as u128;
-        provider_points.resource_points -= resource.config.cpu + resource.config.memory;
-        ProviderTotalPoints::<T>::insert(who.clone(), provider_points);
-
-        // update the provider online list
-        if Providers::<T>::contains_key(who.clone()) {
-            let list = Providers::<T>::get(who.clone()).unwrap();
-            if list.len() == 0 {
-                let mut provider_online_list = ProviderOnlineList::<T>::get();
-                let mut index = 0;
-                for provider in &provider_online_list {
-                    if provider.eq(&who.clone()) {
-                        break;
-                    }
-                    index += 1;
-                }
-                provider_online_list.remove(index);
-                ProviderOnlineList::<T>::set(provider_online_list);
-            }
-        }
-
-        // update the staking info
-        T::MarketInterface::withdraw_provider(
-            who.clone(),
-            (resource.config.cpu + resource.config.memory) * 100_000_000_000_000,
-            resource.index as u128,
-        )
-        .expect("TODO: panic message");
-    }
 }
 
 impl<T: Config> OrderInterface for Pallet<T> {
@@ -826,58 +766,9 @@ impl<T: Config> OrderInterface for Pallet<T> {
 }
 
 impl<T: Config> ProviderInterface<<T as frame_system::Config>::AccountId> for Pallet<T> {
-    fn compute_providers_reward(total_reward: u128, index: EraIndex) {
-        // 0. compute resource and duration reward part
-        let resource_reward = Perbill::from_percent(60) * T::NumberToBalance::convert(total_reward);
-        let duration_reward = Perbill::from_percent(40) * T::NumberToBalance::convert(total_reward);
-
-        // 1. get the total points
-        let total_resource_points = ProviderTotalResourcePoints::<T>::get();
-        let total_duration_points = ProviderTotalDurationPoints::<T>::get();
-
-        // 2. get the provider points list
-        let provider_list = ProviderTotalPoints::<T>::iter();
-
-        for (provider, points_info) in provider_list {
-            // compute the resource reward
-            let r_reward =
-                Perbill::from_rational(points_info.resource_points as u128, total_resource_points)
-                    * resource_reward;
-            // compute the duration reward
-            let d_reward =
-                Perbill::from_rational(points_info.duration_points as u128, total_duration_points)
-                    * duration_reward;
-            // provider total reward
-            let provider_total_reward = r_reward + d_reward;
-            // save the reward
-            T::MarketInterface::save_provider_reward(
-                provider.clone(),
-                T::BalanceToNumber::convert(provider_total_reward),
-                index,
-            );
-        }
-    }
-
-
-    fn clear_points_info(index: EraIndex) {
-        let current_duration_total_points = ProviderTotalDurationPoints::<T>::get();
-
-        EraTotalPoints::<T>::insert(index, current_duration_total_points);
-
-        ProviderTotalDurationPoints::<T>::set(0);
-        // todo
-        // Get the online gateway node and their points
-        let gateway_node_points = ProviderTotalPoints::<T>::iter();
-        for (who, mut points_info) in gateway_node_points {
-            // Reset the gateway node points = remve the points information
-            points_info.total_points -= points_info.duration_points as u128;
-            points_info.duration_points = 0;
-            ProviderTotalPoints::<T>::insert(who.clone(), points_info);
-        }
-    }
-
-    fn get_providers_points()->(Vec<(T::AccountId, p_provider::ProviderPoints)>, u128, u128){
-        (ProviderTotalPoints::<T>::iter().collect(),
+    fn get_providers_points() -> (Vec<(T::AccountId, p_provider::ProviderPoints)>, u128, u128) {
+        (
+            ProviderTotalPoints::<T>::iter().collect(),
             ProviderTotalResourcePoints::<T>::get(),
             ResourceCount::<T>::get() as u128,
         )

@@ -3,9 +3,6 @@ use codec::{Decode, Encode};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_debug_derive::RuntimeDebug;
-use sp_runtime::DispatchError;
-use sp_std::boxed::Box;
-use sp_std::vec::Vec;
 
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -177,45 +174,11 @@ impl TotalStakingAmount {
 }
 
 pub trait MarketInterface<AccountId> {
-    // Check the accountid have staking accoutid
-    fn staking_accountid_exit(who: AccountId) -> bool;
-
-    // Return the staking info
-    fn staking_info(who: AccountId) -> StakingAmount;
-
-    // updata the staking info
-    fn updata_staking_info(who: AccountId, staking_info: StakingAmount);
-
-    // // Compute the gateway nodes points
-    // // 被gateway 的 compute_gateways_points调用，来把数据存储到 市场上
-    // fn compute_gateways_points(accout: AccountId, blocknums: u128);
-
-    // 计算gateway的奖励
     fn compute_rewards(index: EraIndex, total_reward: u128);
-
-    // Save the gateway rewards information
-    fn save_gateway_reward(who: AccountId, reward: u128, index: EraIndex);
-
-    // Save the provider rewards information
-    fn save_provider_reward(who: AccountId, reward: u128, index: EraIndex);
 
     fn storage_pot() -> AccountId;
 
     fn market_total_staked() -> u128;
-
-    fn bond(who: AccountId, status: MarketUserStatus) -> Result<(), DispatchError>;
-
-    fn unlock();
-
-    fn update_provider_staked(who: AccountId, amount: u128, index: u64);
-
-    fn withdraw_gateway(who: AccountId, peerid: Vec<u8>) -> Result<(), DispatchError>;
-
-    fn withdraw_provider(
-        who: AccountId,
-        amount: u64,
-        source_index: u128,
-    ) -> Result<(), DispatchError>;
 
     fn change_stake_amount(
         who: AccountId,
@@ -226,5 +189,7 @@ pub trait MarketInterface<AccountId> {
 
     fn staking_exit(who: AccountId) -> bool;
 
-    fn save_func(f: Box<dyn Fn()>);
+    fn update_provider_income(who: AccountId, reward: u128);
+
+    fn update_gateway_income(who: AccountId, reward: u128);
 }

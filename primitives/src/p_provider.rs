@@ -1,4 +1,3 @@
-use crate::EraIndex;
 use codec::{Decode, Encode};
 use frame_support::Parameter;
 #[cfg(feature = "std")]
@@ -222,10 +221,5 @@ impl<BlockNumber> ResourceRentalInfo<BlockNumber> {
 }
 
 pub trait ProviderInterface<AccountId> {
-
-    fn compute_providers_reward(total_reward: u128, index: EraIndex);
-
-    fn clear_points_info(index: EraIndex);
-
-    fn get_providers_points()->(Vec<(AccountId, ProviderPoints)>, u128, u128);
+    fn get_providers_points() -> (Vec<(AccountId, ProviderPoints)>, u128, u128);
 }

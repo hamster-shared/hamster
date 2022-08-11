@@ -611,12 +611,6 @@ pub mod pallet {
         pub fn staking_amount(origin: OriginFor<T>, bond_price: BalanceOf<T>) -> DispatchResult {
             let who = ensure_signed(origin)?;
 
-            // todo use marketinterface func bond
-            match T::MarketInterface::bond(who.clone(), pallet_market::MarketUserStatus::Provider) {
-                Ok(()) => {}
-                Err(error) => Err(error)?,
-            }
-
             // transfer
             T::Currency::transfer(
                 &who.clone(),

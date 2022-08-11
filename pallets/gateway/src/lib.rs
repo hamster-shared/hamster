@@ -21,12 +21,12 @@ pub use primitives::p_gateway::*;
 pub use primitives::p_market::*;
 use primitives::EraIndex;
 use sp_runtime::traits::Zero;
-use sp_runtime::{DispatchResultWithInfo, Perbill};
+use sp_runtime::Perbill;
 use sp_std::vec::Vec;
 
 type BalanceOf<T> =
     <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-const GATEWAY_PDGE_AMOUNT: u128 = 100;
+
 const GATEWAY_LIMIT: u64 = 1000;
 
 #[frame_support::pallet]
@@ -390,24 +390,6 @@ impl<T: Config> Pallet<T> {
 
         AccountPeerMap::<T>::insert(who.clone(), account_peer_map);
     }
-
-    // Binding staking information
-    pub fn binding_staking_info(who: T::AccountId) -> bool {
-        // determine who has already binding
-        if !T::MarketInterface::staking_accountid_exit(who.clone()) {
-            return false;
-        }
-        // Get the staking info
-        let mut staking_info = T::MarketInterface::staking_info(who.clone());
-        // Gateway Pledge
-        // todo: the amount now is 100
-        if !staking_info.lock_amount(GATEWAY_PDGE_AMOUNT) {
-            return false;
-        }
-        // Update the staking info
-        T::MarketInterface::updata_staking_info(who.clone(), staking_info);
-        true
-    }
 }
 
 impl<T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pallet<T> {
@@ -418,21 +400,21 @@ impl<T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pal
     /// input:
     ///  -total_reward: u128
     ///  -index: EraIndex
-    fn compute_gateways_reward(total_reward: u128, index: EraIndex) {
-        let total_points = CurrentTotalPoints::<T>::get();
-        // Get the gateway node and its points
-        let gateway_points = GatewayNodePoints::<T>::iter();
-
-        for (who, point) in gateway_points {
-            // Calculate the rate of gateway rewards
-            let ratio = Perbill::from_rational(point, total_points);
-            // Calculate the reward of gateway node
-            let reward =
-                T::BalanceToNumber::convert(ratio * T::NumberToBalance::convert(total_reward));
-            // Save the gateway reward information
-            T::MarketInterface::save_gateway_reward(who.clone(), reward, index);
-        }
-    }
+    // fn compute_gateways_reward(total_reward: u128, index: EraIndex) {
+    //     let total_points = CurrentTotalPoints::<T>::get();
+    //     // Get the gateway node and its points
+    //     let gateway_points = GatewayNodePoints::<T>::iter();
+    //
+    //     for (who, point) in gateway_points {
+    //         // Calculate the rate of gateway rewards
+    //         let ratio = Perbill::from_rational(point, total_points);
+    //         // Calculate the reward of gateway node
+    //         let reward =
+    //             T::BalanceToNumber::convert(ratio * T::NumberToBalance::convert(total_reward));
+    //         // Save the gateway reward information
+    //         T::MarketInterface::save_gateway_reward(who.clone(), reward, index);
+    //     }
+    // }
 
     /// clear_points_info
     /// When the current era's award is calculated, the individual's gateway node poinst
@@ -521,13 +503,13 @@ impl<T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pal
 
     fn gateway_online_list() -> (
         Vec<(<T as frame_system::Config>::AccountId, Vec<Vec<u8>>)>,
-        usize,
+        u128,
     ) {
         (
             AccountPeerMap::<T>::iter()
                 .map(|(who, peer_list)| (who.clone(), peer_list.clone()))
                 .collect(),
-            Gateways::<T>::get().len(),
+            Gateways::<T>::get().len() as u128,
         )
     }
 }

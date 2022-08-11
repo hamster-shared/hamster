@@ -384,6 +384,7 @@ impl pallet_market::Config for Runtime {
     type Currency = Balances;
     type GatewayInterface = Gateway;
     type ProviderInterface = Provider;
+    type ChunkCycleInterface = Chunkcycle;
     type BlockNumberToNumber = ConvertInto;
     type NumberToBalance = ConvertInto;
     type BalanceToNumber = ConvertInto;
@@ -631,6 +632,10 @@ parameter_types! {
 impl pallet_chunkcycle::Config for Runtime {
     type Event = Event;
     type ForChunkCycleInterface = Market;
+    type Currency = Balances;
+    type NumberToBalance = ConvertInto;
+    type BalanceToNumber = ConvertInto;
+    type MarketInterface = Market;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

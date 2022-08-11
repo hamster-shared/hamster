@@ -11,19 +11,13 @@ pub trait ForChunkCycle {
 
 /// This trait used to put the compute list into task list
 pub trait ChunkCycleInterface<AccountId> {
-    fn push(ds: ForDs<AccountId>, for_type: ForType);
+    fn push(ds: ForDs<AccountId>, payout: u128);
 }
 
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
 pub enum ForDs<AccountId> {
-    Gateway(Vec<AccountId>),
-    Provider(Vec<(AccountId, ProviderPoints)>),
+    // [(account, peer_ids), gateway nums]
+    Gateway((Vec<(AccountId, Vec<Vec<u8>>)>, u128)),
+    Provider((Vec<(AccountId, ProviderPoints)>, u128, u128)),
     Client(Vec<AccountId>),
-}
-
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
-pub enum ForType {
-    Gateway,
-    Provider,
-    Client,
 }

@@ -40,7 +40,7 @@ pub trait GatewayInterface<AccountId> {
     // fn calculate_online_time(index : EraIndex);
     // fn compute_gateways_points();
 
-    fn compute_gateways_reward(total_reward: u128, index: EraIndex);
+    // fn compute_gateways_reward(total_reward: u128, index: EraIndex);
 
     fn clear_points_info(index: EraIndex);
 
@@ -48,5 +48,5 @@ pub trait GatewayInterface<AccountId> {
 
     fn accont_own_peerid(who: AccountId, peerid: Vec<u8>) -> bool;
 
-    fn gateway_online_list() -> (Vec<(AccountId, Vec<Vec<u8>>)>, usize);
+    fn gateway_online_list() -> (Vec<(AccountId, Vec<Vec<u8>>)>, u128);
 }
