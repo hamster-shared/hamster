@@ -9,7 +9,7 @@ fn register() {
         register_resource_fn();
 
         // check the resource index
-        assert_eq!(Provider::resource_index(), 2);
+        assert_eq!(Provider::resource_index(), 1);
 
         // check the provider online list
         let provider_online_list = Provider::provider_online_list();
@@ -17,9 +17,11 @@ fn register() {
         assert_eq!(provider_online_list[0], 1);
 
         // check the staking info
+        // the lock_amount should be 200_000_000_000_000
         let staking = Market::staking(1).unwrap();
         println!("{:?}", staking);
 
+        // the total_staking should be 200_000_000_000_000
         let total_staking = Market::total_staked();
         println!("{:?}", total_staking);
     });

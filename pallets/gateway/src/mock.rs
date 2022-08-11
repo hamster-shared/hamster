@@ -11,6 +11,7 @@ use sp_runtime::{
     traits::{BlakeTwo256, ConvertInto, IdentityLookup},
     BuildStorage,
 };
+use primitives::Balance;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -161,6 +162,9 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     let staking_amount = StakingAmount::new(1000_000_000_000_000);
     pallet_market::GenesisConfig::<Test> {
         staking: vec![(1, staking_amount.clone()), (2, staking_amount.clone())],
+        gateway_base_fee: 100_000_000_000_000,
+        market_base_multiplier: (5, 3, 1),
+        provider_base_fee: 100_000_000_000_000,
     }
     .assimilate_storage(&mut t)
     .unwrap();

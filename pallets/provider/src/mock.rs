@@ -42,6 +42,7 @@ frame_support::construct_runtime!(
         Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
         Market: pallet_market::{Pallet, Call, Storage, Config<T>, Event<T>},
         Provider: pallet_provider::{Pallet, Call, Storage, Config<T>, Event<T>},
+        Chunkcycle: pallet_chunkcycle::{Pallet, Call, Storage, Event<T>},
     }
 );
 
@@ -123,6 +124,16 @@ impl pallet_market::Config for Test {
     type UnixTime = Timestamp;
     type GatewayInterface = Gateway;
     type ProviderInterface = Provider;
+    type ChunkCycleInterface = Chunkcycle;
+}
+
+impl pallet_chunkcycle::Config for Test {
+    type Event = Event;
+    type ForChunkCycleInterface = Market;
+    type Currency = Balances;
+    type NumberToBalance = ();
+    type BalanceToNumber = ConvertInto;
+    type MarketInterface = Market;
 }
 
 impl pallet_provider::Config for Test {
@@ -151,6 +162,9 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     let staking_amount = p_market::StakingAmount::new(1000_000_000_000_000);
     pallet_market::GenesisConfig::<Test> {
         staking: vec![(1, staking_amount.clone()), (2, staking_amount.clone())],
+        gateway_base_fee: 100_000_000_000_000,
+        market_base_multiplier: (5, 3, 1),
+        provider_base_fee: 100_000_000_000_000,
     }
     .assimilate_storage(&mut t)
     .unwrap();
@@ -170,6 +184,9 @@ impl StakingBuilder {
         let staking_amount = p_market::StakingAmount::new(1000_000_000_000_000);
         pallet_market::GenesisConfig::<Test> {
             staking: vec![(1, staking_amount.clone()), (2, staking_amount.clone())],
+            gateway_base_fee: 100_000_000_000_000,
+            market_base_multiplier: (5, 3, 1),
+            provider_base_fee: 100_000_000_000_000,
         }
         .assimilate_storage(&mut t)
         .unwrap();
