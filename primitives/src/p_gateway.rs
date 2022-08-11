@@ -6,8 +6,6 @@ use sp_debug_derive::RuntimeDebug;
 use sp_runtime::traits::AtLeast32BitUnsigned;
 use sp_std::vec::Vec;
 
-use crate::EraIndex;
-
 /// Gateway node
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -37,16 +35,7 @@ where
 }
 
 pub trait GatewayInterface<AccountId> {
-    // fn calculate_online_time(index : EraIndex);
-    // fn compute_gateways_points();
-
-    // fn compute_gateways_reward(total_reward: u128, index: EraIndex);
-
-    fn clear_points_info(index: EraIndex);
-
-    fn clear_gateway_info(who: AccountId, peer_id: Vec<u8>);
-
-    fn accont_own_peerid(who: AccountId, peerid: Vec<u8>) -> bool;
+    fn account_own_peerid(who: AccountId, peerid: Vec<u8>) -> bool;
 
     fn gateway_online_list() -> (Vec<(AccountId, Vec<Vec<u8>>)>, u128);
 }

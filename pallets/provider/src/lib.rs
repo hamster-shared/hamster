@@ -12,10 +12,8 @@ use sp_std::vec::Vec;
 /// <https://substrate.dev/docs/en/knowledgebase/runtime/frame>
 pub use pallet::*;
 
-pub use primitives::p_market::*;
-pub use primitives::p_provider::*;
-pub use primitives::p_resource_order::*;
-use primitives::{p_provider, EraIndex};
+use primitives::p_provider;
+pub use primitives::{p_market::*, p_provider::*, p_resource_order::*, EraIndex};
 
 #[cfg(test)]
 mod mock;
@@ -99,28 +97,11 @@ pub mod pallet {
     pub(super) type FutureExpiredResource<T: Config> =
         StorageMap<_, Twox64Concat, T::BlockNumber, Vec<u64>, OptionQuery>;
 
-    #[pallet::storage]
-    #[pallet::getter(fn era_total_points)]
-    pub(super) type EraTotalPoints<T: Config> =
-        StorageMap<_, Twox64Concat, EraIndex, u128, OptionQuery>;
-
     /// resource provider and resource association
     #[pallet::storage]
     #[pallet::getter(fn provider)]
     pub(super) type Providers<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, Vec<u64>, OptionQuery>;
-
-    /// providers total cpu
-    #[pallet::storage]
-    #[pallet::getter(fn provider_total_cpu)]
-    pub(super) type ProviderTotalCpu<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, u64, OptionQuery>;
-
-    /// providers total memory
-    #[pallet::storage]
-    #[pallet::getter(fn provider_total_memory)]
-    pub(super) type ProviderTotalMemory<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, u64, OptionQuery>;
 
     /// provider points
     #[pallet::storage]
@@ -284,12 +265,6 @@ pub mod pallet {
         UnmodifiableStatusNow,
         /// resource expired
         ResourcesExpired,
-
-        NotEnoughStakingAount,
-
-        ResourceNotOwnToYou,
-
-        ResourceStatusNotAllowWithdraw,
 
         LockAmountFailed,
 
@@ -565,7 +540,6 @@ pub mod pallet {
         }
 
         /// Offline the resource from the index
-        /// todo bug: use old index and the same peer id will be invaild
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn offline(account_id: OriginFor<T>, index: u64) -> DispatchResult {
             let who = ensure_signed(account_id)?;

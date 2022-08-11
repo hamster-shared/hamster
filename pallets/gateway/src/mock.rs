@@ -44,6 +44,7 @@ frame_support::construct_runtime!(
         Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
         Market: pallet_market::{Pallet, Call, Storage, Config<T>, Event<T>},
         Provider: pallet_provider::{Pallet, Call, Storage, Config<T>, Event<T>},
+        Chunkcycle: pallet_chunkcycle::{Pallet, Call, Storage, Event<T>},
     }
 );
 
@@ -118,6 +119,7 @@ impl pallet_market::Config for Test {
     type UnixTime = Timestamp;
     type GatewayInterface = Gateway;
     type ProviderInterface = Provider;
+    type ChunkCycleInterface = Chunkcycle;
 }
 
 parameter_types! {
@@ -137,6 +139,15 @@ impl pallet_provider::Config for Test {
     type BalanceToNumber = ConvertInto;
     type NumberToBalance = ();
     type ResourceInterval = ResourceInterval;
+    type MarketInterface = Market;
+}
+
+impl pallet_chunkcycle::Config for Test {
+    type Event = Event;
+    type ForChunkCycleInterface = Market;
+    type Currency = Balances;
+    type NumberToBalance = ();
+    type BalanceToNumber = ConvertInto;
     type MarketInterface = Market;
 }
 
@@ -171,6 +182,28 @@ pub fn test_offline_ext() -> sp_io::TestExternalities {
         gateway_node_count: 1,
         account_peer_map: vec![(1, vec!["peer_id".as_bytes().to_vec()])],
         gateways: vec!["peer_id".as_bytes().to_vec()],
+    }
+    .assimilate_storage(&mut t)
+    .unwrap();
+
+    let ext = sp_io::TestExternalities::new(t);
+    ext
+}
+
+pub fn test_hearbreat_ext() -> sp_io::TestExternalities {
+    let mut t = system::GenesisConfig::default()
+        .build_storage::<Test>()
+        .unwrap()
+        .into();
+
+    let peer_id = "peer_id1".as_bytes().to_vec();
+    let gateway_node: GatewayNode<u64, u64> = node::new(1, peer_id.clone(), 1);
+
+    pallet_gateway::GenesisConfig::<Test> {
+        gateway: vec![("peer_id1".as_bytes().to_vec(), gateway_node)],
+        gateway_node_count: 1,
+        account_peer_map: vec![(1, vec!["peer_id1".as_bytes().to_vec()])],
+        gateways: vec!["peer_id1".as_bytes().to_vec()],
     }
     .assimilate_storage(&mut t)
     .unwrap();

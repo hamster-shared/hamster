@@ -6,13 +6,13 @@ use frame_support::sp_runtime::traits::Convert;
 use frame_support::{
     dispatch::DispatchResult,
     pallet_prelude::*,
-    traits::{Currency, ExistenceRequirement, LockableCurrency, UnixTime},
+    traits::{Currency, ExistenceRequirement, UnixTime},
     PalletId,
 };
+
 use frame_system::pallet_prelude::*;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::Perbill;
-use sp_std::vec::Vec;
 
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
@@ -21,10 +21,10 @@ pub use pallet::*;
 
 pub use primitives::{
     p_chunkcycle::{ChunkCycleInterface, ForChunkCycle, ForDs},
+    p_gateway::GatewayInterface,
     p_market::*,
     p_provider::*,
     p_resource_order::*,
-    p_gateway::GatewayInterface,
     EraIndex,
 };
 
@@ -59,11 +59,7 @@ pub mod pallet {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
         /// currency to pay fees and hold balances
-        /// type Currency: Currency<Self::AccountId>;
-
-        /// todo
-        /// Test lockable-currency
-        type Currency: LockableCurrency<Self::AccountId, Moment = Self::BlockNumber>;
+        type Currency: Currency<Self::AccountId>;
 
         /// Gateway interface
         type GatewayInterface: GatewayInterface<Self::AccountId>;
@@ -79,6 +75,7 @@ pub mod pallet {
 
         /// digital transfer amount
         type NumberToBalance: Convert<u128, BalanceOf<Self>>;
+
         /// amount converted to numbers
         type BalanceToNumber: Convert<BalanceOf<Self>, u128>;
 
@@ -90,24 +87,6 @@ pub mod pallet {
     #[pallet::generate_store(pub (super) trait Store)]
     pub struct Pallet<T>(_);
 
-    /// Store the pledge account number corresponding to the AccountId
-    #[pallet::storage]
-    #[pallet::getter(fn staking_accountid)]
-    pub(super) type StakingAccontId<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, p_market::StakingAmount, OptionQuery>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn staker_info)]
-    pub(super) type StakerInfo<T: Config> = StorageDoubleMap<
-        _,
-        Twox64Concat,
-        MarketUserStatus,
-        Twox64Concat,
-        T::AccountId,
-        UserInfo,
-        OptionQuery,
-    >;
-
     /// Staking
     /// Storage for the staking account id and the staking amount
     #[pallet::storage]
@@ -115,66 +94,15 @@ pub mod pallet {
     pub(super) type Staking<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, p_market::StakingAmount, OptionQuery>;
 
-    /// Store the user total staked
-    #[pallet::storage]
-    #[pallet::getter(fn user_total_staked)]
-    pub(super) type UserTotalStaked<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, BalanceOf<T>, OptionQuery>;
-
-    /// Current total client id
-    #[pallet::storage]
-    #[pallet::getter(fn clients)]
-    pub(super) type Clients<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
-
     /// Gateway base fee
     #[pallet::storage]
     #[pallet::getter(fn gateway_base_fee)]
     pub(super) type GatewayBaseFee<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
-    /// Current total provider id
-    #[pallet::storage]
-    #[pallet::getter(fn providers)]
-    pub(super) type Providers<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, Vec<u128>, ValueQuery>;
-
     // Total staking
     #[pallet::storage]
     #[pallet::getter(fn total_staked)]
     pub(super) type TotalStaked<T: Config> = StorageValue<_, TotalStakingAmount, ValueQuery>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn gateway_total_staked)]
-    pub(super) type GatewayTotalStaked<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn market_total_staked)]
-    pub(super) type MarketTotalStaked<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn provider_total_staked)]
-    pub(super) type ProviderTotalStaked<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn client_total_staked)]
-    pub(super) type ClientTotalStaked<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn client_current_nums)]
-    pub(super) type ClientCurrentNums<T: Config> = StorageValue<_, u128, ValueQuery>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn provider_current_nums)]
-    pub(super) type ProviderCurrentNums<T: Config> = StorageValue<_, u128, ValueQuery>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn test)]
-    pub(super) type Test<T: Config> = StorageValue<_, Vec<u64>, ValueQuery>;
-
-    /// gateway unlock list
-    #[pallet::storage]
-    #[pallet::getter(fn gateway_unlock_list)]
-    pub(super) type GatewayUnlockList<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, Vec<Vec<u8>>, OptionQuery>;
 
     /// Storage gateway reward
     #[pallet::storage]
@@ -218,51 +146,6 @@ pub mod pallet {
     pub(super) type EraClientRewards<T: Config> =
         StorageMap<_, Twox64Concat, EraIndex, BalanceOf<T>, OptionQuery>;
 
-    /// Unlock account list
-    #[pallet::storage]
-    #[pallet::getter(fn unlock_account_list)]
-    pub(super) type UnlockAccountList<T: Config> =
-        StorageMap<_, Twox64Concat, MarketUserStatus, Vec<T::AccountId>, OptionQuery>;
-
-    /// Current total amount in the staking_pot
-    #[pallet::storage]
-    #[pallet::getter(fn current_total_staking)]
-    pub(super) type CurrentTotalStaking<T: Config> = StorageValue<_, u128, ValueQuery>;
-
-    /// provider total staked
-    #[pallet::storage]
-    #[pallet::getter(fn provider_total_staking)]
-    pub(super) type ProviderTotalStaking<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, u128, OptionQuery>;
-
-    /// provider source index
-    #[pallet::storage]
-    #[pallet::getter(fn provider_source_index)]
-    pub(super) type ProviderSourceIndex<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, u128, OptionQuery>;
-
-    /// Current total amount in the market_reward_pot
-    #[pallet::storage]
-    #[pallet::getter(fn current_total_reward)]
-    pub(super) type CurrentTotalReward<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
-
-    /// Current total provider amount in the market_reward_pot
-    #[pallet::storage]
-    #[pallet::getter(fn current_total_provider_reward)]
-    pub(super) type CurrentTotalProviderReward<T: Config> =
-        StorageValue<_, BalanceOf<T>, ValueQuery>;
-
-    /// Current total gateway amount in the market_reward_pot
-    #[pallet::storage]
-    #[pallet::getter(fn current_total_gateway_reward)]
-    pub(super) type CurrentTotalGatewayResward<T: Config> =
-        StorageValue<_, BalanceOf<T>, ValueQuery>;
-
-    /// Current total client amount in the market_reward_pot
-    #[pallet::storage]
-    #[pallet::getter(fn current_total_client_reward)]
-    pub(super) type CurrentTotalClientReward<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
-
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         // T::AccountId, p_market::StakingAmount
@@ -292,45 +175,14 @@ pub mod pallet {
     #[pallet::metadata(T::AccountId = "AccountId")]
     #[pallet::generate_deposit(pub (super) fn deposit_event)]
     pub enum Event<T: Config> {
-        // Create of staking account successful
-        CreateStakingAccountSuccessful(T::AccountId),
-
-        // Staking account has exit
-        StakingAccountArealdyExit(T::AccountId),
-
-        // Successful charge to staking account
-        ChargeStakingAccountSuccessful(T::AccountId),
-
         // User success withdraw the price
         WithdrawStakingSuccess(T::AccountId, BalanceOf<T>),
 
         // Reward issued successfully
         RewardIssuedSucces(u128),
 
-        // compute_gateways_rewards
-        ComputeGatewaysRewardSuccess,
-        // compute gateway and provider reward success
-        ComputeRewardSuccess,
-
-        // charge the storge pot, use to make reward alive
-        ChargeStoragePotSuccess,
-
-        // The amount of overduce clear this time
-        ClearanceOverdueProperty(u128),
-
-        // Create market account success (account, status)
-        CreateMarketAccountSuccess(T::AccountId, u8),
-
         // User bond success, (user, Status, Staked amount)
         StakingSuccess(T::AccountId, BalanceOf<T>),
-
-        ComputeClientSuccess,
-
-        SaveUnlockInfoSueecss(T::AccountId, u8),
-
-        UnlockSuccess(T::AccountId, u8),
-
-        UnlockList(u8, u8, u8),
     }
 
     #[pallet::hooks]
@@ -339,54 +191,16 @@ pub mod pallet {
     // Errors inform users that something went wrong.
     #[pallet::error]
     pub enum Error<T> {
-        // the staking accoutid is already exit in the market
-        StakingAccontIdAlreadyExit,
-
-        // the staking accoutid is not exit int the market
-        StakingAccountIdNotExit,
-
-        // the staking accoutid has not enough amount to Withdraw
+        // the staking account id has not enough amount to Withdraw
         NotEnoughActiveAmount,
-
-        // Users are not rewarded enough
-        NotEnoughReward,
-
-        UnperfectedIdentity,
-
-        MarketStatusHasExited,
 
         NotEnoughBalanceTobond,
 
-        NotThisStatus,
-
-        Todo,
-
-        UnlockInfoAlreadyExit,
-
         NotBond,
-
-        UnlockInfoNotExit,
-
-        PeerNotOwnToYou,
     }
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn test_chunk(origin: OriginFor<T>) -> DispatchResult {
-            let _who = ensure_signed(origin)?;
-
-            // get the provider online list
-            let (list, total_resource, count) = T::ProviderInterface::get_providers_points();
-
-            // push the task into pallet_chunkcycle
-            T::ChunkCycleInterface::push(
-                ForDs::Provider((list, total_resource, count)),
-                100_000_000_000_000,
-            );
-
-            Ok(())
-        }
         /// bond
         /// Transfer amount from user to staking pot
         /// Update the Staking
@@ -603,48 +417,6 @@ impl<T: Config> Pallet<T> {
         let c_payout = Perbill::from_rational(_c_portion, total_portion) * total_payout;
 
         (p_payout, g_payout, c_payout)
-    }
-
-    /// compute every client's reward
-    ///
-    /// * input: total_reward, index
-    ///
-    fn compute_client_reward(total_reward: BalanceOf<T>, index: EraIndex) {
-        // 1. get the nums of client
-        let client_nums = ClientCurrentNums::<T>::get();
-
-        if client_nums == 0 {
-            return;
-        }
-
-        // 2. get the total client reward part
-        let client_part = Perbill::from_rational(1, client_nums);
-
-        // 3. compute the client reward
-        let client_reward = client_part * total_reward;
-
-        // 4. get the list of status: client
-        let client_list = Clients::<T>::get();
-
-        // 5. save the client reward
-        for client in client_list {
-            // Determine the user in has already save
-            if ClientReward::<T>::contains_key(client.clone()) {
-                // get the client reward
-                let mut _client_reward = ClientReward::<T>::get(client.clone()).unwrap();
-                _client_reward.reward(T::BalanceToNumber::convert(client_reward));
-                // update the reward information
-                ClientReward::<T>::insert(client.clone(), _client_reward);
-            } else {
-                // Create the Income
-                let _client_rewrd = Income {
-                    last_eraindex: index,
-                    total_income: T::BalanceToNumber::convert(client_reward),
-                };
-                ClientReward::<T>::insert(client.clone(), _client_rewrd);
-            }
-            Self::deposit_event(Event::ComputeClientSuccess);
-        }
     }
 
     fn lock_amount(who: T::AccountId, amount: u128, status: MarketUserStatus) -> bool {

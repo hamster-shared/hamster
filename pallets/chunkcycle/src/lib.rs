@@ -195,7 +195,11 @@ impl<T: Config> Pallet<T> {
         cycle_time
     }
 
-    pub fn compute_client(_client_list: &Vec<T::AccountId>, _payout: u128, _for_index: u128) -> u128 {
+    pub fn compute_client(
+        _client_list: &Vec<T::AccountId>,
+        _payout: u128,
+        _for_index: u128,
+    ) -> u128 {
         // compute the client
         0
     }

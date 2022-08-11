@@ -271,6 +271,13 @@ fn test_staking_info() {
     })
 }
 
+#[test]
+fn test_heartbreat_offline() {
+    test_hearbreat_ext().execute_with(|| {
+        System::set_block_number(1);
+    })
+}
+
 // #[test]
 // fn it_works_heartbeat_logic() {
 //     new_test_ext().execute_with(|| {
