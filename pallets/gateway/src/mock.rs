@@ -89,7 +89,7 @@ parameter_types! {
 }
 
 impl pallet_balances::Config for Test {
-    type Balance = u64;
+    type Balance = u128;
     type DustRemoval = ();
     type Event = Event;
     type ExistentialDeposit = ExistentialDeposit;
@@ -115,7 +115,7 @@ impl pallet_market::Config for Test {
     type Event = Event;
     type Currency = Balances;
     type BlockNumberToNumber = ConvertInto;
-    type NumberToBalance = ();
+    type NumberToBalance = ConvertInto;
     type BalanceToNumber = ConvertInto;
     type UnixTime = Timestamp;
     type GatewayInterface = Gateway;
@@ -138,7 +138,7 @@ impl pallet_provider::Config for Test {
     type Event = Event;
     type Currency = Balances;
     type BalanceToNumber = ConvertInto;
-    type NumberToBalance = ();
+    type NumberToBalance = ConvertInto;
     type ResourceInterval = ResourceInterval;
     type MarketInterface = Market;
 }
@@ -147,7 +147,7 @@ impl pallet_chunkcycle::Config for Test {
     type Event = Event;
     type ForChunkCycleInterface = Market;
     type Currency = Balances;
-    type NumberToBalance = ();
+    type NumberToBalance = ConvertInto;
     type BalanceToNumber = ConvertInto;
     type MarketInterface = Market;
 }

@@ -7,7 +7,6 @@ use sp_core::H256;
 use sp_runtime::{
     testing::Header,
     traits::{BlakeTwo256, ConvertInto, IdentityLookup},
-    BuildStorage,
 };
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -69,7 +68,7 @@ impl system::Config for Test {
     type BlockHashCount = BlockHashCount;
     type Version = ();
     type PalletInfo = PalletInfo;
-    type AccountData = pallet_balances::AccountData<u64>;
+    type AccountData = pallet_balances::AccountData<u128>;
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
@@ -93,7 +92,7 @@ parameter_types! {
 }
 
 impl pallet_balances::Config for Test {
-    type Balance = u64;
+    type Balance = u128;
     type DustRemoval = ();
     type Event = Event;
     type ExistentialDeposit = ExistentialDeposit;
@@ -108,7 +107,7 @@ impl pallet_gateway::Config for Test {
     type Event = Event;
     type Currency = Balances;
     type BalanceToNumber = ConvertInto;
-    type NumberToBalance = ();
+    type NumberToBalance = ConvertInto;
     type GatewayNodeTimedRemovalInterval = GatewayNodeTimedRemovalInterval;
     type GatewayNodeHeartbeatInterval = GatewayNodeHeartbeatInterval;
 
@@ -119,7 +118,7 @@ impl pallet_market::Config for Test {
     type Event = Event;
     type Currency = Balances;
     type BlockNumberToNumber = ConvertInto;
-    type NumberToBalance = ();
+    type NumberToBalance = ConvertInto;
     type BalanceToNumber = ConvertInto;
     type UnixTime = Timestamp;
     type GatewayInterface = Gateway;
@@ -131,7 +130,7 @@ impl pallet_chunkcycle::Config for Test {
     type Event = Event;
     type ForChunkCycleInterface = Market;
     type Currency = Balances;
-    type NumberToBalance = ();
+    type NumberToBalance = ConvertInto;
     type BalanceToNumber = ConvertInto;
     type MarketInterface = Market;
 }
@@ -140,7 +139,7 @@ impl pallet_provider::Config for Test {
     type Event = Event;
     type Currency = Balances;
     type BalanceToNumber = ConvertInto;
-    type NumberToBalance = ();
+    type NumberToBalance = ConvertInto;
     type ResourceInterval = ResourceInterval;
     type MarketInterface = Market;
 }
@@ -169,7 +168,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     .assimilate_storage(&mut t)
     .unwrap();
 
-    let mut ext = sp_io::TestExternalities::new(t);
+    let ext = sp_io::TestExternalities::new(t);
     ext
 }
 
