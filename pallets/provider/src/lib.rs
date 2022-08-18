@@ -609,16 +609,18 @@ pub mod pallet {
             // update provider points
             Self::sub_provider_points(who.clone(), resource.config.cpu, resource.config.memory);
 
-            // unlock the staking
-            T::MarketInterface::change_stake_amount(
-                who.clone(),
-                ChangeAmountType::Unlock,
-                T::BalanceToNumber::convert(Self::compute_provider_staked_amount(
-                    resource.config.cpu,
-                    resource.config.memory,
-                )),
-                MarketUserStatus::Provider,
-            );
+            // if the resource is not the offline, unlock the staking
+            if resource.status != primitives::p_provider::ResourceStatus::Offline {
+                T::MarketInterface::change_stake_amount(
+                    who.clone(),
+                    ChangeAmountType::Unlock,
+                    T::BalanceToNumber::convert(Self::compute_provider_staked_amount(
+                        resource.config.cpu,
+                        resource.config.memory,
+                    )),
+                    MarketUserStatus::Provider,
+                );
+            }
 
             Self::deposit_event(Event::RemoveSuccess(who, index));
 

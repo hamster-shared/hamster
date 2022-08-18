@@ -5,13 +5,13 @@ use frame_system as system;
 
 use primitives::p_gateway::GatewayNode as node;
 
+use primitives::Balance;
 use sp_core::H256;
 use sp_runtime::{
     testing::Header,
     traits::{BlakeTwo256, ConvertInto, IdentityLookup},
     BuildStorage,
 };
-use primitives::Balance;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;

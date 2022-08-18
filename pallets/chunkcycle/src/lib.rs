@@ -6,10 +6,12 @@ use frame_support::traits::Currency;
 use frame_system::pallet_prelude::*;
 pub use pallet::*;
 use primitives::p_market::MarketInterface;
+use primitives::p_resource_order::RentalAgreement;
 use primitives::{p_chunkcycle::*, p_provider::*};
 use sp_runtime::traits::Saturating;
 use sp_runtime::Perbill;
 pub use sp_std::vec::Vec;
+
 const FORBLOCK: u128 = 500;
 type BalanceOf<T> =
     <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -46,7 +48,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn task_list)]
     pub(super) type TaskList<T: Config> =
-        StorageValue<_, Vec<(ForDs<T::AccountId>, u128)>, ValueQuery>;
+        StorageValue<_, Vec<(ForDs<T::AccountId, T::BlockNumber>, u128)>, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn task_tatus)]
@@ -84,6 +86,8 @@ pub mod pallet {
         ComputeGatewayReward(u128),
 
         ComputeProviderReward(u128),
+
+        ComputeClientReward(u128),
     }
 
     #[pallet::error]
@@ -111,7 +115,11 @@ impl<T: Config> Pallet<T> {
         return (Self::compute(&compute_list, payout, for_index), task_index);
     }
 
-    pub fn compute(ds: &ForDs<T::AccountId>, payout: u128, for_index: u128) -> u128 {
+    pub fn compute(
+        ds: &ForDs<T::AccountId, T::BlockNumber>,
+        payout: u128,
+        for_index: u128,
+    ) -> u128 {
         return match ds {
             ForDs::Gateway(gateway_list) => {
                 Self::compute_gateway(gateway_list.clone(), payout, for_index)
@@ -196,12 +204,32 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn compute_client(
-        _client_list: &Vec<T::AccountId>,
-        _payout: u128,
-        _for_index: u128,
+        client_list: &Vec<(u64, RentalAgreement<T::AccountId, T::BlockNumber>)>,
+        payout: u128,
+        for_index: u128,
     ) -> u128 {
         // compute the client
-        0
+        // compute the client nums
+        let client_nums = client_list.len();
+
+        // compute the every node reward
+        let client_reward =
+            Perbill::from_rational(1, client_nums as u128) * T::NumberToBalance::convert(payout);
+
+        // 1. compute the reward for each client
+        let mut cycle_time = 0;
+        for (_, agreement) in client_list.iter().skip(for_index as usize) {
+            cycle_time += 1;
+
+            // 2. save the income
+            T::MarketInterface::update_client_income(
+                agreement.tenant_info.account_id.clone(),
+                T::BalanceToNumber::convert(client_reward),
+            );
+        }
+
+        Self::deposit_event(Event::<T>::ComputeClientReward(cycle_time));
+        cycle_time
     }
 
     pub fn check_and_update(now_index: u128, task_index: u128) {
@@ -234,10 +262,15 @@ impl<T: Config> Pallet<T> {
     }
 }
 
-impl<T: Config> ChunkCycleInterface<<T as frame_system::Config>::AccountId> for Pallet<T> {
+impl<T: Config>
+    ChunkCycleInterface<
+        <T as frame_system::Config>::AccountId,
+        <T as frame_system::Config>::BlockNumber,
+    > for Pallet<T>
+{
     /// push the new compute list into task list
     /// (list, compute type)
-    fn push(ds: ForDs<T::AccountId>, payout: u128) {
+    fn push(ds: ForDs<T::AccountId, T::BlockNumber>, payout: u128) {
         let mut list = TaskList::<T>::get();
         list.push((ds, payout));
         TaskList::<T>::put(list);

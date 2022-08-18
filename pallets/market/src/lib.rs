@@ -68,7 +68,10 @@ pub mod pallet {
         type ProviderInterface: ProviderInterface<Self::AccountId>;
 
         /// chunk cycle interface
-        type ChunkCycleInterface: ChunkCycleInterface<Self::AccountId>;
+        type ChunkCycleInterface: ChunkCycleInterface<Self::AccountId, Self::BlockNumber>;
+
+        /// resource order interface
+        type ResourceOrderInterface: ResourceOrderInterface<Self::AccountId, Self::BlockNumber>;
 
         /// block height to number
         type BlockNumberToNumber: Convert<Self::BlockNumber, u128> + Convert<u32, Self::BlockNumber>;
@@ -103,6 +106,11 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn provider_base_fee)]
     pub(super) type ProviderBaseFee<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
+    /// Client staking base fee, can be change by root account
+    #[pallet::storage]
+    #[pallet::getter(fn client_base_fee)]
+    pub(super) type ClientBaseFee<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
     /// Market staking base multiplier, can be change by root account
     #[pallet::storage]
@@ -164,6 +172,8 @@ pub mod pallet {
         pub gateway_base_fee: BalanceOf<T>,
         pub market_base_multiplier: (u128, u128, u128),
         pub provider_base_fee: BalanceOf<T>,
+        pub client_base_fee: BalanceOf<T>,
+        pub total_staked: TotalStakingAmount,
     }
 
     #[cfg(feature = "std")]
@@ -174,6 +184,8 @@ pub mod pallet {
                 gateway_base_fee: Default::default(),
                 market_base_multiplier: Default::default(),
                 provider_base_fee: Default::default(),
+                client_base_fee: Default::default(),
+                total_staked: Default::default(),
             }
         }
     }
@@ -188,6 +200,8 @@ pub mod pallet {
             <GatewayBaseFee<T>>::put(self.gateway_base_fee);
             <MarketBaseMultiplier<T>>::put(self.market_base_multiplier);
             <ProviderBaseFee<T>>::put(self.provider_base_fee);
+            <ClientBaseFee<T>>::put(self.client_base_fee);
+            <TotalStaked<T>>::put(self.total_staked.clone());
         }
     }
 
@@ -209,6 +223,8 @@ pub mod pallet {
         UpdateGatewayStakingFee(BalanceOf<T>),
 
         UpdateProviderStakingFee(BalanceOf<T>),
+
+        UpdateClientStakingFee(BalanceOf<T>),
 
         UpdateMarketBaseMultiplier(u128, u128, u128),
     }
@@ -395,6 +411,7 @@ pub mod pallet {
             Ok(())
         }
 
+        /// Change the gateway staking fee, only call by root
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn update_gateway_staking_fee(
             origin: OriginFor<T>,
@@ -408,6 +425,7 @@ pub mod pallet {
             Ok(())
         }
 
+        /// Change the provider staking fee, only call by root
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn update_provider_staking_fee(
             origin: OriginFor<T>,
@@ -421,6 +439,20 @@ pub mod pallet {
             Ok(())
         }
 
+        /// Change the client staking fee, only call by root
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn update_client_staking_fee(
+            origin: OriginFor<T>,
+            amount: BalanceOf<T>,
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+
+            ClientBaseFee::<T>::set(amount);
+            Self::deposit_event(Event::UpdateClientStakingFee(amount));
+            Ok(())
+        }
+
+        /// Change the market status multiplier, only can call by root
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn update_market_base_multiplier(
             origin: OriginFor<T>,
@@ -560,6 +592,39 @@ impl<T: Config> Pallet<T> {
         // 6. return
         true
     }
+
+    fn penalty_amount(who: T::AccountId, amount: u128, status: MarketUserStatus) -> bool {
+        // 1. get user staking amount
+        let mut staking_amount = Staking::<T>::get(who.clone()).unwrap();
+
+        // 2. penalty amount
+        staking_amount.penalty_amount(amount);
+
+        // 3. update staking amount
+        Staking::<T>::insert(who.clone(), staking_amount);
+
+        // 4. update market staking amount
+        let mut market_staking_amount = TotalStaked::<T>::get();
+
+        market_staking_amount.sub_total_staking(amount);
+
+        match status {
+            MarketUserStatus::Provider => {
+                market_staking_amount.sub_provider_staking(amount);
+            }
+            MarketUserStatus::Client => {
+                market_staking_amount.sub_client_staking(amount);
+            }
+            MarketUserStatus::Gateway => {
+                market_staking_amount.sub_gateway_staking(amount);
+            }
+        }
+
+        // 5. update Market staking amount inforation
+        TotalStaked::<T>::set(market_staking_amount);
+
+        true
+    }
 }
 
 impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pallet<T> {
@@ -577,7 +642,7 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         let client_staking = total_staking.total_client_staking;
 
         // 2. Compute payout
-        let (provider_payout, gateway_payout, _client_payout) = Self::compute_payout(
+        let (provider_payout, gateway_payout, client_payout) = Self::compute_payout(
             provider_staking,
             gateway_staking,
             client_staking,
@@ -602,6 +667,15 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         );
         // Save the history ear provider reward
         EraProviderRewards::<T>::insert(index, provider_payout);
+
+        // 5. Push the client reward list to cycle and compute client nodes reward
+        let ds_client = T::ResourceOrderInterface::get_rental_agreements();
+        T::ChunkCycleInterface::push(
+            ForDs::Client(ds_client),
+            T::BalanceToNumber::convert(client_payout),
+        );
+        // save the history ear client reward
+        EraClientRewards::<T>::insert(index, client_payout);
 
         // 4. Update the market history reward information
         EraRewards::<T>::insert(index, T::NumberToBalance::convert(total_reward));
@@ -628,6 +702,8 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
             ChangeAmountType::Lock => Self::lock_amount(who.clone(), amount, status),
 
             ChangeAmountType::Unlock => Self::unlock_amount(who.clone(), amount, status),
+
+            ChangeAmountType::Penalty => Self::penalty_amount(who.clone(), amount, status),
         };
     }
 
@@ -671,12 +747,33 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         }
     }
 
+    fn update_client_income(who: <T as frame_system::Config>::AccountId, reward: u128) {
+        if ClientReward::<T>::contains_key(who.clone()) {
+            // get the income
+            let mut income = ClientReward::<T>::get(who.clone()).unwrap();
+            // update the income
+            income.reward(reward);
+            // update the reward information
+            ClientReward::<T>::insert(who.clone(), income);
+        } else {
+            let income = Income {
+                last_eraindex: 0,
+                total_income: reward,
+            };
+            ClientReward::<T>::insert(who.clone(), income);
+        }
+    }
+
     fn gateway_staking_fee() -> u128 {
         T::BalanceToNumber::convert(GatewayBaseFee::<T>::get())
     }
 
     fn provider_staking_fee() -> u128 {
         T::BalanceToNumber::convert(ProviderBaseFee::<T>::get())
+    }
+
+    fn client_staking_fee() -> u128 {
+        T::BalanceToNumber::convert(ClientBaseFee::<T>::get())
     }
 }
 

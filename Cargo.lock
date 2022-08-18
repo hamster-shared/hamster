@@ -4226,6 +4226,8 @@ dependencies = [
  "frame-system",
  "log",
  "pallet-balances",
+ "pallet-chunkcycle",
+ "pallet-gateway",
  "pallet-market",
  "pallet-provider",
  "pallet-timestamp",

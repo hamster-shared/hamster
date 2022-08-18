@@ -1,16 +1,13 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+extern crate alloc;
+
 use frame_support::sp_runtime::traits::Convert;
 use frame_support::traits::UnixTime;
-use frame_support::{
-    dispatch::DispatchResult,
-    pallet_prelude::*,
-    traits::{Currency, ExistenceRequirement},
-    PalletId,
-};
+use frame_support::transactional;
+use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::Currency, PalletId};
 use frame_system::pallet_prelude::*;
 use sp_core::Bytes;
-use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::Zero;
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
@@ -20,6 +17,8 @@ use sp_std::vec::Vec;
 /// <https://substrate.dev/docs/en/knowledgebase/runtime/frame>
 pub use pallet::*;
 pub use pallet_market::MarketInterface;
+pub use primitives::p_market::MarketUserStatus;
+pub use primitives::p_market::*;
 pub use primitives::p_provider::*;
 pub use primitives::p_resource_order::*;
 
@@ -121,8 +120,13 @@ pub mod pallet {
     /// staking
     #[pallet::storage]
     #[pallet::getter(fn staking)]
-    pub(super) type Staking<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, StakingAmount, OptionQuery>;
+    pub(super) type Staking<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        primitives::p_resource_order::StakingAmount,
+        OptionQuery,
+    >;
 
     /// The protocol corresponding to the block [block number, protocol number]
     #[pallet::storage]
@@ -136,6 +140,17 @@ pub mod pallet {
     pub(super) type UserOrders<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, Vec<u64>, ValueQuery>;
 
+    /// the free resource apply info
+    #[pallet::storage]
+    #[pallet::getter(fn apply_orders)]
+    pub(super) type ApplyOrders<T: Config> =
+        StorageMap<_, Twox64Concat, u64, ApplyOrder<T::AccountId, T::BlockNumber>, OptionQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn apply_users)]
+    pub(super) type ApplyUsers<T: Config> =
+        StorageMap<_, Twox64Concat, T::AccountId, u64, ValueQuery>;
+
     // The genesis config type.
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
@@ -145,7 +160,6 @@ pub mod pallet {
         pub rental_agreements: Vec<(u64, RentalAgreement<T::AccountId, T::BlockNumber>)>,
         pub user_agreements: Vec<(T::AccountId, Vec<u64>)>,
         pub provider_agreements: Vec<(T::AccountId, Vec<u64>)>,
-        pub staking: Vec<(T::AccountId, StakingAmount)>,
         pub block_agreement: Vec<(T::BlockNumber, Vec<u64>)>,
         pub user_orders: Vec<(T::AccountId, Vec<u64>)>,
     }
@@ -161,7 +175,6 @@ pub mod pallet {
                 rental_agreements: Default::default(),
                 user_agreements: Default::default(),
                 provider_agreements: Default::default(),
-                staking: Default::default(),
                 block_agreement: Default::default(),
                 user_orders: Default::default(),
             }
@@ -186,11 +199,11 @@ pub mod pallet {
             for (a, b) in &self.provider_agreements {
                 <ProviderAgreements<T>>::insert(a, b);
             }
-            for (a, b) in &self.staking {
-                <Staking<T>>::insert(a, b);
-            }
             for (a, b) in &self.user_orders {
                 <UserOrders<T>>::insert(a, b);
+            }
+            for (a, b) in &self.block_agreement {
+                <BlockWithAgreement<T>>::insert(a, b);
             }
         }
     }
@@ -225,15 +238,15 @@ pub mod pallet {
 
         /// successfully retrieve the rental reward amount
         /// account agreement number amount
-        WithdrawRentalAmountSuccess(T::AccountId, u64, BalanceOf<T>),
+        WithdrawRentalAmountSuccess(T::AccountId, u64),
 
         /// retrieve the penalty amount successfully
         /// account agreement number amount
-        WithdrawFaultExcutionSuccess(T::AccountId, u64, BalanceOf<T>),
+        WithdrawFaultExcutionSuccess(T::AccountId, u64),
 
         /// The amount of the unstarted order was successfully recovered
         /// account order number amount
-        WithdrawLockedOrderPriceSuccess(T::AccountId, u64, BalanceOf<T>),
+        WithdrawLockedOrderPriceSuccess(T::AccountId, u64),
 
         /// agreement deleted successfully
         /// agreement number
@@ -245,6 +258,14 @@ pub mod pallet {
 
         /// penalty agreement executed successfully
         PenaltyAgreementExcutionSuccess(u64),
+
+        /// free resource applied
+        /// [accountId, order_index, cpu, memory, duration, deploy_type,public_key]
+        FreeResourceApplied(T::AccountId, u64, u64, u64, u32, u32, Bytes),
+
+        /// free resource processed
+        /// [order_index, peer_id]
+        FreeResourceProcessed(u64, Vec<u8>),
     }
 
     #[pallet::hooks]
@@ -302,6 +323,18 @@ pub mod pallet {
         FailedToWithdraw,
         /// The protocol under the current block exceeds the maximum number
         ExceedsMaximumQuantity,
+        /// free resource have applied
+        FreeResourceApplied,
+        /// free resource has be deal
+        FreeResourceHasBeDeal,
+        /// free resource not Exists
+        FreeResourceNotExists,
+        /// free resource forbidden
+        FreeResourceForbidden,
+
+        LockAmountFailed,
+
+        PenaltyAmountFailed,
     }
 
     // Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -310,6 +343,7 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// create order
+        /// client use this func to create the order
         /// [Resource number, lease duration (hours), public key]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn create_order_info(
@@ -319,6 +353,12 @@ pub mod pallet {
             public_key: Bytes,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
+
+            // check user has staking
+            ensure!(
+                T::MarketInterface::staking_exit(who.clone()),
+                Error::<T>::StakingNotExist
+            );
 
             // get resource information
             let mut resource_info =
@@ -346,10 +386,6 @@ pub mod pallet {
 
             // get order length
             let order_index = OrderIndex::<T>::get();
-            // get order price
-            let price = resource_info.rental_info.rent_unit_price;
-            // calculate order price
-            let order_price = price * rent_duration as u128;
             // create a tenant
             let customer = TenantInfo::new(who.clone(), public_key.clone());
             // get the current time
@@ -358,20 +394,11 @@ pub mod pallet {
             let order = ResourceOrder::new(
                 order_index,
                 customer,
-                order_price,
                 resource_index,
                 block_number,
                 rent_blocks,
                 now,
             );
-
-            // transfer to the fund pool
-            T::Currency::transfer(
-                &who.clone(),
-                &Self::order_pool(),
-                T::NumberToBalance::convert(order_price),
-                ExistenceRequirement::AllowDeath,
-            )?;
 
             // resource status changed from unused to locked
             resource_info.update_status(ResourceStatus::Locked);
@@ -396,9 +423,17 @@ pub mod pallet {
         }
 
         /// order execution
+        /// Provider used this func to execute the order
+        #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn order_exec(origin: OriginFor<T>, order_index: u64) -> DispatchResult {
             let who = ensure_signed(origin)?;
+
+            // check user has staking
+            ensure!(
+                T::MarketInterface::staking_exit(who.clone()),
+                Error::<T>::StakingNotExist
+            );
 
             // check if an order exists
             ensure!(
@@ -413,6 +448,18 @@ pub mod pallet {
                 order.status == OrderStatus::Pending,
                 Error::<T>::OrderStatusError
             );
+
+            // lock the user staking
+            ensure!(
+                T::MarketInterface::change_stake_amount(
+                    order.tenant_info.account_id.clone(),
+                    ChangeAmountType::Lock,
+                    T::MarketInterface::client_staking_fee(),
+                    MarketUserStatus::Client,
+                ),
+                Error::<T>::LockAmountFailed,
+            );
+
             // get resource information
             let mut resource_info =
                 match T::OrderInterface::get_computing_resource_info(order.resource_index) {
@@ -423,20 +470,6 @@ pub mod pallet {
             ensure!(
                 who.clone() == resource_info.account_id,
                 Error::<T>::OrderNotOwnedByYou
-            );
-
-            // get order amount
-            let order_price = order.price;
-            // get pledge information
-            ensure!(
-                Staking::<T>::contains_key(who.clone()),
-                Error::<T>::InsufficientStaking
-            );
-            let mut staking_info = Staking::<T>::get(who.clone()).unwrap();
-            // determine whether the pledge deposit is sufficient,and lock the amount
-            ensure!(
-                &staking_info.lock_amount(order_price),
-                Error::<T>::InsufficientStaking
             );
 
             // get the current block height
@@ -456,7 +489,7 @@ pub mod pallet {
                 let old_end = agreement.end.clone();
 
                 // agreement renewal
-                agreement.renew(order_price, duration, resource_info.clone());
+                agreement.renew(duration, resource_info.clone());
                 // order status changes to completed
                 order.finish_order();
                 // increase usage time
@@ -487,7 +520,7 @@ pub mod pallet {
                 // save order
                 ResourceOrders::<T>::insert(order_index, order.clone());
                 // save the pledge
-                Staking::<T>::insert(who.clone(), staking_info);
+                // Staking::<T>::insert(who.clone(), staking_info);
 
                 Self::deposit_event(Event::OrderExecSuccess(
                     who.clone(),
@@ -518,8 +551,6 @@ pub mod pallet {
                     resource_index,
                     resource_info.config.clone(),
                     resource_info.rental_info.clone(),
-                    order_price,
-                    order.price,
                     0,
                     0,
                     block_number,
@@ -555,7 +586,7 @@ pub mod pallet {
                 // save order
                 ResourceOrders::<T>::insert(order_index, order.clone());
                 // save the pledge
-                Staking::<T>::insert(who.clone(), staking_info);
+                // Staking::<T>::insert(who.clone(), staking_info);
                 // save resource state
                 T::OrderInterface::update_computing_resource(resource_index, resource_info.clone());
 
@@ -575,7 +606,7 @@ pub mod pallet {
         pub fn heartbeat(origin: OriginFor<T>, agreement_index: u64) -> DispatchResult {
             let who = ensure_signed(origin)?;
 
-            // get agreement
+            // check the agree exit, and get agreement
             ensure!(
                 RentalAgreements::<T>::contains_key(agreement_index),
                 Error::<T>::ProtocolDoesNotExist
@@ -606,79 +637,8 @@ pub mod pallet {
             Ok(())
         }
 
-        /// staking
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn staking_amount(origin: OriginFor<T>, bond_price: BalanceOf<T>) -> DispatchResult {
-            let who = ensure_signed(origin)?;
-
-            // transfer
-            T::Currency::transfer(
-                &who.clone(),
-                &Self::staking_pool(),
-                bond_price,
-                ExistenceRequirement::AllowDeath,
-            )?;
-
-            // if there is a pledge
-            if Staking::<T>::contains_key(&who) {
-                // get pledge details
-                let mut staking_info = Staking::<T>::get(who.clone()).unwrap();
-                // calculate the new total pledge amount
-                let price = T::BalanceToNumber::convert(bond_price);
-                // pledge amount
-                staking_info.staking_amount(price);
-                // save pledge details
-                Staking::<T>::insert(who.clone(), staking_info);
-            } else {
-                // add pledge details
-                Staking::<T>::insert(
-                    who.clone(),
-                    StakingAmount {
-                        amount: T::BalanceToNumber::convert(bond_price),
-                        active_amount: T::BalanceToNumber::convert(bond_price),
-                        lock_amount: 0,
-                    },
-                );
-            }
-
-            Self::deposit_event(Event::StakingSuccess(who.clone(), bond_price));
-            Ok(())
-        }
-
-        /// get back the pledge
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn withdraw_amount(origin: OriginFor<T>, price: BalanceOf<T>) -> DispatchResult {
-            let who = ensure_signed(origin)?;
-            // determine whether there is a pledge
-            ensure!(
-                Staking::<T>::contains_key(who.clone()),
-                Error::<T>::StakingNotExist
-            );
-
-            let mut staking = Staking::<T>::get(who.clone()).unwrap();
-
-            // get back the amount
-            ensure!(
-                &staking.withdraw_amount(T::BalanceToNumber::convert(price)),
-                Error::<T>::InsufficientStaking
-            );
-            // transfer
-            T::Currency::transfer(
-                &Self::staking_pool(),
-                &who.clone(),
-                price,
-                ExistenceRequirement::AllowDeath,
-            )?;
-
-            // save the pledge
-            Staking::<T>::insert(who.clone(), staking);
-
-            Self::deposit_event(Event::WithdrawStakingSuccess(who.clone(), price));
-
-            Ok(())
-        }
-
         /// get back rental bonus amount
+        /// called by provider
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn withdraw_rental_amount(
             origin: OriginFor<T>,
@@ -691,21 +651,13 @@ pub mod pallet {
                 RentalAgreements::<T>::contains_key(agreement_index),
                 Error::<T>::ProtocolDoesNotExist
             );
-            let mut agreement = RentalAgreements::<T>::get(agreement_index).unwrap();
+            let agreement = RentalAgreements::<T>::get(agreement_index).unwrap();
             // determine whether it is me
             ensure!(
                 who.clone() == agreement.provider.clone(),
                 Error::<T>::ProtocolNotOwnedByYou
             );
             // get the amount you can claim
-            let price = T::NumberToBalance::convert(agreement.withdraw());
-            // transfer and receive amount
-            T::Currency::transfer(
-                &Self::order_pool(),
-                &who.clone(),
-                price,
-                ExistenceRequirement::AllowDeath,
-            )?;
 
             // Whether the settlement of the agreement is completed
             if agreement.clone().is_finished() {
@@ -723,7 +675,6 @@ pub mod pallet {
             Self::deposit_event(Event::WithdrawRentalAmountSuccess(
                 who.clone(),
                 agreement_index,
-                price,
             ));
             Ok(())
         }
@@ -741,22 +692,13 @@ pub mod pallet {
                 RentalAgreements::<T>::contains_key(agreement_index),
                 Error::<T>::ProtocolDoesNotExist
             );
-            let mut agreement = RentalAgreements::<T>::get(agreement_index).unwrap();
+            let agreement = RentalAgreements::<T>::get(agreement_index).unwrap();
             // determine whether it is a user
             ensure!(
                 who.clone() == agreement.tenant_info.account_id,
                 Error::<T>::ProtocolNotOwnedByYou
             );
             // get the amount you can claim
-            let price = T::NumberToBalance::convert(agreement.withdraw_penalty());
-            // transfer and receive amount
-            T::Currency::transfer(
-                &Self::order_pool(),
-                &who.clone(),
-                price,
-                ExistenceRequirement::AllowDeath,
-            )?;
-
             // whether the agreement is completed
             if agreement.clone().is_finished() {
                 // delete agreement
@@ -773,7 +715,6 @@ pub mod pallet {
             Self::deposit_event(Event::WithdrawFaultExcutionSuccess(
                 who.clone(),
                 agreement_index,
-                price,
             ));
             Ok(())
         }
@@ -800,26 +741,15 @@ pub mod pallet {
                     Some(x) => x,
                     None => Err(Error::<T>::ResourceNotExist)?,
                 };
-            // get order amount
-            let price = T::NumberToBalance::convert(order.price);
-
             // check order status
             if order.clone().is_renew_order() && order.status == OrderStatus::Pending {
                 // cancel order
                 order.cancel_order();
-                // get back the amount
-                T::Currency::transfer(
-                    &Self::order_pool(),
-                    &who.clone(),
-                    price,
-                    ExistenceRequirement::AllowDeath,
-                )?;
                 // save order
                 ResourceOrders::<T>::insert(order_index, order);
                 Self::deposit_event(Event::WithdrawLockedOrderPriceSuccess(
                     who.clone(),
                     order_index,
-                    price,
                 ));
             } else if !order.clone().is_renew_order() && order.status == OrderStatus::Pending {
                 // cancel order
@@ -827,12 +757,7 @@ pub mod pallet {
                 // change the resource state to unused
                 resource.status = ResourceStatus::Unused;
                 // get back the amount
-                T::Currency::transfer(
-                    &Self::order_pool(),
-                    &who.clone(),
-                    price,
-                    ExistenceRequirement::AllowDeath,
-                )?;
+                // T::Currency::transfer(&Self::order_pool(), &who.clone(), price, ExistenceRequirement::AllowDeath)?;
 
                 // save order
                 ResourceOrders::<T>::insert(order_index, order);
@@ -842,7 +767,6 @@ pub mod pallet {
                 Self::deposit_event(Event::WithdrawLockedOrderPriceSuccess(
                     who.clone(),
                     order_index,
-                    price,
                 ));
             } else {
                 return Err(Error::<T>::FailedToWithdraw)?;
@@ -889,7 +813,6 @@ pub mod pallet {
                 Error::<T>::InsufficientTimeForResource
             );
             // calculate new order price
-            let price = resource_info.rental_info.rent_unit_price * duration as u128;
 
             // get order length
             let order_index = OrderIndex::<T>::get();
@@ -899,21 +822,12 @@ pub mod pallet {
             let order = ResourceOrder::renew(
                 order_index,
                 agreement.tenant_info.clone(),
-                price,
                 resource_index,
                 block_number,
                 rent_duration,
                 now,
                 Some(agreement_index),
             );
-
-            // transfer to the fund pool
-            T::Currency::transfer(
-                &who.clone(),
-                &Self::order_pool(),
-                T::NumberToBalance::convert(price),
-                ExistenceRequirement::AllowDeath,
-            )?;
 
             ResourceOrders::<T>::insert(order_index, order.clone());
             OrderIndex::<T>::put(order_index + 1);
@@ -928,19 +842,98 @@ pub mod pallet {
             ));
             Ok(())
         }
+
+        /// apply free resource
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn apply_free_resource(
+            origin: OriginFor<T>,
+            cpu: u64,
+            memory: u64,
+            duration: u32,
+            public_key: Bytes,
+            deploy_type: u32,
+        ) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+            ensure!(
+                !ApplyUsers::<T>::contains_key(who.clone()),
+                Error::<T>::FreeResourceApplied
+            );
+            let order_index = OrderIndex::<T>::get();
+            let customer = TenantInfo::new(who.clone(), public_key.clone());
+            // get the current block height
+            let block_number = <frame_system::Pallet<T>>::block_number();
+            let now = T::UnixTime::now();
+            let apply_order = ApplyOrder::new(order_index, customer, block_number, now);
+            ApplyOrders::<T>::insert(order_index, apply_order);
+            ApplyUsers::<T>::insert(who.clone(), order_index);
+            OrderIndex::<T>::put(order_index + 1);
+            Self::deposit_event(Event::FreeResourceApplied(
+                who,
+                order_index,
+                cpu,
+                memory,
+                duration,
+                deploy_type,
+                public_key,
+            ));
+
+            Ok(())
+        }
+
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn process_apply_free_resource(
+            origin: OriginFor<T>,
+            order_index: u64,
+            peer_id: Vec<u8>,
+        ) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+
+            ensure!(
+                ApplyOrders::<T>::contains_key(order_index),
+                Error::<T>::FreeResourceNotExists
+            );
+            let mut apply_order = ApplyOrders::<T>::get(order_index).unwrap();
+            ensure!(
+                apply_order.status == OrderStatus::Pending,
+                Error::<T>::FreeResourceHasBeDeal
+            );
+            // process
+            apply_order.processed(who.clone(), peer_id.clone());
+            ApplyOrders::<T>::insert(order_index, apply_order);
+
+            Self::deposit_event(Event::FreeResourceProcessed(order_index, peer_id));
+
+            Ok(())
+        }
+
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn release_apply_free_resource(
+            origin: OriginFor<T>,
+            order_index: u64,
+        ) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+
+            ensure!(
+                ApplyOrders::<T>::contains_key(order_index),
+                Error::<T>::FreeResourceNotExists
+            );
+            let apply_order = ApplyOrders::<T>::get(order_index).unwrap();
+
+            ensure!(
+                who.clone() == apply_order.provider
+                    || who.clone() == apply_order.tenant_info.account_id,
+                Error::<T>::FreeResourceForbidden
+            );
+
+            let applyer = apply_order.tenant_info.account_id;
+            ApplyUsers::<T>::remove(applyer);
+            ApplyOrders::<T>::remove(order_index);
+            Ok(())
+        }
     }
 }
 
 impl<T: Config> Pallet<T> {
-    /// StakingPod
-    pub fn staking_pool() -> T::AccountId {
-        PALLET_ID.into_sub_account(b"staking")
-    }
-    /// StoragePod
-    pub fn order_pool() -> T::AccountId {
-        PALLET_ID.into_sub_account(b"order")
-    }
-
     // associate user and protocol number
     pub fn do_insert_user_agreements(who: T::AccountId, agreement_count: u64) {
         // detects the existence of a user s protocol
@@ -1028,6 +1021,13 @@ impl<T: Config> Pallet<T> {
 
         // delete agreement
         RentalAgreements::<T>::remove(agreement_index);
+        // unlock the user staking
+        T::MarketInterface::change_stake_amount(
+            user.clone(),
+            ChangeAmountType::Unlock,
+            T::MarketInterface::client_staking_fee(),
+            MarketUserStatus::Client,
+        );
     }
 
     // delete the protocol corresponding to the block
@@ -1069,19 +1069,6 @@ impl<T: Config> Pallet<T> {
 
                 // check whether the protocol reports a health check
                 if duration > T::HealthCheckInterval::get() {
-                    // Execute the penalty agreement and get the remaining amount of the order
-                    let price = agreement.fault_excution();
-
-                    // get pledge
-                    let mut staking = Staking::<T>::get(agreement.provider.clone()).unwrap();
-                    staking.penalty_amount(price);
-                    T::Currency::transfer(
-                        &Self::staking_pool(),
-                        &agreement.tenant_info.account_id,
-                        T::NumberToBalance::convert(price),
-                        ExistenceRequirement::AllowDeath,
-                    )?;
-
                     // number of resource failures+1
                     resource.rental_statistics.add_fault_count();
                     // resource set to unused
@@ -1091,8 +1078,29 @@ impl<T: Config> Pallet<T> {
 
                     // Delete the protocol number in the corresponding block
                     Self::delete_block_with_agreement(i, agreement.end.clone());
-                    // save the pledge
-                    Staking::<T>::insert(agreement.provider.clone(), staking);
+
+                    // compute the penalty
+                    let base_staking = T::MarketInterface::provider_staking_fee();
+                    let penalty = resource.config.cpu.saturating_mul(base_staking as u64)
+                        + resource.config.memory.saturating_mul(base_staking as u64);
+
+                    ensure!(
+                        T::MarketInterface::change_stake_amount(
+                            resource.account_id.clone(),
+                            ChangeAmountType::Penalty,
+                            penalty as u128,
+                            MarketUserStatus::Provider,
+                        ),
+                        Error::<T>::PenaltyAmountFailed,
+                    );
+
+                    T::MarketInterface::change_stake_amount(
+                        agreement.tenant_info.account_id.clone(),
+                        ChangeAmountType::Unlock,
+                        T::MarketInterface::client_staking_fee(),
+                        MarketUserStatus::Client,
+                    );
+
                     // save the agreement
                     RentalAgreements::<T>::insert(i, agreement);
                     // save resources
@@ -1119,11 +1127,6 @@ impl<T: Config> Pallet<T> {
             // get resource information
             let mut resource =
                 T::OrderInterface::get_computing_resource_info(resource_index).unwrap();
-            // get pledge
-            let mut staking = Staking::<T>::get(agreement.provider.clone()).unwrap();
-
-            // unlock pledge
-            staking.unlock_amount(agreement.price);
 
             // set resource to unused
             resource.update_status(ResourceStatus::Unused);
@@ -1134,9 +1137,28 @@ impl<T: Config> Pallet<T> {
             T::OrderInterface::update_computing_resource(resource_index, resource);
             // save the agreement
             RentalAgreements::<T>::insert(i, agreement.clone());
-            // save the pledge
-            Staking::<T>::insert(agreement.provider, staking);
+
+            // when the agreement has finish, delete agreement
+            Self::delete_agreement(
+                i,
+                agreement.provider.clone(),
+                agreement.tenant_info.account_id.clone(),
+            );
+
             Self::deposit_event(Event::ExpiredResourceStatusUpdatedSuccess(resource_index));
         }
+    }
+}
+
+impl<T: Config>
+    ResourceOrderInterface<
+        <T as frame_system::Config>::AccountId,
+        <T as frame_system::Config>::BlockNumber,
+    > for Pallet<T>
+{
+    fn get_rental_agreements() -> Vec<(u64, RentalAgreement<T::AccountId, T::BlockNumber>)> {
+        RentalAgreements::<T>::iter()
+            .filter(|x| x.1.status != AgreementStatus::Punished)
+            .collect()
     }
 }

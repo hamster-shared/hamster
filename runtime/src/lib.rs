@@ -385,6 +385,7 @@ impl pallet_market::Config for Runtime {
     type GatewayInterface = Gateway;
     type ProviderInterface = Provider;
     type ChunkCycleInterface = Chunkcycle;
+    type ResourceOrderInterface = ResourceOrder;
     type BlockNumberToNumber = ConvertInto;
     type NumberToBalance = ConvertInto;
     type BalanceToNumber = ConvertInto;

@@ -28,7 +28,7 @@ fn register() {
         assert_eq!(staking, staking_info);
 
         // check the market staking info
-        let market_staking =  TotalStakingAmount {
+        let market_staking = TotalStakingAmount {
             total_staking: 200_000_000_000_000,
             total_provider_staking: 200_000_000_000_000,
             total_gateway_staking: 0,
@@ -136,7 +136,7 @@ fn test_offline() {
         // check the total provider resource points
         assert_eq!(Provider::provider_total_resource_points(), 0);
 
-       // check the user staking
+        // check the user staking
         let staking = StakingAmount {
             amount: 1000_000_000_000_000,
             active_amount: 1000_000_000_000_000,
@@ -152,7 +152,6 @@ fn test_offline() {
             total_client_staking: 0,
         };
         assert_eq!(Market::total_staked(), market_staking);
-
     })
 }
 
@@ -236,7 +235,7 @@ fn test_some_register_some_offline() {
         assert_eq!(providers2.clone()[0], 2);
 
         // test user staking
-        let staking_1= StakingAmount {
+        let staking_1 = StakingAmount {
             amount: 1000_000_000_000_000,
             active_amount: 600_000_000_000_000,
             lock_amount: 400_000_000_000_000,
@@ -284,7 +283,6 @@ fn test_some_register_some_offline() {
         };
         assert_eq!(Market::total_staked(), market_staking);
 
-
         // check the resource index
         assert_eq!(Provider::resource_index(), 3);
 
@@ -330,7 +328,6 @@ fn test_some_register_some_offline() {
         let providers2 = Provider::provider(2).unwrap();
         assert_eq!(providers2.len(), 1);
         assert_eq!(providers2.clone()[0], 2);
-
     })
 }
 

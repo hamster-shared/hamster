@@ -1,8 +1,9 @@
 use crate::mock::ResourceOrder;
 use crate::{mock::*, Error};
+use alloc::vec;
 use frame_support::{assert_noop, assert_ok};
 use primitives::p_provider::ResourceStatus;
-use primitives::p_resource_order::OrderStatus;
+use primitives::p_resource_order::{AgreementStatus, OrderStatus};
 use sp_core::Bytes;
 
 #[test]
@@ -14,61 +15,15 @@ fn it_works_for_default_value() {
     });
 }
 
-#[test]
-fn it_works_for_pub() {
-    new_test_pub().execute_with(|| {
-        // Dispatch a signed extrinsic.
-        // Read pallet storage and assert an expected result.
-        assert_eq!(ResourceOrder::order_index(), 0);
-    });
-}
-
-#[test]
-fn it_works_for_staking_amount() {
-    new_test_pub().execute_with(|| {
-        let account_id = 1;
-        let price = 10;
-        assert_ok!(ResourceOrder::staking_amount(
-            Origin::signed(account_id),
-            price
-        ));
-
-        let amount = ResourceOrder::staking(account_id).unwrap().amount;
-        let active_amount = ResourceOrder::staking(account_id).unwrap().active_amount;
-        let lock_amount = ResourceOrder::staking(account_id).unwrap().lock_amount;
-        assert_eq!(amount, price);
-        assert_eq!(active_amount, price);
-        assert_eq!(lock_amount, 0);
-    });
-}
-
-#[test]
-fn it_works_for_withdraw_amount() {
-    new_test_pub().execute_with(|| {
-        let account_id = 2;
-        let price = 100;
-
-        assert_noop!(
-            ResourceOrder::withdraw_amount(Origin::signed(1), 10),
-            Error::<Test>::StakingNotExist
-        );
-        assert_noop!(
-            ResourceOrder::withdraw_amount(Origin::signed(account_id), 1000),
-            Error::<Test>::InsufficientStaking
-        );
-
-        assert_ok!(ResourceOrder::withdraw_amount(
-            Origin::signed(account_id),
-            price
-        ));
-        let amount = ResourceOrder::staking(account_id).unwrap().amount;
-        let active_amount = ResourceOrder::staking(account_id).unwrap().active_amount;
-        let lock_amount = ResourceOrder::staking(account_id).unwrap().lock_amount;
-        assert_eq!(amount, 100);
-        assert_eq!(active_amount, 0);
-        assert_eq!(lock_amount, 100);
-    });
-}
+// #[test]
+// fn it_works_for_pub() {
+//     new_test_pub().execute_with(|| {
+//         // Dispatch a signed extrinsic.
+//         // Read pallet storage and assert an expected result.
+//         assert_eq!(ResourceOrder::order_index(), 0);
+//     });
+// }
+//
 
 #[test]
 fn it_works_for_create_order_info() {
@@ -124,6 +79,8 @@ fn it_works_for_create_order_info() {
     });
 }
 
+// Test order exec
+// config: provider account id:2, resource index: 1, order index: 0
 #[test]
 fn it_works_for_order_exec() {
     new_test_order().execute_with(|| {
@@ -133,9 +90,10 @@ fn it_works_for_order_exec() {
             ResourceOrder::order_exec(Origin::signed(account_id), 100),
             Error::<Test>::OrderDoesNotExist
         );
+
         assert_noop!(
             ResourceOrder::order_exec(Origin::signed(100), 0),
-            Error::<Test>::OrderNotOwnedByYou
+            Error::<Test>::OrderNotOwnedByYou,
         );
 
         assert_ok!(ResourceOrder::order_exec(Origin::signed(account_id), 0));
@@ -151,39 +109,56 @@ fn it_works_for_order_exec() {
         assert_eq!(ResourceOrder::provider_agreements(account_id), agreements);
         assert_eq!(ResourceOrder::agreement_index(), agreement_index);
 
-        let active_amount = ResourceOrder::staking(account_id).unwrap().active_amount;
-        let lock_amount = ResourceOrder::staking(account_id).unwrap().lock_amount;
-        assert_eq!(active_amount, 1900);
-        assert_eq!(lock_amount, 100);
+        // check the staking info
+        let staking_info = primitives::p_market::StakingAmount {
+            amount: 1000_000_000_000_000,
+            active_amount: 900_000_000_000_000,
+            lock_amount: 100_000_000_000_000,
+        };
+        let staking = Market::staking(1).unwrap();
+        assert_eq!(staking, staking_info);
+
+        // check the market staking info
+        let market_staking = primitives::p_market::TotalStakingAmount {
+            total_staking: 100_000_000_000_000,
+            total_provider_staking: 0,
+            total_gateway_staking: 0,
+            total_client_staking: 100_000_000_000_000,
+        };
+        let total_staking = Market::total_staked();
+        assert_eq!(total_staking, market_staking);
     });
 }
+//
+// #[test]
+// fn it_works_for_cancel_order() {
+//     new_test_order().execute_with(|| {
+//         let account_id = 1;
+//         let resource_index = 1;
+//         let order_index = 0;
+//
+//         assert_noop!(
+//             ResourceOrder::cancel_order(Origin::signed(account_id), 100),
+//             Error::<Test>::OrderDoesNotExist
+//         );
+//         assert_noop!(
+//             ResourceOrder::cancel_order(Origin::signed(100), 0),
+//             Error::<Test>::OrderNotOwnedByYou
+//         );
+//
+//         assert_ok!(ResourceOrder::cancel_order(Origin::signed(account_id), 0));
+//
+//         let order_status = ResourceOrder::resource_orders(order_index).unwrap().status;
+//         assert_eq!(order_status, OrderStatus::Canceled);
+//
+//         let resource_status = Provider::resource(resource_index).unwrap().status;
+//         assert_eq!(resource_status, ResourceStatus::Unused);
+//     });
+// }
+//
 
-#[test]
-fn it_works_for_cancel_order() {
-    new_test_order().execute_with(|| {
-        let account_id = 1;
-        let resource_index = 1;
-        let order_index = 0;
-
-        assert_noop!(
-            ResourceOrder::cancel_order(Origin::signed(account_id), 100),
-            Error::<Test>::OrderDoesNotExist
-        );
-        assert_noop!(
-            ResourceOrder::cancel_order(Origin::signed(100), 0),
-            Error::<Test>::OrderNotOwnedByYou
-        );
-
-        assert_ok!(ResourceOrder::cancel_order(Origin::signed(account_id), 0));
-
-        let order_status = ResourceOrder::resource_orders(order_index).unwrap().status;
-        assert_eq!(order_status, OrderStatus::Canceled);
-
-        let resource_status = Provider::resource(resource_index).unwrap().status;
-        assert_eq!(resource_status, ResourceStatus::Unused);
-    });
-}
-
+/// test heartbeat
+/// orderindex: 0, client id: 1,
 #[test]
 fn it_works_for_heartbeat() {
     new_test_agreement().execute_with(|| {
@@ -198,53 +173,104 @@ fn it_works_for_heartbeat() {
             Error::<Test>::ProtocolNotOwnedByYou
         );
 
-        assert_ok!(ResourceOrder::heartbeat(Origin::signed(account_id), 0));
+        // assert_ok!(ResourceOrder::heartbeat(Origin::signed(account_id), 0));
+        //
+        // let block_number = 50;
+        // let agreement = ResourceOrder::rental_agreements(0).unwrap();
+        //
+        // assert_eq!(agreement.calculation, block_number);
+        //
+        // assert_ok!(ResourceOrder::withdraw_rental_amount(
+        //     Origin::signed(account_id),
+        //     0
+        // ));
+        // let agreement = ResourceOrder::rental_agreements(0).unwrap();
 
-        let block_number = 50;
-        let agreement = ResourceOrder::rental_agreements(0).unwrap();
-        assert_eq!(agreement.price, 100);
-        assert_eq!(agreement.lock_price, 51);
-        assert_eq!(agreement.receive_amount, 49);
-        assert_eq!(agreement.calculation, block_number);
+        // set the block number
+        System::set_block_number(101);
 
-        assert_ok!(ResourceOrder::withdraw_rental_amount(
-            Origin::signed(account_id),
-            0
-        ));
-        let agreement = ResourceOrder::rental_agreements(0).unwrap();
-        assert_eq!(agreement.price, 100);
-        assert_eq!(agreement.lock_price, 51);
-        assert_eq!(agreement.receive_amount, 0);
+        // hook
+        <ResourceOrder as frame_support::traits::Hooks<BlockNumber>>::on_initialize(101);
+
+        System::set_block_number(102);
+        // check the agreement
+        assert_eq!(ResourceOrder::rental_agreements(0), None);
     });
 }
 
+/// test health check
+/// Provider 2, client 1, agreement index: 0
 #[test]
-fn it_works_for_renew_agreement() {
-    new_test_agreement().execute_with(|| {
-        let account_id = 2;
-        let renew_hour = 10;
+fn it_works_for_health_check() {
+    new_test_health_check().execute_with(|| {
+        // hook, health check
+        <ResourceOrder as frame_support::traits::Hooks<BlockNumber>>::on_initialize(20 * MINUTES);
 
-        assert_noop!(
-            ResourceOrder::renew_agreement(Origin::signed(account_id), 100, renew_hour),
-            Error::<Test>::ProtocolDoesNotExist
-        );
-        assert_noop!(
-            ResourceOrder::renew_agreement(Origin::signed(account_id), 0, 999999),
-            Error::<Test>::InsufficientTimeForResource
-        );
+        // check the agreement status
+        let agreement = ResourceOrder::rental_agreements(0).unwrap();
+        assert_eq!(agreement.status, AgreementStatus::Punished);
+        // check the block number of the agreement
+        // set the block nums
+        System::set_block_number(20001);
+        let list: Vec<u64> = vec![];
+        assert_eq!(ResourceOrder::block_agreement(20000), list);
+        // check the staking info
 
-        assert_ok!(ResourceOrder::renew_agreement(
-            Origin::signed(account_id),
-            0,
-            renew_hour
-        ));
+        let provider_amount = primitives::p_market::StakingAmount {
+            amount: 800_000_000_000_000,
+            lock_amount: 0,
+            active_amount: 800_000_000_000_000,
+        };
 
-        let order_index = ResourceOrder::order_index();
-        assert_eq!(order_index, 2);
+        let client_amount = primitives::p_market::StakingAmount {
+            amount: 1000_000_000_000_000,
+            lock_amount: 0,
+            active_amount: 1000_000_000_000_000,
+        };
 
-        let order = ResourceOrder::resource_orders(order_index - 1).unwrap();
-        assert_eq!(order.price, 10);
-        assert_eq!(order.create, 50);
-        assert_eq!(order.status, OrderStatus::Pending);
+        assert_eq!(Market::staking(1).unwrap(), client_amount);
+
+        assert_eq!(Market::staking(2).unwrap(), provider_amount);
+
+        let total_staked = primitives::p_market::TotalStakingAmount {
+            total_staking: 0,
+            total_provider_staking: 0,
+            total_gateway_staking: 0,
+            total_client_staking: 0,
+        };
+
+        assert_eq!(Market::total_staked(), total_staked);
     });
 }
+
+//
+// #[test]
+// fn it_works_for_renew_agreement() {
+//     new_test_agreement().execute_with(|| {
+//         let account_id = 2;
+//         let renew_hour = 10;
+//
+//         assert_noop!(
+//             ResourceOrder::renew_agreement(Origin::signed(account_id), 100, renew_hour),
+//             Error::<Test>::ProtocolDoesNotExist
+//         );
+//         assert_noop!(
+//             ResourceOrder::renew_agreement(Origin::signed(account_id), 0, 999999),
+//             Error::<Test>::InsufficientTimeForResource
+//         );
+//
+//         assert_ok!(ResourceOrder::renew_agreement(
+//             Origin::signed(account_id),
+//             0,
+//             renew_hour
+//         ));
+//
+//         let order_index = ResourceOrder::order_index();
+//         assert_eq!(order_index, 2);
+//
+//         let order = ResourceOrder::resource_orders(order_index - 1).unwrap();
+//         assert_eq!(order.price, 10);
+//         assert_eq!(order.create, 50);
+//         assert_eq!(order.status, OrderStatus::Pending);
+//     });
+// }

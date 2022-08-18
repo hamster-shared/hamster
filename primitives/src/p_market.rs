@@ -31,6 +31,7 @@ pub enum MarketUserStatus {
 pub enum ChangeAmountType {
     Lock,
     Unlock,
+    Penalty,
 }
 
 /// StakingAmount： Pledge account number for market
@@ -92,10 +93,10 @@ impl StakingAmount {
         true
     }
 
+    // del the amount from the account staking amount
     pub fn penalty_amount(&mut self, price: u128) {
         self.amount -= price;
-        self.active_amount = self.active_amount + self.lock_amount - price;
-        self.lock_amount = 0;
+        self.lock_amount -= price;
     }
 }
 
@@ -192,7 +193,11 @@ pub trait MarketInterface<AccountId> {
 
     fn update_gateway_income(who: AccountId, reward: u128);
 
+    fn update_client_income(who: AccountId, reward: u128);
+
     fn gateway_staking_fee() -> u128;
 
     fn provider_staking_fee() -> u128;
+
+    fn client_staking_fee() -> u128;
 }

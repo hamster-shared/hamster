@@ -395,6 +395,8 @@ fn testnet_genesis(
             gateway_base_fee: 100 * TTC,
             market_base_multiplier: (5, 3, 1),
             provider_base_fee: 100 * TTC,
+            client_base_fee: 100 * TTC,
+            total_staked: Default::default(),
         },
     }
 }

@@ -1,6 +1,9 @@
 use crate::p_provider::ProviderPoints;
+use crate::p_resource_order::RentalAgreement;
 use codec::{Decode, Encode};
+use frame_support::Parameter;
 use sp_debug_derive::RuntimeDebug;
+use sp_runtime::traits::AtLeast32BitUnsigned;
 use sp_std::vec::Vec;
 
 pub trait ForChunkCycle {
@@ -10,14 +13,20 @@ pub trait ForChunkCycle {
 }
 
 /// This trait used to put the compute list into task list
-pub trait ChunkCycleInterface<AccountId> {
-    fn push(ds: ForDs<AccountId>, payout: u128);
+pub trait ChunkCycleInterface<AccountId, BlockNumber>
+where
+    BlockNumber: Parameter + AtLeast32BitUnsigned,
+{
+    fn push(ds: ForDs<AccountId, BlockNumber>, payout: u128);
 }
 
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
-pub enum ForDs<AccountId> {
+pub enum ForDs<AccountId, BlockNumber>
+where
+    BlockNumber: Parameter + AtLeast32BitUnsigned,
+{
     // [(account, peer_ids), gateway nums]
     Gateway((Vec<(AccountId, Vec<Vec<u8>>)>, u128)),
     Provider((Vec<(AccountId, ProviderPoints)>, u128, u128)),
-    Client(Vec<AccountId>),
+    Client(Vec<(u64, RentalAgreement<AccountId, BlockNumber>)>),
 }
