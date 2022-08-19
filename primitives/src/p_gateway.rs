@@ -34,8 +34,10 @@ where
     }
 }
 
-pub trait GatewayInterface<AccountId> {
+pub trait GatewayInterface<AccountId, BlockNumber> {
     fn account_own_peerid(who: AccountId, peerid: Vec<u8>) -> bool;
 
-    fn gateway_online_list() -> (Vec<(AccountId, Vec<Vec<u8>>)>, u128);
+    fn gateway_online_list() -> (Vec<(AccountId, Vec<Vec<u8>>)>, Vec<(Vec<u8>, u128)>, u128);
+
+    fn update_gateway_node_register_time(peerid: Vec<u8>);
 }

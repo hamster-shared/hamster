@@ -621,6 +621,7 @@ impl pallet_gateway::Config for Runtime {
     type Currency = Balances;
     type NumberToBalance = ConvertInto;
     type BalanceToNumber = ConvertInto;
+    type BlockNumberToNumber = ConvertInto;
     type GatewayNodeTimedRemovalInterval = GatewayNodeTimedRemovalInterval;
     type GatewayNodeHeartbeatInterval = GatewayNodeHeartbeatInterval;
     type MarketInterface = Market;
@@ -636,7 +637,9 @@ impl pallet_chunkcycle::Config for Runtime {
     type Currency = Balances;
     type NumberToBalance = ConvertInto;
     type BalanceToNumber = ConvertInto;
+    type BlockNumberToNumber = ConvertInto;
     type MarketInterface = Market;
+    type GatewayInterface = Gateway;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

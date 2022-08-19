@@ -4079,6 +4079,7 @@ dependencies = [
  "pallet-chunkcycle",
  "pallet-market",
  "pallet-provider",
+ "pallet-resource-order",
  "pallet-timestamp",
  "parity-scale-codec",
  "serde",

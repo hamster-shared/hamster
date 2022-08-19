@@ -26,7 +26,7 @@ where
     BlockNumber: Parameter + AtLeast32BitUnsigned,
 {
     // [(account, peer_ids), gateway nums]
-    Gateway((Vec<(AccountId, Vec<Vec<u8>>)>, u128)),
+    Gateway((Vec<(AccountId, Vec<Vec<u8>>)>, Vec<(Vec<u8>, u128)>, u128)),
     Provider((Vec<(AccountId, ProviderPoints)>, u128, u128)),
     Client(Vec<(u64, RentalAgreement<AccountId, BlockNumber>)>),
 }

@@ -62,7 +62,7 @@ pub mod pallet {
         type Currency: Currency<Self::AccountId>;
 
         /// Gateway interface
-        type GatewayInterface: GatewayInterface<Self::AccountId>;
+        type GatewayInterface: GatewayInterface<Self::AccountId, Self::BlockNumber>;
 
         /// provider interface
         type ProviderInterface: ProviderInterface<Self::AccountId>;
@@ -652,6 +652,7 @@ impl<T: Config> MarketInterface<<T as frame_system::Config>::AccountId> for Pall
         // TODO Only compute the gateway and provider now
         // 3. Push the gateway online list and compute every every node reward
         let ds_gateway = T::GatewayInterface::gateway_online_list();
+
         T::ChunkCycleInterface::push(
             ForDs::Gateway(ds_gateway),
             T::BalanceToNumber::convert(gateway_payout),

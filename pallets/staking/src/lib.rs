@@ -855,7 +855,7 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
         /// The staking balance.
-        type GatewayInterface: GatewayInterface<Self::AccountId>;
+        type GatewayInterface: GatewayInterface<Self::AccountId, Self::BlockNumber>;
 
         type MarketInterface: MarketInterface<Self::AccountId>;
 

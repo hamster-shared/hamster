@@ -1,5 +1,6 @@
 use crate::{mock::*, Error};
 use alloc::vec;
+use frame_support::assert_ok;
 use primitives::p_gateway::GatewayNode;
 
 #[test]
@@ -277,6 +278,33 @@ fn test_heartbreat_offline() {
         System::set_block_number(1);
     })
 }
+
+#[test]
+fn test_online_time() {
+    new_test_ext().execute_with(|| {
+        System::set_block_number(1);
+        assert_ok!(Gateway::register_gateway_node(
+            Origin::signed(1),
+            "peer_id1".as_bytes().to_vec()
+        ));
+
+       // check the register time of gateway node
+        assert_eq!(Gateway::gateway_node_register_time("peer_id1".as_bytes().to_vec()).unwrap(), 1);
+
+        // check the total online time
+        System::set_block_number(2);
+        <Gateway as frame_support::traits::Hooks<BlockNumber>>::on_initialize(2);
+        assert_eq!(Gateway::total_online_time(), 1);
+
+        System::set_block_number(3);
+        <Gateway as frame_support::traits::Hooks<BlockNumber>>::on_initialize(3);
+        assert_ok!(Gateway::offline(Origin::signed(1), "peer_id1".as_bytes().to_vec()));
+        assert_eq!(Gateway::total_online_time(), 1);
+        assert_eq!(Gateway::gateway_node_register_time("peer_id1".as_bytes().to_vec()), None);
+    })
+}
+
+
 
 // #[test]
 // fn it_works_heartbeat_logic() {

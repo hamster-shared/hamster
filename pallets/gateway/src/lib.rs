@@ -45,6 +45,9 @@ pub mod pallet {
         /// amount converted to numbers
         type BalanceToNumber: Convert<BalanceOf<Self>, u128>;
 
+        /// block height to number
+        type BlockNumberToNumber: Convert<Self::BlockNumber, u128> + Convert<u32, Self::BlockNumber>;
+
         /// gateway node timed removal interval
         #[pallet::constant]
         type GatewayNodeTimedRemovalInterval: Get<Self::BlockNumber>;
@@ -91,6 +94,17 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn storage_version)]
     pub(crate) type StorageVersion<T: Config> = StorageValue<_, Releases, ValueQuery>;
+
+    /// The gateway node register time on current era
+    #[pallet::storage]
+    #[pallet::getter(fn gateway_node_register_time)]
+    pub(super) type GatewayNodeRegisterTime<T: Config> =
+        StorageMap<_, Twox64Concat, Vec<u8>, T::BlockNumber, OptionQuery>;
+
+    /// The total online time on the current era of all the gateway nodes
+    #[pallet::storage]
+    #[pallet::getter(fn total_online_time)]
+    pub(super) type TotalOnlineTime<T: Config> = StorageValue<_, u128, ValueQuery>;
 
     // The genesis config type.
     #[pallet::genesis_config]
@@ -163,6 +177,8 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_initialize(now: T::BlockNumber) -> Weight {
+            Self::add_total_online_time();
+
             // health examination
             if (now % T::GatewayNodeTimedRemovalInterval::get()).is_zero() {
                 // get a list of gateway nodes
@@ -244,6 +260,9 @@ pub mod pallet {
 
             // update the Account Peer Map
             Self::update_account_peer_map(who.clone(), peer_id.clone());
+
+            // update the gatweay register time on the current era
+            GatewayNodeRegisterTime::<T>::insert(peer_id.clone(), block_number);
 
             // update the gateway node coutn
             GatewayNodeCount::<T>::set(gateway_node_count + 1);
@@ -337,7 +356,15 @@ impl<T: Config> Pallet<T> {
             AccountPeerMap::<T>::insert(who.clone(), account_peer_list);
         }
 
-        // 5. unlock the staking amount
+        // 5. remove the gateway node register time
+        if let Some(_) = GatewayNodeRegisterTime::<T>::get(peer_id.clone()) {
+            GatewayNodeRegisterTime::<T>::remove(peer_id.clone());
+        }
+
+        // 6. sub the total online time
+        Self::sub_total_online_time();
+
+        // 7. unlock the staking amount
         T::MarketInterface::change_stake_amount(
             who.clone(),
             ChangeAmountType::Unlock,
@@ -361,9 +388,30 @@ impl<T: Config> Pallet<T> {
 
         AccountPeerMap::<T>::insert(who.clone(), account_peer_map);
     }
+
+    pub fn add_total_online_time() {
+        let mut total_online_time = TotalOnlineTime::<T>::get();
+
+        total_online_time += Gateways::<T>::get().len() as u128;
+
+        TotalOnlineTime::<T>::put(total_online_time);
+    }
+
+    pub fn sub_total_online_time() {
+        let mut total_online_time = TotalOnlineTime::<T>::get();
+
+        total_online_time -= 1;
+
+        TotalOnlineTime::<T>::put(total_online_time);
+    }
 }
 
-impl<T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pallet<T> {
+impl<T: Config>
+    GatewayInterface<
+        <T as frame_system::Config>::AccountId,
+        <T as frame_system::Config>::BlockNumber,
+    > for Pallet<T>
+{
     fn account_own_peerid(who: <T as frame_system::Config>::AccountId, peerid: Vec<u8>) -> bool {
         if !AccountPeerMap::<T>::contains_key(who.clone()) {
             return false;
@@ -379,16 +427,40 @@ impl<T: Config> GatewayInterface<<T as frame_system::Config>::AccountId> for Pal
         return true;
     }
 
+    /// return
+    /// * the account and the peerid list
+    /// * the gateway node register time
+    /// * the total online time
     fn gateway_online_list() -> (
         Vec<(<T as frame_system::Config>::AccountId, Vec<Vec<u8>>)>,
+        Vec<(Vec<u8>, u128)>,
         u128,
     ) {
+        let total_online_time = TotalOnlineTime::<T>::get();
+        TotalOnlineTime::<T>::put(0);
         (
             AccountPeerMap::<T>::iter()
                 .map(|(who, peer_list)| (who.clone(), peer_list.clone()))
                 .collect(),
-            Gateways::<T>::get().len() as u128,
+            GatewayNodeRegisterTime::<T>::iter()
+                .map(|(peer_id, register_time)| {
+                    (
+                        peer_id.clone(),
+                        T::BlockNumberToNumber::convert(register_time.clone()),
+                    )
+                })
+                .collect(),
+            total_online_time,
         )
+    }
+
+    // Update the gateway node register time on the current era
+    fn update_gateway_node_register_time(peer_id: Vec<u8>) {
+        // if the gateway node still online, update the register time
+        if let Some(_) = GatewayNodeRegisterTime::<T>::get(peer_id.clone()) {
+            let block_number = <frame_system::Pallet<T>>::block_number();
+            GatewayNodeRegisterTime::<T>::insert(peer_id.clone(), block_number);
+        }
     }
 }
 

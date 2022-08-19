@@ -46,6 +46,7 @@ frame_support::construct_runtime!(
         Market: pallet_market::{Pallet, Call, Storage, Config<T>, Event<T>},
         Provider: pallet_provider::{Pallet, Call, Storage, Config<T>, Event<T>},
         Chunkcycle: pallet_chunkcycle::{Pallet, Call, Storage, Event<T>},
+        ResourceOrder: pallet_resource_order::{Pallet, Call, Storage, Event<T>},
     }
 );
 
@@ -76,7 +77,7 @@ impl system::Config for Test {
     type BlockHashCount = BlockHashCount;
     type Version = ();
     type PalletInfo = PalletInfo;
-    type AccountData = pallet_balances::AccountData<u64>;
+    type AccountData = pallet_balances::AccountData<u128>;
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
@@ -109,6 +110,7 @@ impl pallet_gateway::Config for Test {
     type GatewayNodeHeartbeatInterval = GatewayNodeHeartbeatInterval;
 
     type MarketInterface = Market;
+    type BlockNumberToNumber = ConvertInto;
 }
 
 impl pallet_market::Config for Test {
@@ -121,6 +123,7 @@ impl pallet_market::Config for Test {
     type GatewayInterface = Gateway;
     type ProviderInterface = Provider;
     type ChunkCycleInterface = Chunkcycle;
+    type ResourceOrderInterface = ResourceOrder;
 }
 
 parameter_types! {
@@ -149,7 +152,21 @@ impl pallet_chunkcycle::Config for Test {
     type Currency = Balances;
     type NumberToBalance = ConvertInto;
     type BalanceToNumber = ConvertInto;
+    type BlockNumberToNumber = ConvertInto;
     type MarketInterface = Market;
+    type GatewayInterface = Gateway;
+}
+
+impl pallet_resource_order::Config for Test {
+    type Event = Event;
+    type Currency = Balances;
+    type OrderInterface = Provider;
+    type MarketInterface = Market;
+    type BlockNumberToNumber = ConvertInto;
+    type NumberToBalance = ConvertInto;
+    type BalanceToNumber = ConvertInto;
+    type HealthCheckInterval = HealthCheckInterval;
+    type UnixTime = Timestamp;
 }
 
 // Build genesis storage according to the mock runtime.
@@ -165,6 +182,8 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
         gateway_base_fee: 100_000_000_000_000,
         market_base_multiplier: (5, 3, 1),
         provider_base_fee: 100_000_000_000_000,
+        client_base_fee: 100_000_000_000_000,
+        total_staked: Default::default(),
     }
     .assimilate_storage(&mut t)
     .unwrap();
@@ -215,6 +234,10 @@ pub fn test_hearbreat_ext() -> sp_io::TestExternalities {
     let ext = sp_io::TestExternalities::new(t);
     ext
 }
+
+
+
+
 // pub fn test_heartbeart_ext() -> sp_io::TestExternalities {
 //     let mut t = system::GenesisConfig::default()
 //         .build_storage::<Test>()

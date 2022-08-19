@@ -7,7 +7,7 @@ use frame_system::pallet_prelude::*;
 pub use pallet::*;
 use primitives::p_market::MarketInterface;
 use primitives::p_resource_order::RentalAgreement;
-use primitives::{p_chunkcycle::*, p_provider::*};
+use primitives::{p_chunkcycle::*, p_gateway::*, p_provider::*};
 use sp_runtime::traits::Saturating;
 use sp_runtime::Perbill;
 pub use sp_std::vec::Vec;
@@ -19,6 +19,7 @@ type BalanceOf<T> =
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
+    use primitives::p_gateway::GatewayInterface;
 
     /// Configure the pallet by specifying the parameters and types on which it depends.
     #[pallet::config]
@@ -36,7 +37,12 @@ pub mod pallet {
         /// amount converted to numbers
         type BalanceToNumber: Convert<BalanceOf<Self>, u128>;
 
+        /// block height to number
+        type BlockNumberToNumber: Convert<Self::BlockNumber, u128> + Convert<u32, Self::BlockNumber>;
+
         type MarketInterface: MarketInterface<Self::AccountId>;
+
+        type GatewayInterface: GatewayInterface<Self::AccountId, Self::BlockNumber>;
     }
 
     #[pallet::pallet]
@@ -131,30 +137,52 @@ impl<T: Config> Pallet<T> {
         };
     }
 
-    /// gateway_list: [(accountId, peer ids), gateway nums]
+    /// gateway_list: [(accountId, peer ids), (peer ids, online time), total gateway online time ]
     pub fn compute_gateway(
-        _gateway_list: (Vec<(T::AccountId, Vec<Vec<u8>>)>, u128),
+        _gateway_list: (
+            Vec<(T::AccountId, Vec<Vec<u8>>)>,
+            Vec<(Vec<u8>, u128)>,
+            u128,
+        ),
         payout: u128,
         for_index: u128,
     ) -> u128 {
         let gateway_list = _gateway_list.0;
-        let gateway_nums = _gateway_list.1;
+        let gateway_register_time = _gateway_list.1;
+        let total_gateway_online_time = _gateway_list.2;
 
-        // 0. compute the reward for one gateway
-        let reward = Perbill::from_rational(1, gateway_nums) * T::NumberToBalance::convert(payout);
+        let now = T::BlockNumberToNumber::convert(<frame_system::Pallet<T>>::block_number());
 
-        // 1. compute the reward for each gateway
         let mut cycle_time = 0;
         for (who, peer_ids) in gateway_list.iter().skip(for_index as usize) {
-            // 2. update the cycle time
+            // 1. update the cycle time
             cycle_time += 1;
 
-            let peer_ids_len = peer_ids.len();
-            let gateway_reward = reward * T::NumberToBalance::convert(peer_ids_len as u128);
-            // 3. save the income
+            // 2. compute the peer_id reward
+            let mut account_online_time = 0;
+            for peer_id in peer_ids.iter() {
+                // 3. get the peer_id register time
+                let register_time = match gateway_register_time.iter().find(|x| x.0 == *peer_id) {
+                    Some(x) => x.1,
+                    // if not found, the register time is 0
+                    None => 0,
+                };
+
+                // 4. update the account online time
+                account_online_time += now.saturating_sub(register_time);
+
+                // 5. update the peer id register time
+                T::GatewayInterface::update_gateway_node_register_time(peer_id.clone());
+            }
+
+            // 5. compute the reward for the account
+            let reward = Perbill::from_rational(account_online_time, total_gateway_online_time)
+                * (T::NumberToBalance::convert(payout));
+
+            // 6. save the income
             T::MarketInterface::update_gateway_income(
                 who.clone(),
-                T::BalanceToNumber::convert(gateway_reward),
+                T::BalanceToNumber::convert(reward),
             );
         }
 
