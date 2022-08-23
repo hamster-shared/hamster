@@ -769,7 +769,19 @@ pub mod pallet {
                     order_index,
                 ));
             } else {
-                return Err(Error::<T>::FailedToWithdraw)?;
+                // cancel order
+                order.cancel_order();
+                // change the resource state to unused
+                resource.status = ResourceStatus::Unused;
+                // save order
+                ResourceOrders::<T>::insert(order_index, order);
+                // save resource state
+                T::OrderInterface::update_computing_resource(resource.index, resource);
+
+                Self::deposit_event(Event::WithdrawLockedOrderPriceSuccess(
+                    who.clone(),
+                    order_index,
+                ));
             }
 
             Ok(())
