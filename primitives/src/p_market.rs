@@ -3,6 +3,7 @@ use codec::{Decode, Encode};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_debug_derive::RuntimeDebug;
+use sp_runtime::traits::Saturating;
 
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -56,8 +57,8 @@ impl StakingAmount {
     }
 
     pub fn charge_for_account(&mut self, price: u128) {
-        self.amount += price;
-        self.active_amount += price;
+        self.amount = self.amount.saturating_add(price);
+        self.active_amount = self.active_amount.saturating_add(price);
     }
 
     pub fn lock_amount(&mut self, price: u128) -> bool {
@@ -65,8 +66,8 @@ impl StakingAmount {
             return false;
         }
 
-        self.active_amount -= price;
-        self.lock_amount += price;
+        self.active_amount =  self.active_amount.saturating_sub(price);
+        self.lock_amount = self.lock_amount.saturating_add(price);
 
         true
     }
@@ -76,8 +77,8 @@ impl StakingAmount {
             return false;
         }
 
-        self.lock_amount -= price;
-        self.active_amount += price;
+        self.lock_amount = self.lock_amount.saturating_sub(price);
+        self.active_amount = self.active_amount.saturating_add(price);
 
         true
     }
@@ -87,16 +88,16 @@ impl StakingAmount {
             return false;
         }
 
-        self.amount -= price;
-        self.active_amount -= price;
+        self.amount = self.amount.saturating_sub(price);
+        self.active_amount = self.active_amount.saturating_sub(price);
 
         true
     }
 
     // del the amount from the account staking amount
     pub fn penalty_amount(&mut self, price: u128) {
-        self.amount -= price;
-        self.lock_amount -= price;
+        self.amount = self.amount.saturating_sub(price);
+        self.lock_amount = self.lock_amount.saturating_sub(price);
     }
 }
 

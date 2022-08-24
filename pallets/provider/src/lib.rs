@@ -631,12 +631,13 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn change_resource_status(account_id: OriginFor<T>, index: u64) -> DispatchResult {
             let who = ensure_signed(account_id)?;
+            
             ensure!(
                 Resources::<T>::contains_key(index),
                 Error::<T>::ResourceNotFound
             );
             let mut resource = Resources::<T>::get(index.clone()).unwrap();
-
+            
             ensure!(
                 resource.account_id == who.clone(),
                 Error::<T>::IllegalRequest
@@ -647,6 +648,22 @@ pub mod pallet {
             );
             resource.status = ResourceStatus::Unused;
 
+            // relock amount 
+            let staking_amount = Self::compute_provider_staked_amount(
+                resource.config.cpu, 
+                resource.config.memory,
+            );
+
+            ensure!(
+                T::MarketInterface::change_stake_amount(
+                    who.clone(),
+                    ChangeAmountType::Lock,
+                    T::BalanceToNumber::convert(staking_amount),
+                    MarketUserStatus::Provider,
+                ),
+                Error::<T>::LockAmountFailed,
+            ); 
+            
             Self::update_computing_resource(index, resource).ok();
 
             Ok(())
