@@ -481,8 +481,13 @@ pub mod pallet {
             if order.clone().is_renew_order() {
                 // query resource agreement number
                 let agreement_index = order.agreement_index.unwrap();
+                let agreement_opt = RentalAgreements::<T>::get(agreement_index);
+                ensure!(
+                    agreement_opt.is_some(),
+                    Error::<T>::ResourceNotExist
+                );
                 // query protocol
-                let mut agreement = RentalAgreements::<T>::get(agreement_index).unwrap();
+                let mut agreement = agreement_opt.unwrap();
                 // get order duration
                 let duration = order.rent_duration;
                 // get the end block of the old order
@@ -1133,12 +1138,19 @@ impl<T: Config> Pallet<T> {
 
         for i in agreements_index {
             // get agreement
-            let mut agreement = RentalAgreements::<T>::get(i).unwrap();
+            let agreement_opt =  RentalAgreements::<T>::get(i);
+            if agreement_opt.is_none() {
+                continue;
+            }
+            let mut agreement = agreement_opt.unwrap();
             // get resource number
             let resource_index = agreement.resource_index;
             // get resource information
-            let mut resource =
-                T::OrderInterface::get_computing_resource_info(resource_index).unwrap();
+            let resource_opt =  T::OrderInterface::get_computing_resource_info(resource_index);
+            if resource_opt.is_none() {
+                continue;
+            }
+            let mut resource = resource_opt.unwrap();
 
             // set resource to unused
             resource.update_status(ResourceStatus::Unused);
