@@ -18,9 +18,6 @@ benchmarks! {
         /* verifying final state */
         assert!(StakerInfo::<T>::contains_key(MarketUserStatus::Client,&caller));
     }
-
-
-
 }
 impl_benchmark_test_suite!(Market, crate::tests::new_test_ext(), crate::tests::Test);
 
