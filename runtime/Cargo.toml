@@ -71,6 +71,7 @@ std = [
     "pallet-gateway/std",
     "pallet-market/std",
     "pallet-chunkcycle/std",
+    "pallet-burn/std",
 ]
 [dependencies.codec]
 default-features = false

@@ -704,6 +704,8 @@ impl<Balance: AtLeast32BitUnsigned + Clone, T: Get<&'static PiecewiseLinear<'sta
             era_duration_millis,
         );
 
+       log::info!("this is yearly_infaltion {:?} **********************************", T::get());
+
         let rest = max_payout.saturating_sub(validator_payout.clone());
         (validator_payout, rest)
     }
