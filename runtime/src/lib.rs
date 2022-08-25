@@ -62,6 +62,8 @@ pub use pallet_template;
 /// Import the market pallet
 pub use pallet_market;
 
+pub use pallet_burn;
+
 use pallet_authority_discovery;
 
 /// An index to a block.
@@ -378,6 +380,12 @@ impl pallet_template::Config for Runtime {
     type BlockNumberToNumber = ConvertInto;
 }
 
+impl pallet_burn::Config for Runtime {
+    type Event = Event;
+    type Currency = Balances;
+    type WeightInfo = pallet_burn::SubstrateWeight<Runtime>;
+}
+
 /// Configure the pallet-template in pallets/market.
 impl pallet_market::Config for Runtime {
     type Event = Event;
@@ -673,6 +681,7 @@ construct_runtime!(
         Gateway: pallet_gateway::{Pallet, Call, Storage, Event<T>},
         Market: pallet_market::{Pallet, Call, Storage, Event<T>, Config<T>},
         Chunkcycle: pallet_chunkcycle::{Pallet, Call, Storage, Event<T>},
+        Burn: pallet_burn::{Pallet, Call, Storage, Event<T>},
     }
 );
 

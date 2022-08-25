@@ -346,3 +346,8 @@ version = '3.0.0'
 default-features = false
 path = '../pallets/chunkcycle'
 version = '3.0.0'
+
+[dependencies.pallet-burn]
+default-features = false
+path = '../pallets/burn'
+version = '3.0.0'
