@@ -225,7 +225,7 @@ where
         }
 
         // get order duration
-        let duration = TryInto::<u128>::try_into(self.end.clone() - self.start.clone())
+        let _duration = TryInto::<u128>::try_into(self.end.clone() - self.start.clone())
             .ok()
             .unwrap();
         //if the current block protocol has not ended
@@ -233,7 +233,7 @@ where
             // (The current block - the last reported block) The total block duration of the protocol Order Amount = Amount obtained during this period
             let this_block = block_number.clone() - self.calculation.clone();
             // calculate the number of blocks
-            let this_block = TryInto::<u128>::try_into(this_block).ok().unwrap();
+            let _this_block = TryInto::<u128>::try_into(this_block).ok().unwrap();
             // calculate the amount earned during this period
 
             self.calculation = block_number.clone();

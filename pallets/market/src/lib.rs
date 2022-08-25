@@ -8,6 +8,7 @@ use frame_support::{
     pallet_prelude::*,
     traits::{Currency, ExistenceRequirement, UnixTime},
     PalletId,
+    transactional
 };
 
 use frame_system::pallet_prelude::*;
@@ -248,6 +249,7 @@ pub mod pallet {
         /// bond
         /// Transfer amount from user to staking pot
         /// Update the Staking
+        #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn bond(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
             let who = ensure_signed(origin)?;
@@ -293,6 +295,7 @@ pub mod pallet {
             Ok(())
         }
 
+        #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn withdraw(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
             let who = ensure_signed(origin)?;
@@ -329,6 +332,7 @@ pub mod pallet {
         /// payout all the gateway node
         /// * Every user can run this function
         /// * Get all the history reward to gateway whose has reward
+        #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn payout_gateway_nodes(origin: OriginFor<T>) -> DispatchResult {
             // Just check the signed
@@ -357,6 +361,7 @@ pub mod pallet {
         /// payout all the client node
         /// * Every user can run this function
         /// * Get all the history reward to client whose has reward
+        #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn payout_client_nodes(origin: OriginFor<T>) -> DispatchResult {
             // Just check the signed
@@ -385,6 +390,7 @@ pub mod pallet {
         /// payout all the provider node
         /// * Every user can run this function
         /// * Get all the history reward to provider whose has reward
+        #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn payout_provider_nodes(origin: OriginFor<T>) -> DispatchResult {
             ensure_signed(origin)?;
@@ -412,6 +418,7 @@ pub mod pallet {
         }
 
         /// Change the gateway staking fee, only call by root
+        #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn update_gateway_staking_fee(
             origin: OriginFor<T>,
@@ -426,6 +433,7 @@ pub mod pallet {
         }
 
         /// Change the provider staking fee, only call by root
+        #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn update_provider_staking_fee(
             origin: OriginFor<T>,
@@ -440,6 +448,7 @@ pub mod pallet {
         }
 
         /// Change the client staking fee, only call by root
+        #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn update_client_staking_fee(
             origin: OriginFor<T>,
@@ -453,6 +462,7 @@ pub mod pallet {
         }
 
         /// Change the market status multiplier, only can call by root
+        #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn update_market_base_multiplier(
             origin: OriginFor<T>,
@@ -522,6 +532,10 @@ impl<T: Config> Pallet<T> {
     }
 
     fn lock_amount(who: T::AccountId, amount: u128, status: MarketUserStatus) -> bool {
+        if !Staking::<T>::contains_key(who.clone()) {
+            return false;
+        }
+
         // 1. get user staking amount
         let mut staking_amount = Staking::<T>::get(who.clone()).unwrap();
 
@@ -558,6 +572,10 @@ impl<T: Config> Pallet<T> {
     }
 
     fn unlock_amount(who: T::AccountId, amount: u128, status: MarketUserStatus) -> bool {
+        if !Staking::<T>::contains_key(who.clone()) {
+            return false;
+        }
+
         // 1. get user staking amount
         let mut staking_amount = Staking::<T>::get(who.clone()).unwrap();
 
@@ -594,6 +612,10 @@ impl<T: Config> Pallet<T> {
     }
 
     fn penalty_amount(who: T::AccountId, amount: u128, status: MarketUserStatus) -> bool {
+        if !Staking::<T>::contains_key(who.clone()) {
+            return false;
+        }
+
         // 1. get user staking amount
         let mut staking_amount = Staking::<T>::get(who.clone()).unwrap();
 

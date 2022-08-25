@@ -662,7 +662,7 @@ pub mod pallet {
                     MarketUserStatus::Provider,
                 ),
                 Error::<T>::LockAmountFailed,
-            ); 
+            );
             
             Self::update_computing_resource(index, resource).ok();
 
@@ -686,7 +686,7 @@ impl<T: Config> Pallet<T> {
         // 3. update total provider resource points
         let points = cpu + memory;
         let mut provider_total_resource_points = ProviderTotalResourcePoints::<T>::get();
-        provider_total_resource_points -= points as u128;
+        provider_total_resource_points = provider_total_resource_points.saturating_sub(points as u128);
         ProviderTotalResourcePoints::<T>::set(provider_total_resource_points);
     }
 

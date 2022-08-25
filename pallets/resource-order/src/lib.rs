@@ -5,7 +5,7 @@ extern crate alloc;
 use frame_support::sp_runtime::traits::Convert;
 use frame_support::traits::UnixTime;
 use frame_support::transactional;
-use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::Currency, PalletId};
+use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::Currency};
 use frame_system::pallet_prelude::*;
 use sp_core::Bytes;
 use sp_runtime::traits::Zero;
@@ -34,7 +34,6 @@ mod benchmarking;
 type BalanceOf<T> =
     <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
-const PALLET_ID: PalletId = PalletId(*b"ttchain!");
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -335,6 +334,8 @@ pub mod pallet {
         LockAmountFailed,
 
         PenaltyAmountFailed,
+
+        UnlockAmountFailed,
     }
 
     // Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -345,6 +346,7 @@ pub mod pallet {
         /// create order
         /// client use this func to create the order
         /// [Resource number, lease duration (hours), public key]
+        #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn create_order_info(
             origin: OriginFor<T>,
@@ -607,6 +609,7 @@ pub mod pallet {
         }
 
         /// protocol resource heartbeat report
+        #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn heartbeat(origin: OriginFor<T>, agreement_index: u64) -> DispatchResult {
             let who = ensure_signed(origin)?;
@@ -642,89 +645,8 @@ pub mod pallet {
             Ok(())
         }
 
-        /// get back rental bonus amount
-        /// called by provider
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn withdraw_rental_amount(
-            origin: OriginFor<T>,
-            agreement_index: u64,
-        ) -> DispatchResult {
-            let who = ensure_signed(origin)?;
-
-            // get agreement
-            ensure!(
-                RentalAgreements::<T>::contains_key(agreement_index),
-                Error::<T>::ProtocolDoesNotExist
-            );
-            let agreement = RentalAgreements::<T>::get(agreement_index).unwrap();
-            // determine whether it is me
-            ensure!(
-                who.clone() == agreement.provider.clone(),
-                Error::<T>::ProtocolNotOwnedByYou
-            );
-            // get the amount you can claim
-
-            // Whether the settlement of the agreement is completed
-            if agreement.clone().is_finished() {
-                // delete agreement
-                Self::delete_agreement(
-                    agreement_index,
-                    agreement.provider.clone(),
-                    agreement.tenant_info.account_id.clone(),
-                );
-            } else {
-                // save the agreement
-                RentalAgreements::<T>::insert(agreement_index, agreement.clone());
-            }
-
-            Self::deposit_event(Event::WithdrawRentalAmountSuccess(
-                who.clone(),
-                agreement_index,
-            ));
-            Ok(())
-        }
-
-        /// the penalty amount for the withdrawal agreement
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn withdraw_fault_excution(
-            origin: OriginFor<T>,
-            agreement_index: u64,
-        ) -> DispatchResult {
-            let who = ensure_signed(origin)?;
-
-            // get agreement
-            ensure!(
-                RentalAgreements::<T>::contains_key(agreement_index),
-                Error::<T>::ProtocolDoesNotExist
-            );
-            let agreement = RentalAgreements::<T>::get(agreement_index).unwrap();
-            // determine whether it is a user
-            ensure!(
-                who.clone() == agreement.tenant_info.account_id,
-                Error::<T>::ProtocolNotOwnedByYou
-            );
-            // get the amount you can claim
-            // whether the agreement is completed
-            if agreement.clone().is_finished() {
-                // delete agreement
-                Self::delete_agreement(
-                    agreement_index,
-                    agreement.provider.clone(),
-                    agreement.tenant_info.account_id.clone(),
-                );
-            } else {
-                // save the agreement
-                RentalAgreements::<T>::insert(agreement_index, agreement.clone());
-            }
-
-            Self::deposit_event(Event::WithdrawFaultExcutionSuccess(
-                who.clone(),
-                agreement_index,
-            ));
-            Ok(())
-        }
-
         /// cancel order
+        #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn cancel_order(origin: OriginFor<T>, order_index: u64) -> DispatchResult {
             let who = ensure_signed(origin)?;
@@ -793,6 +715,7 @@ pub mod pallet {
         }
 
         /// agreement renewal
+        #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn renew_agreement(
             origin: OriginFor<T>,
@@ -857,94 +780,6 @@ pub mod pallet {
                 resource_index,
                 duration,
             ));
-            Ok(())
-        }
-
-        /// apply free resource
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn apply_free_resource(
-            origin: OriginFor<T>,
-            cpu: u64,
-            memory: u64,
-            duration: u32,
-            public_key: Bytes,
-            deploy_type: u32,
-        ) -> DispatchResult {
-            let who = ensure_signed(origin)?;
-            ensure!(
-                !ApplyUsers::<T>::contains_key(who.clone()),
-                Error::<T>::FreeResourceApplied
-            );
-            let order_index = OrderIndex::<T>::get();
-            let customer = TenantInfo::new(who.clone(), public_key.clone());
-            // get the current block height
-            let block_number = <frame_system::Pallet<T>>::block_number();
-            let now = T::UnixTime::now();
-            let apply_order = ApplyOrder::new(order_index, customer, block_number, now);
-            ApplyOrders::<T>::insert(order_index, apply_order);
-            ApplyUsers::<T>::insert(who.clone(), order_index);
-            OrderIndex::<T>::put(order_index + 1);
-            Self::deposit_event(Event::FreeResourceApplied(
-                who,
-                order_index,
-                cpu,
-                memory,
-                duration,
-                deploy_type,
-                public_key,
-            ));
-
-            Ok(())
-        }
-
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn process_apply_free_resource(
-            origin: OriginFor<T>,
-            order_index: u64,
-            peer_id: Vec<u8>,
-        ) -> DispatchResult {
-            let who = ensure_signed(origin)?;
-
-            ensure!(
-                ApplyOrders::<T>::contains_key(order_index),
-                Error::<T>::FreeResourceNotExists
-            );
-            let mut apply_order = ApplyOrders::<T>::get(order_index).unwrap();
-            ensure!(
-                apply_order.status == OrderStatus::Pending,
-                Error::<T>::FreeResourceHasBeDeal
-            );
-            // process
-            apply_order.processed(who.clone(), peer_id.clone());
-            ApplyOrders::<T>::insert(order_index, apply_order);
-
-            Self::deposit_event(Event::FreeResourceProcessed(order_index, peer_id));
-
-            Ok(())
-        }
-
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn release_apply_free_resource(
-            origin: OriginFor<T>,
-            order_index: u64,
-        ) -> DispatchResult {
-            let who = ensure_signed(origin)?;
-
-            ensure!(
-                ApplyOrders::<T>::contains_key(order_index),
-                Error::<T>::FreeResourceNotExists
-            );
-            let apply_order = ApplyOrders::<T>::get(order_index).unwrap();
-
-            ensure!(
-                who.clone() == apply_order.provider
-                    || who.clone() == apply_order.tenant_info.account_id,
-                Error::<T>::FreeResourceForbidden
-            );
-
-            let applyer = apply_order.tenant_info.account_id;
-            ApplyUsers::<T>::remove(applyer);
-            ApplyOrders::<T>::remove(order_index);
             Ok(())
         }
     }
@@ -1111,12 +946,16 @@ impl<T: Config> Pallet<T> {
                         Error::<T>::PenaltyAmountFailed,
                     );
 
-                    T::MarketInterface::change_stake_amount(
-                        agreement.tenant_info.account_id.clone(),
-                        ChangeAmountType::Unlock,
-                        T::MarketInterface::client_staking_fee(),
-                        MarketUserStatus::Client,
+                    ensure!(
+                        T::MarketInterface::change_stake_amount(
+                            agreement.tenant_info.account_id.clone(),
+                            ChangeAmountType::Unlock,
+                            T::MarketInterface::client_staking_fee(),
+                            MarketUserStatus::Client,
+                        ),
+                        Error::<T>::UnlockAmountFailed,
                     );
+
 
                     // save the agreement
                     RentalAgreements::<T>::insert(i, agreement);
