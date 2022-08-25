@@ -89,15 +89,15 @@ impl ProviderPoints {
     }
 
     pub fn add_points(&mut self, r_points: u64, d_points: u64) {
-        self.duration_points += d_points;
-        self.resource_points += r_points;
-        self.total_points += (d_points + r_points) as u128;
+        self.duration_points = self.duration_points.saturating_add(d_points);
+        self.resource_points = self.resource_points.saturating_add(r_points);
+        self.total_points = self.total_points.saturating_add(d_points.saturating_add(r_points) as u128);
     }
 
     pub fn sub_points(&mut self, r_points: u64, d_points: u64) {
-        self.duration_points -= d_points;
-        self.resource_points -= r_points;
-        self.total_points -= (d_points + r_points) as u128;
+        self.duration_points = self.duration_points.saturating_sub(d_points);
+        self.resource_points = self.resource_points.saturating_sub(r_points);
+        self.total_points = self.total_points.saturating_sub(d_points.saturating_add(r_points) as u128);
     }
 }
 
@@ -166,22 +166,22 @@ impl ResourceRentalStatistics {
 
     /// increase the number of leases
     pub fn add_rental_count(&mut self) {
-        self.rental_count = self.rental_count + 1;
+        self.rental_count = self.rental_count.saturating_add(1);
     }
 
     /// increase rental duration
     pub fn add_rental_duration(&mut self, rental_duration: u32) {
-        self.rental_duration = self.rental_duration + rental_duration;
+        self.rental_duration = self.rental_duration.saturating_add(rental_duration);
     }
 
     /// increase the number of failures
     pub fn add_fault_count(&mut self) {
-        self.fault_count = self.fault_count + 1;
+        self.fault_count = self.fault_count.saturating_add(1);
     }
 
     /// increase failure time
     pub fn add_fault_duration(&mut self, fault_duration: u32) {
-        self.fault_duration = self.fault_duration + fault_duration;
+        self.fault_duration = self.fault_duration.saturating_add(fault_duration);
     }
 }
 

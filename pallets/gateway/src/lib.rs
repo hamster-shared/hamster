@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-extern crate alloc;
+// extern crate alloc;
 
 #[cfg(test)]
 mod mock;
@@ -10,7 +10,7 @@ mod tests;
 
 use frame_support::sp_runtime::traits::Convert;
 
-use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::Currency};
+use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::Currency, transactional};
 use frame_system::pallet_prelude::*;
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
@@ -206,6 +206,7 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// register gateway node
+        #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn register_gateway_node(account_id: OriginFor<T>, peer_id: Vec<u8>) -> DispatchResult {
             let who = ensure_signed(account_id)?;
@@ -277,6 +278,7 @@ pub mod pallet {
         }
 
         /// gateway node heartbeat
+        #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn heartbeat(origin: OriginFor<T>, peer_id: Vec<u8>) -> DispatchResult {
             let who = ensure_signed(origin)?;
@@ -305,6 +307,7 @@ pub mod pallet {
         }
 
         /// Take the specified peer offline
+        #[transactional]
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn offline(account_id: OriginFor<T>, peer_id: Vec<u8>) -> DispatchResult {
             let who = ensure_signed(account_id)?;
