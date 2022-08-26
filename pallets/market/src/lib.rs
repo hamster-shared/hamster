@@ -43,7 +43,8 @@ mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-mod weights2;
+pub mod weights;
+pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -52,6 +53,7 @@ pub mod pallet {
     use primitives::p_market;
     use primitives::p_provider::ProviderInterface;
     use sp_runtime::traits::Saturating;
+    use crate::WeightInfo;
 
     /// Configure the pallet by specifying the parameters and types on which it depends.
     #[pallet::config]
@@ -85,6 +87,8 @@ pub mod pallet {
 
         /// time
         type UnixTime: UnixTime;
+
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::pallet]
@@ -250,7 +254,7 @@ pub mod pallet {
         /// Transfer amount from user to staking pot
         /// Update the Staking
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::bond())]
         pub fn bond(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
             let who = ensure_signed(origin)?;
 
@@ -296,7 +300,7 @@ pub mod pallet {
         }
 
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::withdraw())]
         pub fn withdraw(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
             let who = ensure_signed(origin)?;
 
@@ -333,7 +337,7 @@ pub mod pallet {
         /// * Every user can run this function
         /// * Get all the history reward to gateway whose has reward
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::payout_gateway_nodes())]
         pub fn payout_gateway_nodes(origin: OriginFor<T>) -> DispatchResult {
             // Just check the signed
             ensure_signed(origin)?;
@@ -362,7 +366,7 @@ pub mod pallet {
         /// * Every user can run this function
         /// * Get all the history reward to client whose has reward
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::payout_client_nodes())]
         pub fn payout_client_nodes(origin: OriginFor<T>) -> DispatchResult {
             // Just check the signed
             ensure_signed(origin)?;
@@ -391,7 +395,7 @@ pub mod pallet {
         /// * Every user can run this function
         /// * Get all the history reward to provider whose has reward
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::payout_provider_nodes())]
         pub fn payout_provider_nodes(origin: OriginFor<T>) -> DispatchResult {
             ensure_signed(origin)?;
 

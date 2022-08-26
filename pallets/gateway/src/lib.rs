@@ -7,7 +7,9 @@ mod mock;
 
 #[cfg(test)]
 mod tests;
+pub mod weights;
 
+pub use weights::WeightInfo;
 use frame_support::sp_runtime::traits::Convert;
 
 use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::Currency, transactional};
@@ -30,6 +32,7 @@ const GATEWAY_LIMIT: u64 = 1000;
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
+    use crate::WeightInfo;
 
     /// Configure the pallet by specifying the parameters and types on which it depends.
     #[pallet::config]
@@ -56,6 +59,8 @@ pub mod pallet {
         type GatewayNodeHeartbeatInterval: Get<Self::BlockNumber>;
 
         type MarketInterface: MarketInterface<Self::AccountId>;
+
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::pallet]
@@ -207,7 +212,7 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// register gateway node
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::register_gateway_node())]
         pub fn register_gateway_node(account_id: OriginFor<T>, peer_id: Vec<u8>) -> DispatchResult {
             let who = ensure_signed(account_id)?;
 
@@ -279,7 +284,7 @@ pub mod pallet {
 
         /// gateway node heartbeat
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::heartbeat())]
         pub fn heartbeat(origin: OriginFor<T>, peer_id: Vec<u8>) -> DispatchResult {
             let who = ensure_signed(origin)?;
             // get gateway node
@@ -308,7 +313,7 @@ pub mod pallet {
 
         /// Take the specified peer offline
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::offline())]
         pub fn offline(account_id: OriginFor<T>, peer_id: Vec<u8>) -> DispatchResult {
             let who = ensure_signed(account_id)?;
 

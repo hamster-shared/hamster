@@ -28,6 +28,9 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+pub mod weights;
+pub use weights::WeightInfo;
+
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
@@ -38,6 +41,7 @@ type BalanceOf<T> =
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
+    use crate::WeightInfo;
 
     /// Configure the pallet by specifying the parameters and types on which it depends.
     #[pallet::config]
@@ -71,6 +75,8 @@ pub mod pallet {
 
         /// time
         type UnixTime: UnixTime;
+
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::pallet]
@@ -347,7 +353,7 @@ pub mod pallet {
         /// client use this func to create the order
         /// [Resource number, lease duration (hours), public key]
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::create_order_info())]
         pub fn create_order_info(
             origin: OriginFor<T>,
             resource_index: u64,
@@ -427,7 +433,7 @@ pub mod pallet {
         /// order execution
         /// Provider used this func to execute the order
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::order_exec())]
         pub fn order_exec(origin: OriginFor<T>, order_index: u64) -> DispatchResult {
             let who = ensure_signed(origin)?;
 
@@ -610,7 +616,7 @@ pub mod pallet {
 
         /// protocol resource heartbeat report
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::heartbeat())]
         pub fn heartbeat(origin: OriginFor<T>, agreement_index: u64) -> DispatchResult {
             let who = ensure_signed(origin)?;
 
@@ -647,7 +653,7 @@ pub mod pallet {
 
         /// cancel order
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::cancel_order())]
         pub fn cancel_order(origin: OriginFor<T>, order_index: u64) -> DispatchResult {
             let who = ensure_signed(origin)?;
             // check if an order exists
@@ -716,7 +722,7 @@ pub mod pallet {
 
         /// agreement renewal
         #[transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::renew_agreement())]
         pub fn renew_agreement(
             origin: OriginFor<T>,
             agreement_index: u64,

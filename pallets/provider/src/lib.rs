@@ -21,6 +21,9 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+pub mod weights;
+pub use weights::WeightInfo;
+
 type BalanceOf<T> =
     <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
@@ -29,6 +32,7 @@ pub mod pallet {
     use super::*;
     use primitives::p_provider;
     use primitives::Balance;
+    use crate::WeightInfo;
 
     /// Configure the pallet by specifying the parameters and types on which it depends.
     #[pallet::config]
@@ -49,6 +53,8 @@ pub mod pallet {
 
         /// market interface
         type MarketInterface: MarketInterface<Self::AccountId>;
+
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::pallet]
@@ -283,7 +289,7 @@ pub mod pallet {
         /// * register the resoure config
         /// * save the
         #[frame_support::transactional]
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::register_resource())]
         pub fn register_resource(
             account_id: OriginFor<T>,
             peer_id: Vec<u8>,
@@ -538,7 +544,7 @@ pub mod pallet {
         }
 
         /// Offline the resource from the index
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::offline())]
         pub fn offline(account_id: OriginFor<T>, index: u64) -> DispatchResult {
             let who = ensure_signed(account_id)?;
             // 1. ensure the source exit
@@ -628,7 +634,7 @@ pub mod pallet {
         }
 
         /// change resource status to unused
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::change_resource_status())]
         pub fn change_resource_status(account_id: OriginFor<T>, index: u64) -> DispatchResult {
             let who = ensure_signed(account_id)?;
             
