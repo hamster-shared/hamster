@@ -398,6 +398,7 @@ impl pallet_market::Config for Runtime {
     type NumberToBalance = ConvertInto;
     type BalanceToNumber = ConvertInto;
     type UnixTime = Timestamp;
+    type WeightInfo = pallet_market::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -613,6 +614,7 @@ impl pallet_resource_order::Config for Runtime {
     type HealthCheckInterval = HealthCheckInterval;
     type UnixTime = Timestamp;
     type MarketInterface = Market;
+    type WeightInfo = pallet_resource_order::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_provider::Config for Runtime {
@@ -622,6 +624,7 @@ impl pallet_provider::Config for Runtime {
     type NumberToBalance = ConvertInto;
     type ResourceInterval = ResourceInterval;
     type MarketInterface = Market;
+    type WeightInfo = pallet_provider::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_gateway::Config for Runtime {
@@ -633,6 +636,7 @@ impl pallet_gateway::Config for Runtime {
     type GatewayNodeTimedRemovalInterval = GatewayNodeTimedRemovalInterval;
     type GatewayNodeHeartbeatInterval = GatewayNodeHeartbeatInterval;
     type MarketInterface = Market;
+    type WeightInfo = pallet_gateway::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
