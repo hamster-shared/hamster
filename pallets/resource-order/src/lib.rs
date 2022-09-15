@@ -651,7 +651,7 @@ pub mod pallet {
             Ok(())
         }
 
-        /// cancel order
+        /// cancel order used for client
         #[transactional]
         #[pallet::weight(<T as Config>::WeightInfo::cancel_order())]
         pub fn cancel_order(origin: OriginFor<T>, order_index: u64) -> DispatchResult {

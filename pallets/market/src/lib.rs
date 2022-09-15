@@ -89,6 +89,7 @@ pub mod pallet {
         type UnixTime: UnixTime;
 
         type WeightInfo: WeightInfo;
+
     }
 
     #[pallet::pallet]
