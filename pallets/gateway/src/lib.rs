@@ -2,6 +2,8 @@
 
 // extern crate alloc;
 
+extern crate alloc;
+
 #[cfg(test)]
 mod mock;
 
@@ -9,6 +11,7 @@ mod mock;
 mod tests;
 pub mod weights;
 
+use alloc::vec;
 pub use weights::WeightInfo;
 use frame_support::sp_runtime::traits::Convert;
 
@@ -400,7 +403,9 @@ impl<T: Config> Pallet<T> {
     pub fn add_total_online_time() {
         let mut total_online_time = TotalOnlineTime::<T>::get();
 
-        total_online_time += Gateways::<T>::get().len() as u128;
+        total_online_time = total_online_time.saturating_add(
+            Gateways::<T>::get().len() as u128
+        );
 
         TotalOnlineTime::<T>::put(total_online_time);
     }
@@ -408,7 +413,9 @@ impl<T: Config> Pallet<T> {
     pub fn sub_total_online_time() {
         let mut total_online_time = TotalOnlineTime::<T>::get();
 
-        total_online_time -= 1;
+        total_online_time = total_online_time.saturating_sub(
+            1
+        );
 
         TotalOnlineTime::<T>::put(total_online_time);
     }

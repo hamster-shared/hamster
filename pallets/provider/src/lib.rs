@@ -240,7 +240,7 @@ pub mod pallet {
                                     account_id.clone(),
                                     ChangeAmountType::Unlock,
                                     T::BalanceToNumber::convert(
-                                        Self::compute_provider_staked_amount(cpu, memory),
+                                        Self::compute_provider_staked_amount(cpu as u128, memory as u128),
                                     ),
                                     MarketUserStatus::Provider,
                                 );
@@ -335,7 +335,7 @@ pub mod pallet {
             let index = current_index;
 
             // 2. compute the staking amount
-            let staking_amount = Self::compute_provider_staked_amount(cpu, memory);
+            let staking_amount = Self::compute_provider_staked_amount(cpu as u128, memory as u128);
 
             // 2. lock the staking amount
             ensure!(
@@ -621,8 +621,8 @@ pub mod pallet {
                     who.clone(),
                     ChangeAmountType::Unlock,
                     T::BalanceToNumber::convert(Self::compute_provider_staked_amount(
-                        resource.config.cpu,
-                        resource.config.memory,
+                        resource.config.cpu as u128,
+                        resource.config.memory as u128,
                     )),
                     MarketUserStatus::Provider,
                 );
@@ -656,8 +656,8 @@ pub mod pallet {
 
             // relock amount 
             let staking_amount = Self::compute_provider_staked_amount(
-                resource.config.cpu, 
-                resource.config.memory,
+                resource.config.cpu as u128,
+                resource.config.memory as u128,
             );
 
             ensure!(
@@ -733,12 +733,12 @@ impl<T: Config> Pallet<T> {
 
     /// compute the staked from cpus and memorys
     /// * base_cpu = 100 UNIT base_memory = 100 UNIT
-    fn compute_provider_staked_amount(cpus: u64, memory: u64) -> BalanceOf<T> {
+    fn compute_provider_staked_amount(cpus: u128, memory: u128) -> BalanceOf<T> {
         // Set the base staked fee
         let base_staked = T::MarketInterface::provider_staking_fee();
         // compute the staked from cpus and memory
-        let staked: u128 = (cpus.saturating_mul(base_staked as u64) as u128
-            + memory.saturating_mul(base_staked as u64) as u128) as u128;
+        let staked: u128 = cpus.saturating_mul(base_staked)
+            + memory.saturating_mul(base_staked);
         // return the staked
         T::NumberToBalance::convert(staked)
     }
