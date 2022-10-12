@@ -20,7 +20,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
-#![recursion_limit = "256"]
+#![recursion_limit = "1024"]
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_election_provider_support::{onchain, ExtendedBalance, SequentialPhragmen, VoteWeight};
@@ -1418,82 +1418,77 @@ impl pallet_burn::Config for Runtime {
 	type Currency = Balances;
 }
 
-// impl pallet_hamster_api::Config for Runtime {
-// 	type Event = Event;
-// 	type Currency = Balances;
-// }
-//
-// parameter_types! {
-//     // polling interval
-//     pub const ResourceInterval: BlockNumber = 3 * HOURS;
-//     // health check interval
-//     pub const HealthCheckInterval: BlockNumber = 10 * MINUTES;
-//     // gateway node timed removal interval
-//     pub const GatewayNodeTimedRemovalInterval: BlockNumber = 30 * MINUTES;
-//     //gateway node heartbeat reporting interval
-//     pub const GatewayNodeHeartbeatInterval: BlockNumber = 10 * MINUTES;
-// }
-//
-// impl pallet_gateway::Config for Runtime {
-// 	type Event = Event;
-// 	type Currency = Balances;
-// 	type NumberToBalance = ConvertInto;
-// 	type BalanceToNumber = ConvertInto;
-// 	type BlockNumberToNumber = ConvertInto;
-// 	type GatewayNodeTimedRemovalInterval = GatewayNodeTimedRemovalInterval;
-// 	type GatewayNodeHeartbeatInterval = GatewayNodeHeartbeatInterval;
-// 	type MarketInterface = Market;
-// 	type WeightInfo = pallet_gateway::weights::SubstrateWeight<Runtime>;
-// }
-//
-// impl pallet_provider::Config for Runtime {
-// 	type Event = Event;
-// 	type Currency = Balances;
-// 	type BalanceToNumber = ConvertInto;
-// 	type NumberToBalance = ConvertInto;
-// 	type ResourceInterval = ResourceInterval;
-// 	type MarketInterface = Market;
-// 	type WeightInfo = pallet_provider::weights::SubstrateWeight<Runtime>;
-// }
-//
-// impl pallet_resource_order::Config for Runtime {
-// 	type Event = Event;
-// 	type Currency = Balances;
-// 	type OrderInterface = Provider;
-// 	type BlockNumberToNumber = ConvertInto;
-// 	type NumberToBalance = ConvertInto;
-// 	type BalanceToNumber = ConvertInto;
-// 	type HealthCheckInterval = HealthCheckInterval;
-// 	type UnixTime = Timestamp;
-// 	type MarketInterface = Market;
-// 	type ProviderInterface = Provider;
-// 	type WeightInfo = pallet_resource_order::weights::SubstrateWeight<Runtime>;
-// }
-//
-// impl pallet_chunkcycle::Config for Runtime {
-// 	type Event = Event;
-// 	type ForChunkCycleInterface = Market;
-// 	type Currency = Balances;
-// 	type NumberToBalance = ConvertInto;
-// 	type BalanceToNumber = ConvertInto;
-// 	type BlockNumberToNumber = ConvertInto;
-// 	type MarketInterface = Market;
-// 	type GatewayInterface = Gateway;
-// }
-//
-// impl pallet_market::Config for Runtime {
-// 	type Event = Event;
-// 	type Currency = Balances;
-// 	type GatewayInterface = Gateway;
-// 	type ProviderInterface = Provider;
-// 	type ChunkCycleInterface = Chunkcycle;
-// 	type ResourceOrderInterface = ResourceOrder;
-// 	type BlockNumberToNumber = ConvertInto;
-// 	type NumberToBalance = ConvertInto;
-// 	type BalanceToNumber = ConvertInto;
-// 	type UnixTime = Timestamp;
-// 	type WeightInfo = pallet_market::weights::SubstrateWeight<Runtime>;
-// }
+parameter_types! {
+    // polling interval
+    pub const ResourceInterval: BlockNumber = 3 * HOURS;
+    // health check interval
+    pub const HealthCheckInterval: BlockNumber = 10 * MINUTES;
+    // gateway node timed removal interval
+    pub const GatewayNodeTimedRemovalInterval: BlockNumber = 30 * MINUTES;
+    //gateway node heartbeat reporting interval
+    pub const GatewayNodeHeartbeatInterval: BlockNumber = 10 * MINUTES;
+}
+
+impl pallet_gateway::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type NumberToBalance = ConvertInto;
+	type BalanceToNumber = ConvertInto;
+	type BlockNumberToNumber = ConvertInto;
+	type GatewayNodeTimedRemovalInterval = GatewayNodeTimedRemovalInterval;
+	type GatewayNodeHeartbeatInterval = GatewayNodeHeartbeatInterval;
+	type MarketInterface = Market;
+	type WeightInfo = pallet_gateway::weights::SubstrateWeight<Runtime>;
+}
+
+impl pallet_provider::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type BalanceToNumber = ConvertInto;
+	type NumberToBalance = ConvertInto;
+	type ResourceInterval = ResourceInterval;
+	type MarketInterface = Market;
+	type WeightInfo = pallet_provider::weights::SubstrateWeight<Runtime>;
+}
+
+impl pallet_resource_order::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type OrderInterface = Provider;
+	type BlockNumberToNumber = ConvertInto;
+	type NumberToBalance = ConvertInto;
+	type BalanceToNumber = ConvertInto;
+	type HealthCheckInterval = HealthCheckInterval;
+	type UnixTime = Timestamp;
+	type MarketInterface = Market;
+	type ProviderInterface = Provider;
+	type WeightInfo = pallet_resource_order::weights::SubstrateWeight<Runtime>;
+}
+
+impl pallet_chunkcycle::Config for Runtime {
+	type Event = Event;
+	type ForChunkCycleInterface = Market;
+	type Currency = Balances;
+	type NumberToBalance = ConvertInto;
+	type BalanceToNumber = ConvertInto;
+	type BlockNumberToNumber = ConvertInto;
+	type MarketInterface = Market;
+	type GatewayInterface = Gateway;
+}
+
+impl pallet_market::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type GatewayInterface = Gateway;
+	type ProviderInterface = Provider;
+	type ChunkCycleInterface = Chunkcycle;
+	type ResourceOrderInterface = ResourceOrder;
+	type BlockNumberToNumber = ConvertInto;
+	type NumberToBalance = ConvertInto;
+	type BalanceToNumber = ConvertInto;
+	type UnixTime = Timestamp;
+	type WeightInfo = pallet_market::weights::SubstrateWeight<Runtime>;
+}
 
 construct_runtime!(
 	pub enum Runtime where
@@ -1553,12 +1548,11 @@ construct_runtime!(
 		ConvictionVoting: pallet_conviction_voting,
 		Whitelist: pallet_whitelist,
 		HBurn: pallet_burn,
-// 		Gateway: pallet_gateway,
-// 		Provider: pallet_provider,
-// 		ResourceOrder: pallet_resource_order,
-// 		Chunkcycle: pallet_chunkcycle,
-// 		Market: pallet_market,
-// 		HamsterApi: pallet_hamster_api,
+		Gateway: pallet_gateway,
+		Provider: pallet_provider,
+		ResourceOrder: pallet_resource_order,
+		Chunkcycle: pallet_chunkcycle,
+		Market: pallet_market,
 	}
 );
 

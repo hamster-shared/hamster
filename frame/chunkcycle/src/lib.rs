@@ -22,6 +22,11 @@ pub mod pallet {
 	use super::*;
 	use sp_hamster::p_gateway::GatewayInterface;
 
+	#[pallet::pallet]
+	#[pallet::generate_store(pub (super) trait Store)]
+	#[pallet::without_storage_info]
+	pub struct Pallet<T>(_);
+
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -46,10 +51,7 @@ pub mod pallet {
 		type GatewayInterface: GatewayInterface<Self::AccountId, Self::BlockNumber>;
 	}
 
-	#[pallet::pallet]
-	#[pallet::generate_store(pub (super) trait Store)]
-	#[pallet::without_storage_info]
-	pub struct Pallet<T>(_);
+
 
 	/// storage the for chunk cycle compute list
 	/// (list, compute type)
