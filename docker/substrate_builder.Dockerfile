@@ -1,5 +1,5 @@
 # This is the build stage for Substrate. Here we create the binary.
-FROM docker.io/paritytech/ci-linux:production as builder
+FROM docker.io/paritytech/ci-linux:f203f298-20220413 as builder
 
 WORKDIR /substrate
 COPY . /substrate
@@ -27,7 +27,6 @@ RUN useradd -m -u 1000 -U -s /bin/sh -d /substrate substrate && \
 # unclutter and minimize the attack surface
 	rm -rf /usr/bin /usr/sbin && \
 # Sanity checks
-	ldd /usr/local/bin/substrate && \
 	/usr/local/bin/substrate --version
 
 USER substrate
