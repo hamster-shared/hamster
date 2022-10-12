@@ -1,0 +1,37 @@
+[package]
+name = "sp-hamster"
+version = "4.0.0-dev"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2021"
+license = "Apache-2.0"
+homepage = "https://substrate.io"
+repository = "https://github.com/paritytech/substrate/"
+description = "Provides types and traits for creating and checking inherents."
+documentation = "https://docs.rs/sp-inherents"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
+sp-core = { version = "6.0.0", default-features = false, path = "../core" }
+sp-runtime = { version = "6.0.0", optional = true, path = "../runtime" }
+sp-std = { version = "4.0.0", default-features = false, path = "../std" }
+frame-support = { version = "4.0.0-dev", default-features = false, path = "./../../frame/support"}
+frame-system = {version = "4.0.0-dev", default-features = false, path = "./../../frame/system"}
+serde = { version = "1.0.144", optional = true}
+sp-debug-derive = { version = "4.0.0", default-features = false, path = "../debug-derive"}
+scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
+
+[features]
+default = ['std']
+std = [
+	"codec/std",
+	"sp-core/std",
+	"sp-runtime",
+	"sp-std/std",
+	"sp-debug-derive/std",
+	"frame-support/std",
+	"frame-system/std",
+	"serde",
+]
