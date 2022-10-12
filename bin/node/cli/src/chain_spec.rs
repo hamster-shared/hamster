@@ -296,6 +296,10 @@ pub fn testnet_genesis(
 	const STASH: Balance = ENDOWMENT / 1000;
 
 	GenesisConfig {
+		gateway: Default::default(),
+		market: Default::default(),
+		provider: Default::default(),
+		resource_order: Default::default(),
 		system: SystemConfig { code: wasm_binary_unwrap().to_vec() },
 		balances: BalancesConfig {
 			balances: endowed_accounts.iter().cloned().map(|x| (x, ENDOWMENT)).collect(),
@@ -630,6 +634,10 @@ pub fn newtouch_genesis(
 	const STASH: Balance = ENDOWMENT / 1000;
 
 	GenesisConfig {
+		gateway: Default::default(),
+		market: Default::default(),
+		provider: Default::default(),
+		resource_order: Default::default(),
 		system: SystemConfig { code: wasm_binary_unwrap().to_vec() },
 		balances: BalancesConfig {
 			balances: endowed_accounts.iter().cloned().map(|x| (x, ENDOWMENT)).collect(),

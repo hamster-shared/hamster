@@ -92,5 +92,9 @@ pub fn config_endowed(code: Option<&[u8]>, extra_endowed: Vec<AccountId>) -> Gen
 		gilt: Default::default(),
 		transaction_storage: Default::default(),
 		transaction_payment: Default::default(),
+		gateway: Default::default(),
+		market: Default::default(),
+		provider: Default::default(),
+		resource_order: Default::default(),
 	}
 }
