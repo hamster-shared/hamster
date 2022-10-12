@@ -77,7 +77,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// An example dispatchable that takes a singles value as a parameter, writes the value to
 		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1).ref_time())]
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn create(origin: OriginFor<T>,
 						  name: Vec<u8>, image: Vec<u8>,cpu : Vec<u8>, mem : Vec<u8>, ports: Vec<u8>,
 		) -> DispatchResult {
@@ -109,7 +109,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1).ref_time())]
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn update(origin: OriginFor<T>,
 					  name: Vec<u8>, image: Vec<u8>,cpu : Vec<u8>, mem : Vec<u8>,
 					  ports: Vec<u8>, replicas: u8,

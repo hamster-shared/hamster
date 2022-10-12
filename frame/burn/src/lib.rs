@@ -73,7 +73,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// An example dispatchable that takes a singles value as a parameter, writes the value to
 		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1).ref_time())]
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn grant_role(origin: OriginFor<T>,
 						  account: T::AccountId,
 		) -> DispatchResult {
@@ -88,7 +88,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1).ref_time())]
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn revoke_role(origin: OriginFor<T>,
 						   account: T::AccountId,
 		) -> DispatchResult {
@@ -104,7 +104,7 @@ pub mod pallet {
 		}
 
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1).ref_time())]
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn burn(
 			origin: OriginFor<T>,
 			amount: BalanceOf<T>,
@@ -120,7 +120,7 @@ pub mod pallet {
 		}
 
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1).ref_time())]
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn mint(
 			origin: OriginFor<T>,
 			amount: BalanceOf<T>,
@@ -140,8 +140,5 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	/// pool
-	pub fn burn_pool() -> T::AccountId {
-		PALLET_ID.into_sub_account_truncating(b"burn")
-	}
-
+	pub fn burn_pool() -> T::AccountId { PALLET_ID.into_sub_account(b"burn") }
 }

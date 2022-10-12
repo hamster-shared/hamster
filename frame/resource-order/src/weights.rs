@@ -71,7 +71,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: ResourceOrder UserOrders (r:1 w:1)
 	// Storage: ResourceOrder ResourceOrders (r:0 w:1)
 	fn create_order_info() -> Weight {
-		Weight::from_ref_time(38_133_000 as u64)
+		(38_133_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(5 as u64))
 			.saturating_add(T::DbWeight::get().writes(4 as u64))
 	}
@@ -87,20 +87,20 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: ResourceOrder ProviderAgreements (r:1 w:1)
 	// Storage: ResourceOrder RentalAgreements (r:0 w:1)
 	fn order_exec() -> Weight {
-		Weight::from_ref_time(56_151_000 as u64)
+		(56_151_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(11 as u64))
 			.saturating_add(T::DbWeight::get().writes(9 as u64))
 	}
 	// Storage: ResourceOrder RentalAgreements (r:1 w:1)
 	fn heartbeat() -> Weight {
-		Weight::from_ref_time(24_793_000 as u64)
+		(24_793_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: ResourceOrder ResourceOrders (r:1 w:1)
 	// Storage: Provider Resources (r:1 w:1)
 	fn cancel_order() -> Weight {
-		Weight::from_ref_time(29_612_000 as u64)
+		(29_612_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
@@ -111,7 +111,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: ResourceOrder UserOrders (r:1 w:1)
 	// Storage: ResourceOrder ResourceOrders (r:0 w:1)
 	fn renew_agreement() -> Weight {
-		Weight::from_ref_time(47_142_000 as u64)
+		(47_142_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(5 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
@@ -126,7 +126,7 @@ impl WeightInfo for () {
 	// Storage: ResourceOrder UserOrders (r:1 w:1)
 	// Storage: ResourceOrder ResourceOrders (r:0 w:1)
 	fn create_order_info() -> Weight {
-		Weight::from_ref_time(38_133_000 as u64)
+		(38_133_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(5 as u64))
 			.saturating_add(RocksDbWeight::get().writes(4 as u64))
 	}
@@ -142,20 +142,20 @@ impl WeightInfo for () {
 	// Storage: ResourceOrder ProviderAgreements (r:1 w:1)
 	// Storage: ResourceOrder RentalAgreements (r:0 w:1)
 	fn order_exec() -> Weight {
-		Weight::from_ref_time(56_151_000 as u64)
+		(56_151_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(11 as u64))
 			.saturating_add(RocksDbWeight::get().writes(9 as u64))
 	}
 	// Storage: ResourceOrder RentalAgreements (r:1 w:1)
 	fn heartbeat() -> Weight {
-		Weight::from_ref_time(24_793_000 as u64)
+		(24_793_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(1 as u64))
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	// Storage: ResourceOrder ResourceOrders (r:1 w:1)
 	// Storage: Provider Resources (r:1 w:1)
 	fn cancel_order() -> Weight {
-		Weight::from_ref_time(29_612_000 as u64)
+		(29_612_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(2 as u64))
 			.saturating_add(RocksDbWeight::get().writes(2 as u64))
 	}
@@ -166,7 +166,7 @@ impl WeightInfo for () {
 	// Storage: ResourceOrder UserOrders (r:1 w:1)
 	// Storage: ResourceOrder ResourceOrders (r:0 w:1)
 	fn renew_agreement() -> Weight {
-		Weight::from_ref_time(47_142_000 as u64)
+		(47_142_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(5 as u64))
 			.saturating_add(RocksDbWeight::get().writes(3 as u64))
 	}

@@ -31,8 +31,8 @@ const GATEWAY_LIMIT: u64 = 1000;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::WeightInfo;
-	
+// 	use crate::WeightInfo;
+
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -228,7 +228,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// register gateway node
 		#[transactional]
-		#[pallet::weight(T::WeightInfo::register_gateway_node())]
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn register_gateway_node(account_id: OriginFor<T>, peer_id: Vec<u8>) -> DispatchResult {
 			let who = ensure_signed(account_id)?;
 
@@ -300,7 +300,7 @@ pub mod pallet {
 
 		/// gateway node heartbeat
 		#[transactional]
-		#[pallet::weight(T::WeightInfo::heartbeat())]
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn heartbeat(origin: OriginFor<T>, peer_id: Vec<u8>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			// get gateway node
@@ -329,7 +329,7 @@ pub mod pallet {
 
 		/// Take the specified peer offline
 		#[transactional]
-		#[pallet::weight(T::WeightInfo::offline())]
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn offline(account_id: OriginFor<T>, peer_id: Vec<u8>) -> DispatchResult {
 			let who = ensure_signed(account_id)?;
 

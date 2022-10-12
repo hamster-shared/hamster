@@ -444,7 +444,7 @@ pub mod pallet {
 		}
 
 		/// modify resource unit price
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1).ref_time())]
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn modify_resource_price(
 			account_id: OriginFor<T>,
 			index: u64,
@@ -477,7 +477,7 @@ pub mod pallet {
 		}
 
 		/// add resource rental time
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1).ref_time())]
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn add_resource_duration(
 			account_id: OriginFor<T>,
 			index: u64,

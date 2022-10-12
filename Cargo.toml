@@ -65,6 +65,7 @@ members = [
 	"frame/assets",
 	"frame/atomic-swap",
 	"frame/aura",
+	"frame/auth-right",
 	"frame/authority-discovery",
 	"frame/authorship",
 	"frame/babe",
@@ -75,7 +76,6 @@ members = [
 	"frame/beefy",
 	"frame/beefy-mmr",
 	"frame/beefy-mmr/primitives",
-	"frame/burn",
 	"frame/benchmarking",
 	"frame/bounties",
 	"frame/child-bounties",
@@ -95,16 +95,12 @@ members = [
 	"frame/examples/offchain-worker",
 	"frame/examples/parallel",
 	"frame/executive",
-	"frame/gateway",
 	"frame/gilt",
 	"frame/grandpa",
-	"frame/hamster-api",
-	"frame/chunkcycle",
 	"frame/identity",
 	"frame/im-online",
 	"frame/indices",
 	"frame/lottery",
-	"frame/market",
 	"frame/membership",
 	"frame/merkle-mountain-range",
 	"frame/merkle-mountain-range/rpc",
@@ -112,10 +108,8 @@ members = [
 	"frame/nicks",
 	"frame/node-authorization",
 	"frame/offences",
-	"frame/provider",
 	"frame/preimage",
 	"frame/proxy",
-	"frame/resource-order",
 	"frame/randomness-collective-flip",
 	"frame/recovery",
 	"frame/referenda",
@@ -174,7 +168,6 @@ members = [
 	"primitives/debug-derive",
 	"primitives/externalities",
 	"primitives/finality-grandpa",
-	"primitives/hamster",
 	"primitives/inherents",
 	"primitives/io",
 	"primitives/keyring",
@@ -302,5 +295,5 @@ inherits = "release"
 
 # https://doc.rust-lang.org/rustc/linker-plugin-lto.html
 lto = "fat"
-# https://doc.rust-lang.org/rustc/codegen-options/index.html#codegen-units
+# https://doc.rust-lang.org/rustc/codegen-options/index˚.html#codegen-units
 codegen-units = 1
