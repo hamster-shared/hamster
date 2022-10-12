@@ -71,13 +71,13 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Gateway AccountPeerMap (r:1 w:1)
 	// Storage: Gateway GatewayNodeRegisterTime (r:0 w:1)
 	fn register_gateway_node() -> Weight {
-		Weight::from_ref_time(39_592_000 as u64)
+		(39_592_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(7 as u64))
 			.saturating_add(T::DbWeight::get().writes(7 as u64))
 	}
 	// Storage: Gateway GatewayNodes (r:1 w:1)
 	fn heartbeat() -> Weight {
-		Weight::from_ref_time(22_415_000 as u64)
+		(22_415_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
@@ -91,7 +91,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Market Staking (r:1 w:1)
 	// Storage: Market TotalStaked (r:1 w:1)
 	fn offline() -> Weight {
-		Weight::from_ref_time(35_333_000 as u64)
+		(35_333_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(9 as u64))
 			.saturating_add(T::DbWeight::get().writes(8 as u64))
 	}
@@ -108,13 +108,13 @@ impl WeightInfo for () {
 	// Storage: Gateway AccountPeerMap (r:1 w:1)
 	// Storage: Gateway GatewayNodeRegisterTime (r:0 w:1)
 	fn register_gateway_node() -> Weight {
-		Weight::from_ref_time(39_592_000 as u64)
+		(39_592_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(7 as u64))
 			.saturating_add(RocksDbWeight::get().writes(7 as u64))
 	}
 	// Storage: Gateway GatewayNodes (r:1 w:1)
 	fn heartbeat() -> Weight {
-		Weight::from_ref_time(22_415_000 as u64)
+		(22_415_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(1 as u64))
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
@@ -128,7 +128,7 @@ impl WeightInfo for () {
 	// Storage: Market Staking (r:1 w:1)
 	// Storage: Market TotalStaked (r:1 w:1)
 	fn offline() -> Weight {
-		Weight::from_ref_time(35_333_000 as u64)
+		(35_333_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(9 as u64))
 			.saturating_add(RocksDbWeight::get().writes(8 as u64))
 	}

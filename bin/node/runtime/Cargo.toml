@@ -51,6 +51,7 @@ frame-election-provider-support = { version = "4.0.0-dev", default-features = fa
 frame-system-rpc-runtime-api = { version = "4.0.0-dev", default-features = false, path = "../../../frame/system/rpc/runtime-api/" }
 frame-try-runtime = { version = "0.10.0-dev", default-features = false, path = "../../../frame/try-runtime", optional = true }
 pallet-assets = { version = "4.0.0-dev", default-features = false, path = "../../../frame/assets" }
+pallet-auth-right = {version = "4.0.0-dev", default-features = false ,path = "../../../frame/auth-right"}
 pallet-authority-discovery = { version = "4.0.0-dev", default-features = false, path = "../../../frame/authority-discovery" }
 pallet-authorship = { version = "4.0.0-dev", default-features = false, path = "../../../frame/authorship" }
 pallet-babe = { version = "4.0.0-dev", default-features = false, path = "../../../frame/babe" }
@@ -109,6 +110,7 @@ pallet-resource-order = { version = "4.0.0-dev", default-features = false, path 
 pallet-chunkcycle = { version = "4.0.0-dev", default-features = false, path = "../../../frame/chunkcycle" }
 pallet-market = { version = "4.0.0-dev", default-features = false, path = "../../../frame/market" }
 pallet-hamster-api = { version = "4.0.0-dev", default-features = false , path = "../../../frame/hamster-api"}
+
 [build-dependencies]
 substrate-wasm-builder = { version = "5.0.0-dev", path = "../../../utils/wasm-builder" }
 
@@ -118,6 +120,7 @@ with-tracing = ["frame-executive/with-tracing"]
 std = [
 	"sp-authority-discovery/std",
 	"pallet-assets/std",
+	"pallet-auth-right/std",
 	"pallet-authority-discovery/std",
 	"pallet-authorship/std",
 	"sp-consensus-babe/std",

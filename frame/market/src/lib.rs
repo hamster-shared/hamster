@@ -18,7 +18,7 @@ use frame_system::pallet_prelude::*;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::Perbill;
 // use sp_std::vec::Vec;
-use codec::alloc::vec;
+// use codec::alloc::vec;
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://substrate.dev/docs/en/knowledgebase/runtime/frame>
@@ -448,7 +448,7 @@ pub mod pallet {
 
 		/// Change the gateway staking fee, only call by root
 		#[transactional]
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1).ref_time())]
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn update_gateway_staking_fee(
 			origin: OriginFor<T>,
 			amount: BalanceOf<T>,
@@ -463,7 +463,7 @@ pub mod pallet {
 
 		/// Change the provider staking fee, only call by root
 		#[transactional]
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1).ref_time())]
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn update_provider_staking_fee(
 			origin: OriginFor<T>,
 			amount: BalanceOf<T>,
@@ -478,7 +478,7 @@ pub mod pallet {
 
 		/// Change the client staking fee, only call by root
 		#[transactional]
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1).ref_time())]
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn update_client_staking_fee(
 			origin: OriginFor<T>,
 			amount: BalanceOf<T>,
@@ -492,7 +492,7 @@ pub mod pallet {
 
 		/// Change the market status multiplier, only can call by root
 		#[transactional]
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1).ref_time())]
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn update_market_base_multiplier(
 			origin: OriginFor<T>,
 			provider: u128,
@@ -512,11 +512,11 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	/// StakingPod: use to storage the market people's stake amount
 	pub fn staking_pot() -> T::AccountId {
-		PALLET_ID.into_sub_account_truncating(b"stak")
+		PALLET_ID.into_sub_account(b"stak")
 	}
 	/// market_reward_pot: use to storage the market's reward from end_era
 	pub fn market_reward_pot() -> T::AccountId {
-		PALLET_ID.into_sub_account_truncating(b"stor")
+		PALLET_ID.into_sub_account(b"stor")
 	}
 
 	/// compute the payout for provider, gateway, client

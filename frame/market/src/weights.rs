@@ -67,28 +67,28 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: System Account (r:2 w:2)
 	// Storage: Market Staking (r:1 w:1)
 	fn bond() -> Weight {
-		Weight::from_ref_time(39_599_000 as u64)
+		(39_599_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
 	// Storage: Market Staking (r:1 w:1)
 	// Storage: System Account (r:2 w:2)
 	fn withdraw() -> Weight {
-		Weight::from_ref_time(38_551_000 as u64)
+		(38_551_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
 	// Storage: Market GatewayReward (r:1001 w:1000)
 	// Storage: System Account (r:1001 w:1001)
 	fn payout_gateway_nodes() -> Weight {
-		Weight::from_ref_time(19_653_948_000 as u64)
+		(19_653_948_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2002 as u64))
 			.saturating_add(T::DbWeight::get().writes(2001 as u64))
 	}
 	// Storage: Market ProviderReward (r:1001 w:1000)
 	// Storage: System Account (r:1001 w:1001)
 	fn payout_provider_nodes() -> Weight {
-		Weight::from_ref_time(20_235_011_000 as u64)
+		(20_235_011_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2002 as u64))
 			.saturating_add(T::DbWeight::get().writes(2001 as u64))
 	}
@@ -96,7 +96,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: System Account (r:1001 w:1001)
 	// Storage: Market GatewayReward (r:0 w:1000)
 	fn payout_client_nodes() -> Weight {
-		Weight::from_ref_time(20_273_283_000 as u64)
+		(20_273_283_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2002 as u64))
 			.saturating_add(T::DbWeight::get().writes(2001 as u64))
 	}
@@ -107,28 +107,28 @@ impl WeightInfo for () {
 	// Storage: System Account (r:2 w:2)
 	// Storage: Market Staking (r:1 w:1)
 	fn bond() -> Weight {
-		Weight::from_ref_time(39_599_000 as u64)
+		(39_599_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(3 as u64))
 			.saturating_add(RocksDbWeight::get().writes(3 as u64))
 	}
 	// Storage: Market Staking (r:1 w:1)
 	// Storage: System Account (r:2 w:2)
 	fn withdraw() -> Weight {
-		Weight::from_ref_time(38_551_000 as u64)
+		(38_551_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(3 as u64))
 			.saturating_add(RocksDbWeight::get().writes(3 as u64))
 	}
 	// Storage: Market GatewayReward (r:1001 w:1000)
 	// Storage: System Account (r:1001 w:1001)
 	fn payout_gateway_nodes() -> Weight {
-		Weight::from_ref_time(19_653_948_000 as u64)
+		(19_653_948_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(2002 as u64))
 			.saturating_add(RocksDbWeight::get().writes(2001 as u64))
 	}
 	// Storage: Market ProviderReward (r:1001 w:1000)
 	// Storage: System Account (r:1001 w:1001)
 	fn payout_provider_nodes() -> Weight {
-		Weight::from_ref_time(20_235_011_000 as u64)
+		(20_235_011_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(2002 as u64))
 			.saturating_add(RocksDbWeight::get().writes(2001 as u64))
 	}
@@ -136,7 +136,7 @@ impl WeightInfo for () {
 	// Storage: System Account (r:1001 w:1001)
 	// Storage: Market GatewayReward (r:0 w:1000)
 	fn payout_client_nodes() -> Weight {
-		Weight::from_ref_time(20_273_283_000 as u64)
+		(20_273_283_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(2002 as u64))
 			.saturating_add(RocksDbWeight::get().writes(2001 as u64))
 	}

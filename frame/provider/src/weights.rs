@@ -74,7 +74,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Provider Providers (r:1 w:1)
 	// Storage: Provider Resources (r:0 w:1)
 	fn register_resource() -> Weight {
-		Weight::from_ref_time(46_583_000 as u64)
+		(46_583_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(10 as u64))
 			.saturating_add(T::DbWeight::get().writes(10 as u64))
 	}
@@ -89,7 +89,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Market Staking (r:1 w:1)
 	// Storage: Market TotalStaked (r:1 w:1)
 	fn offline() -> Weight {
-		Weight::from_ref_time(48_189_000 as u64)
+		(48_189_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(10 as u64))
 			.saturating_add(T::DbWeight::get().writes(9 as u64))
 	}
@@ -98,7 +98,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Market Staking (r:1 w:1)
 	// Storage: Market TotalStaked (r:1 w:1)
 	fn change_resource_status() -> Weight {
-		Weight::from_ref_time(27_097_000 as u64)
+		(27_097_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(4 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
@@ -118,7 +118,7 @@ impl WeightInfo for () {
 	// Storage: Provider Providers (r:1 w:1)
 	// Storage: Provider Resources (r:0 w:1)
 	fn register_resource() -> Weight {
-		Weight::from_ref_time(46_583_000 as u64)
+		(46_583_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(10 as u64))
 			.saturating_add(RocksDbWeight::get().writes(10 as u64))
 	}
@@ -133,7 +133,7 @@ impl WeightInfo for () {
 	// Storage: Market Staking (r:1 w:1)
 	// Storage: Market TotalStaked (r:1 w:1)
 	fn offline() -> Weight {
-		Weight::from_ref_time(48_189_000 as u64)
+		(48_189_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(10 as u64))
 			.saturating_add(RocksDbWeight::get().writes(9 as u64))
 	}
@@ -142,7 +142,7 @@ impl WeightInfo for () {
 	// Storage: Market Staking (r:1 w:1)
 	// Storage: Market TotalStaked (r:1 w:1)
 	fn change_resource_status() -> Weight {
-		Weight::from_ref_time(27_097_000 as u64)
+		(27_097_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(4 as u64))
 			.saturating_add(RocksDbWeight::get().writes(3 as u64))
 	}
