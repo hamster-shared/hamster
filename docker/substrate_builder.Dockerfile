@@ -1,5 +1,5 @@
 # This is the build stage for Substrate. Here we create the binary.
-FROM docker.io/paritytech/ci-linux:f203f298-20220413 as builder
+FROM docker.io/paritytech/ci-linux:c4f0daf3-20220108 as builder
 
 WORKDIR /substrate
 COPY . /substrate
