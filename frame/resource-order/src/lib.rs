@@ -274,6 +274,10 @@ pub mod pallet {
 		/// free resource processed
 		/// [order_index, peer_id]
 		FreeResourceProcessed(u64, Vec<u8>),
+
+		/// cancel agreement successfully
+		/// [AccountId, agreement index, resource index]
+		CancelAgreementSuccess(T::AccountId, u64, u64),
 	}
 
 	#[pallet::hooks]
@@ -317,7 +321,9 @@ pub mod pallet {
 		OrderStatusError,
 		/// agreement does not exist
 		ProtocolDoesNotExist,
-		/// agreement has been punished
+		/// agreement status error
+		AgreementStatusError,
+		/// wrong agreement status
 		AgreementHasBeenPunished,
 		/// agreement has been finished
 		AgreementHasBeenFinished,
@@ -721,6 +727,74 @@ pub mod pallet {
 					order_index,
 				));
 			}
+
+			Ok(())
+		}
+
+		#[transactional]
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		pub fn cancel_agreement(origin: OriginFor<T>, agreement_index: u64) -> DispatchResult {
+
+			let who = ensure_signed(origin)?;
+
+			// 1. check the agreement exists
+			ensure!(
+                RentalAgreements::<T>::contains_key(agreement_index),
+                Error::<T>::ProtocolDoesNotExist,
+            );
+
+			// 2. get the agreement
+			let mut agreement = RentalAgreements::<T>::get(agreement_index).unwrap();
+
+			// check the agreement belong who
+			ensure!(
+                agreement.tenant_info.account_id == who.clone(),
+                Error::<T>::ProtocolNotOwnedByYou,
+            );
+
+			// 3. check the agreement status
+			ensure!(
+                agreement.status == AgreementStatus::Using,
+                Error::<T>::AgreementStatusError,
+            );
+
+			// 4. get the resource information
+			let resource_index = agreement.resource_index;
+			let mut resource =
+				match T::OrderInterface::get_computing_resource_info(resource_index) {
+					Some(x) => x,
+					None => Err(Error::<T>::ResourceNotExist)?,
+				};
+
+			// 5. update the resource status to unused
+			resource.update_status(ResourceStatus::Unused);
+
+			// 6. update the agreement status to 'Finished'
+			agreement.change_status(AgreementStatus::Finished);
+
+			// 7. save the resource status
+			T::OrderInterface::update_computing_resource(resource_index, resource);
+
+			// 8. save the agreement
+			RentalAgreements::<T>::insert(agreement_index, agreement.clone());
+
+			// delete agreement index from block
+			let block_agreement_list = BlockWithAgreement::<T>::get(agreement.end);
+			let new_list = block_agreement_list.into_iter().filter(|&x| x != agreement_index).collect::<Vec<u64>>();
+			BlockWithAgreement::<T>::insert(agreement.end, new_list);
+
+			// 9. when the agreement has finish, delete agreement
+			Self::delete_agreement(
+				agreement_index,
+				agreement.provider.clone(),
+				agreement.tenant_info.account_id.clone(),
+			);
+
+			Self::deposit_event(Event::CancelAgreementSuccess(
+				who.clone(),
+				agreement_index,
+				resource_index,
+			));
 
 			Ok(())
 		}

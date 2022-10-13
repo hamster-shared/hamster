@@ -129,6 +129,133 @@ fn it_works_for_order_exec() {
 		assert_eq!(total_staking, market_staking);
 	});
 }
+
+/// Check the staking amount for order: create, exec, cancel
+///
+#[test]
+fn it_works_for_order_amount() {
+	new_test_pub().execute_with(|| {
+		// 1. client create new order
+		let client_account = 0;
+		let provider_account = 1;
+		let resource_index = 1;
+		let rent_duration = 1;
+		let public_key = Bytes(vec![
+			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+			25, 26, 27, 28, 29, 30,
+		]);
+
+		assert_ok!(ResourceOrder::create_order_info(
+            Origin::signed(client_account),
+            resource_index,
+            rent_duration,
+            public_key.to_vec(),
+        ));
+
+		// 2. check the create order staking amount
+		let staking_create = sp_hamster::p_market::StakingAmount {
+			amount: 1000_000_000_000_000,
+			active_amount: 1000_000_000_000_000,
+			lock_amount: 0,
+		};
+		let staking = Market::staking(client_account).unwrap();
+		assert_eq!(staking, staking_create);
+
+		// 3. exec the order
+		assert_ok!(ResourceOrder::order_exec(Origin::signed(provider_account), 0));
+
+		// 4. check the exec order staking amount(client)
+		let staking_exec = sp_hamster::p_market::StakingAmount {
+			amount: 1000_000_000_000_000,
+			active_amount: 900_000_000_000_000,
+			lock_amount: 100_000_000_000_000,
+		};
+		let staking = Market::staking(client_account).unwrap();
+		assert_eq!(staking, staking_exec);
+
+		// 5. check the exec order staking amount(provider)
+		let staking_exec = sp_hamster::p_market::StakingAmount {
+			amount: 1000_000_000_000_000,
+			active_amount: 800_000_000_000_000,
+			lock_amount: 200_000_000_000_000,
+		};
+		let staking = Market::staking(provider_account).unwrap();
+		assert_eq!(staking, staking_exec);
+
+		// 5. cancel order
+		assert_ok!(ResourceOrder::cancel_order(Origin::signed(client_account), 0));
+
+		// // 6. check the cancel orser staking amount
+		//  let staking_cancel = primitives::p_market::StakingAmount {
+		//     amount: 1000_000_000_000_000,
+		//     active_amount: 1000_000_000_000_000,
+		//     lock_amount: 0,
+		// };
+		// let staking = Market::staking(client_account).unwrap();
+		// assert_eq!(staking, staking_cancel);
+	})
+}
+
+/// Check the client cancel the agreement
+#[test]
+fn it_works_for_cancel_agreement() {
+	new_test_pub().execute_with(|| {
+		// client create a new order
+		let client_account = 0;
+		let provider_account = 1;
+
+		let resource_index = 1;
+		let rent_duration = 1;
+		let public_key = Bytes(vec![
+			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+			25, 26, 27, 28, 29, 30,
+		]);
+
+		assert_ok!(ResourceOrder::create_order_info(
+            Origin::signed(client_account),
+            resource_index,
+            rent_duration,
+            public_key.to_vec(),
+        ));
+
+		// provider exec order
+		assert_ok!(ResourceOrder::order_exec(Origin::signed(provider_account), 0));
+		let resource = Provider::resource(resource_index).unwrap();
+		assert_eq!(resource.status, ResourceStatus::Inuse);
+
+		// get the order agreement
+		let agreement_index = 0;
+		assert_ne!(ResourceOrder::rental_agreements(agreement_index), None);
+		// get the agreement end time
+		let agreement_end = ResourceOrder::rental_agreements(agreement_index).unwrap().end;
+		let block_agreement_list = ResourceOrder::block_agreement(agreement_end);
+		assert_eq!(block_agreement_list.contains(&agreement_index), true);
+
+		// client cancel the agreement
+		assert_ok!(ResourceOrder::cancel_agreement(Origin::signed(client_account), agreement_index));
+
+		// check the agreement
+		assert_eq!(ResourceOrder::rental_agreements(agreement_index), None);
+
+		// check the resource status
+		let resource = Provider::resource(resource_index).unwrap();
+		assert_eq!(resource.status, ResourceStatus::Unused);
+
+		// check the BlockWithAgreement
+		let block_agreement_list = ResourceOrder::block_agreement(agreement_end);
+		assert_eq!(block_agreement_list.contains(&agreement_index), false);
+
+		// check the staking
+		let client_staking_amount = sp_hamster::p_market::StakingAmount {
+			amount: 1000_000_000_000_000,
+			active_amount: 1000_000_000_000_000,
+			lock_amount: 0,
+		};
+		let staking = Market::staking(client_account).unwrap();
+		assert_eq!(staking, client_staking_amount);
+	})
+}
+
 //
 // #[test]
 // fn it_works_for_cancel_order() {

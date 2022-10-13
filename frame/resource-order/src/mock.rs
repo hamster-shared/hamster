@@ -57,7 +57,7 @@ parameter_types! {
 }
 
 impl system::Config for Test {
-	type BaseCallFilter = ();
+	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
 	type DbWeight = ();
@@ -117,6 +117,7 @@ impl pallet_provider::Config for Test {
 	type NumberToBalance = ConvertInto;
 	type ResourceInterval = ResourceInterval;
 	type MarketInterface = Market;
+	type WeightInfo = ();
 }
 
 impl pallet_resource_order::Config for Test {
@@ -130,6 +131,7 @@ impl pallet_resource_order::Config for Test {
 	type HealthCheckInterval = HealthCheckInterval;
 	type UnixTime = Timestamp;
 	type ProviderInterface = Provider;
+	type WeightInfo = ();
 }
 
 impl pallet_market::Config for Test {
@@ -143,6 +145,7 @@ impl pallet_market::Config for Test {
 	type ProviderInterface = Provider;
 	type ChunkCycleInterface = Chunkcycle;
 	type ResourceOrderInterface = ResourceOrder;
+	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -276,8 +279,13 @@ pub fn new_test_pub() -> sp_io::TestExternalities {
 		.unwrap();
 
 	let staking_amount = p_market::StakingAmount::new(1000_000_000_000_000);
+	let staking_provider = p_market::StakingAmount {
+		amount: 1000_000_000_000_000,
+		active_amount: 800_000_000_000_000,
+		lock_amount: 200_000_000_000_000,
+	};
 	pallet_market::GenesisConfig::<Test> {
-		staking: vec![(1, staking_amount.clone()), (2, staking_amount.clone())],
+		staking: vec![(0, staking_amount.clone()),(1, staking_provider), (2, staking_amount.clone())],
 		gateway_base_fee: 100_000_000_000_000,
 		market_base_multiplier: (5, 3, 1),
 		provider_base_fee: 100_000_000_000_000,
