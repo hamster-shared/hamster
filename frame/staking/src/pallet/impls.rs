@@ -31,6 +31,7 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_session::historical;
+use sp_hamster::p_market::MarketInterface;
 use sp_runtime::{
 	traits::{Bounded, Convert, SaturatedConversion, Saturating, Zero},
 	Perbill,
@@ -382,18 +383,78 @@ impl<T: Config> Pallet<T> {
 
 			let era_duration = (now_as_millis_u64 - active_era_start).saturated_into::<u64>();
 			let staked = Self::eras_total_stake(&active_era.index);
-			let issuance = T::Currency::total_issuance();
-			let (validator_payout, rest) = T::EraPayout::era_payout(staked, issuance, era_duration);
 
-			Self::deposit_event(Event::<T>::EraPaid(active_era.index, validator_payout, rest));
+			// get the market total staking balance
+			let market_staked =
+				T::NumberToBalance::convert(T::MarketInterface::market_total_staked());
+
+			// Get current era total staked = validator_staked + market_staked
+			let total_staked = staked.saturating_add(market_staked);
+			// Get the total issuance of the system
+			let issuance = T::Currency::total_issuance();
+			// Get the payout (vaildator and market payout, rest)
+			let (validator_market_payout, rest) = T::EraPayout::era_payout(total_staked, issuance, era_duration);
+
+			Self::deposit_event(Event::<T>::EraPaid(active_era.index, validator_market_payout, rest));
+
+			// compute the validator and market payout
+			let (validator_payout, market_payout) = Self::compute_validator_market_payout(
+				staked,
+				market_staked,
+				validator_market_payout,
+			);
+
+			// Compute market reward
+			T::MarketInterface::compute_rewards(
+				active_era.index,
+				T::BalanceToNumber::convert(market_payout),
+			);
+
+			// used to test the reward portion
+			Self::deposit_event(Event::<T>::EraTotalPayout(
+				market_payout,
+				validator_payout,
+				rest,
+			));
 
 			// Set ending era reward.
+			T::Currency::deposit_creating(&T::MarketInterface::storage_pot(), market_payout);
 			<ErasValidatorReward<T>>::insert(&active_era.index, validator_payout);
 			T::RewardRemainder::on_unbalanced(T::Currency::issue(rest));
 
 			// Clear offending validators.
 			<OffendingValidators<T>>::kill();
 		}
+	}
+
+	/// compute validator market payout
+	/// * Use the portion to compute anyone's payout
+	/// * validator_weight = 1.0	market_weight = 2.0
+	pub fn compute_validator_market_payout(
+		validator_staked: BalanceOf<T>,
+		market_staked: BalanceOf<T>,
+		total_payout: BalanceOf<T>,
+	) -> (BalanceOf<T>, BalanceOf<T>) {
+		// TODO use storage
+		// Compute the validator portion
+		let validator_portion = Perbill::from_percent(100) * validator_staked;
+
+		// Compute the makret portion
+		let market_portion = Perbill::from_percent(200) * market_staked;
+
+		// compute the total portion
+		let total_portion = validator_portion + market_portion;
+
+		// compute the validator payout
+		// let validator_payout = (validator_portion / total_portion) * total_payout;
+		let validator_payout =
+			Perbill::from_rational(validator_portion, total_portion) * total_payout;
+		// compute the market payout
+		// todo maybe error
+		// let market_payout = (market_portion / total_portion) * total_payout;
+		let market_payout = Perbill::from_rational(market_portion, total_portion) * total_payout;
+
+		(validator_payout, market_payout)
 	}
 
 	/// Plan a new era.

@@ -6572,6 +6572,7 @@ dependencies = [
  "serde",
  "sp-application-crypto",
  "sp-core",
+ "sp-hamster",
  "sp-io",
  "sp-npos-elections",
  "sp-runtime",

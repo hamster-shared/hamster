@@ -24,7 +24,8 @@ use node_runtime::{
 	constants::currency::*, wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig,
 	BalancesConfig, Block, CouncilConfig, DemocracyConfig, ElectionsConfig, GrandpaConfig,
 	ImOnlineConfig, IndicesConfig, MaxNominations, SessionConfig, SessionKeys, SocietyConfig,
-	StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+	StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, GatewayConfig,
+	ProviderConfig, ResourceOrderConfig, MarketConfig,
 };
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_chain_spec::ChainSpecExtension;
@@ -296,10 +297,37 @@ pub fn testnet_genesis(
 	const STASH: Balance = ENDOWMENT / 1000;
 
 	GenesisConfig {
-		gateway: Default::default(),
-		market: Default::default(),
-		provider: Default::default(),
-		resource_order: Default::default(),
+		gateway: GatewayConfig {
+			gateway: Default::default(),
+			gateway_node_count: Default::default(),
+			account_peer_map: Default::default(),
+			gateways: Default::default(),
+		},
+		provider: ProviderConfig {
+			resource: Default::default(),
+			resource_index: Default::default(),
+			resource_count: Default::default(),
+			future_expired_resource: Default::default(),
+			provider: Default::default(),
+		},
+		resource_order: ResourceOrderConfig {
+			order_index: Default::default(),
+			resource_orders: Default::default(),
+			agreement_index: Default::default(),
+			rental_agreements: Default::default(),
+			user_agreements: Default::default(),
+			provider_agreements: Default::default(),
+			block_agreement: Default::default(),
+			user_orders: Default::default(),
+		},
+		market: MarketConfig {
+			staking: vec![],
+			gateway_base_fee: 100 * CENTS,
+			market_base_multiplier: (5, 3, 1),
+			provider_base_fee: 100 * CENTS,
+			client_base_fee: 100 * CENTS,
+			total_staked: Default::default(),
+		},
 		system: SystemConfig { code: wasm_binary_unwrap().to_vec() },
 		balances: BalancesConfig {
 			balances: endowed_accounts.iter().cloned().map(|x| (x, ENDOWMENT)).collect(),
@@ -634,10 +662,37 @@ pub fn newtouch_genesis(
 	const STASH: Balance = ENDOWMENT / 1000;
 
 	GenesisConfig {
-		gateway: Default::default(),
-		market: Default::default(),
-		provider: Default::default(),
-		resource_order: Default::default(),
+		gateway: GatewayConfig {
+			gateway: Default::default(),
+			gateway_node_count: Default::default(),
+			account_peer_map: Default::default(),
+			gateways: Default::default(),
+		},
+		provider: ProviderConfig {
+			resource: Default::default(),
+			resource_index: Default::default(),
+			resource_count: Default::default(),
+			future_expired_resource: Default::default(),
+			provider: Default::default(),
+		},
+		resource_order: ResourceOrderConfig {
+			order_index: Default::default(),
+			resource_orders: Default::default(),
+			agreement_index: Default::default(),
+			rental_agreements: Default::default(),
+			user_agreements: Default::default(),
+			provider_agreements: Default::default(),
+			block_agreement: Default::default(),
+			user_orders: Default::default(),
+		},
+		market: MarketConfig {
+			staking: vec![],
+			gateway_base_fee: 100 * CENTS,
+			market_base_multiplier: (5, 3, 1),
+			provider_base_fee: 100 * CENTS,
+			client_base_fee: 100 * CENTS,
+			total_staked: Default::default(),
+		},
 		system: SystemConfig { code: wasm_binary_unwrap().to_vec() },
 		balances: BalancesConfig {
 			balances: endowed_accounts.iter().cloned().map(|x| (x, ENDOWMENT)).collect(),

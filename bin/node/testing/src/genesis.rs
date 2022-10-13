@@ -22,7 +22,8 @@ use crate::keyring::*;
 use node_runtime::{
 	constants::currency::*, wasm_binary_unwrap, AccountId, BabeConfig, BalancesConfig,
 	GenesisConfig, GrandpaConfig, IndicesConfig, SessionConfig, SocietyConfig, StakerStatus,
-	StakingConfig, SystemConfig, BABE_GENESIS_EPOCH_CONFIG,
+	StakingConfig, SystemConfig, BABE_GENESIS_EPOCH_CONFIG, GatewayConfig, ProviderConfig, ResourceOrderConfig,
+	MarketConfig,
 };
 use sp_keyring::{Ed25519Keyring, Sr25519Keyring};
 use sp_runtime::Perbill;
@@ -92,9 +93,36 @@ pub fn config_endowed(code: Option<&[u8]>, extra_endowed: Vec<AccountId>) -> Gen
 		gilt: Default::default(),
 		transaction_storage: Default::default(),
 		transaction_payment: Default::default(),
-		gateway: Default::default(),
-		market: Default::default(),
-		provider: Default::default(),
-		resource_order: Default::default(),
+		gateway: GatewayConfig {
+			gateway: Default::default(),
+			gateway_node_count: Default::default(),
+			account_peer_map: Default::default(),
+			gateways: Default::default(),
+		},
+		provider: ProviderConfig {
+			resource: Default::default(),
+			resource_index: Default::default(),
+			resource_count: Default::default(),
+			future_expired_resource: Default::default(),
+			provider: Default::default(),
+		},
+		resource_order: ResourceOrderConfig {
+			order_index: Default::default(),
+			resource_orders: Default::default(),
+			agreement_index: Default::default(),
+			rental_agreements: Default::default(),
+			user_agreements: Default::default(),
+			provider_agreements: Default::default(),
+			block_agreement: Default::default(),
+			user_orders: Default::default(),
+		},
+		market: MarketConfig {
+			staking: vec![],
+			gateway_base_fee: 100 * CENTS,
+			market_base_multiplier: (5, 3, 1),
+			provider_base_fee: 100 * CENTS,
+			client_base_fee: 100 * CENTS,
+			total_staked: Default::default(),
+		},
 	}
 }

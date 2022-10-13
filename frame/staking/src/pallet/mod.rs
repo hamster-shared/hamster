@@ -34,6 +34,7 @@ use sp_runtime::{
 };
 use sp_staking::{EraIndex, SessionIndex};
 use sp_std::{cmp::max, prelude::*};
+use sp_hamster::p_market::MarketInterface;
 
 mod impls;
 
@@ -51,6 +52,7 @@ const STAKING_ID: LockIdentifier = *b"staking ";
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_election_provider_support::ElectionDataProvider;
+	use sp_runtime::traits::Convert;
 
 	use crate::BenchmarkingConfig;
 
@@ -200,6 +202,13 @@ pub mod pallet {
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
+
+		type MarketInterface: MarketInterface<Self::AccountId>;
+
+		/// digital transfer amount
+		type NumberToBalance: Convert<u128, BalanceOf<Self>>;
+		/// amount converted to numbers
+		type BalanceToNumber: Convert<BalanceOf<Self>, u128>;
 	}
 
 	#[pallet::type_value]
@@ -649,6 +658,8 @@ pub mod pallet {
 		PayoutStarted(EraIndex, T::AccountId),
 		/// A validator has set their preferences.
 		ValidatorPrefsSet(T::AccountId, ValidatorPrefs),
+		/// [market_payout, validator_payout, remainder]
+		EraTotalPayout(BalanceOf<T>, BalanceOf<T>, BalanceOf<T>),
 	}
 
 	#[pallet::error]

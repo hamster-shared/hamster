@@ -558,6 +558,9 @@ impl pallet_staking::Config for Runtime {
 	type OnStakerSlash = ();
 	type WeightInfo = pallet_staking::weights::SubstrateWeight<Runtime>;
 	type BenchmarkingConfig = StakingBenchmarkingConfig;
+	type MarketInterface = Market;
+	type NumberToBalance = ConvertInto;
+	type BalanceToNumber = ConvertInto;
 }
 
 parameter_types! {
