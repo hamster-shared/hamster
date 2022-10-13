@@ -34,6 +34,8 @@ pub struct ResourceOrder<AccountId, BlockNumber> {
 	pub status: OrderStatus,
 	/// AgreementNumber
 	pub agreement_index: Option<u64>,
+	/// deployType
+	pub deploy_type: u32,
 }
 
 /// TenantInformation
@@ -128,6 +130,7 @@ impl<AccountId, BlockNumber> ResourceOrder<AccountId, BlockNumber> {
 		create: BlockNumber,
 		rent_duration: BlockNumber,
 		time: Duration,
+		deploy_type: u32,
 	) -> Self {
 		ResourceOrder {
 			index,
@@ -138,6 +141,7 @@ impl<AccountId, BlockNumber> ResourceOrder<AccountId, BlockNumber> {
 			time: time.as_secs(),
 			status: OrderStatus::Pending,
 			agreement_index: None,
+			deploy_type,
 		}
 	}
 
@@ -150,6 +154,7 @@ impl<AccountId, BlockNumber> ResourceOrder<AccountId, BlockNumber> {
 		rent_duration: BlockNumber,
 		time: Duration,
 		agreement_index: Option<u64>,
+		deploy_type: u32,
 	) -> Self {
 		ResourceOrder {
 			index,
@@ -160,6 +165,7 @@ impl<AccountId, BlockNumber> ResourceOrder<AccountId, BlockNumber> {
 			time: time.as_secs(),
 			status: OrderStatus::Pending,
 			agreement_index,
+			deploy_type,
 		}
 	}
 

@@ -224,8 +224,8 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// created order successfully
 		/// [account, order number, rental resource number, rental duration (h), user public key]
-		// CreateOrderSuccess(T::AccountId, u64, u64, u32, Bytes),
-		CreateOrderSuccess(T::AccountId, u64, u64, u32, Vec<u8>),
+		/// [account, order number, rental resource number, rental duration (h),deploy_type, user public key]
+		CreateOrderSuccess(T::AccountId, u64, u64, u32,u32, Vec<u8>),
 		/// order renewal successful
 		/// [account, order number, rental resource number, rental duration (h)]
 		ReNewOrderSuccess(T::AccountId, u64, u64, u32),
@@ -367,8 +367,8 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			resource_index: u64,
 			rent_duration: u32,
-			// public_key: Bytes,
 			public_key: Vec<u8>,
+			deploy_type: u32,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -416,6 +416,7 @@ pub mod pallet {
 				block_number,
 				rent_blocks,
 				now,
+				deploy_type,
 			);
 
 			// resource status changed from unused to locked
@@ -435,6 +436,7 @@ pub mod pallet {
 				order_index,
 				resource_index,
 				rent_duration,
+				deploy_type,
 				public_key,
 			));
 			Ok(())
@@ -806,6 +808,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			agreement_index: u64,
 			duration: u32,
+			deploy_type: u32,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -852,6 +855,7 @@ pub mod pallet {
 				rent_duration,
 				now,
 				Some(agreement_index),
+				deploy_type,
 			);
 
 			ResourceOrders::<T>::insert(order_index, order.clone());
