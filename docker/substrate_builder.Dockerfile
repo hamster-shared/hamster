@@ -27,7 +27,6 @@ RUN useradd -m -u 1000 -U -s /bin/sh -d /substrate substrate && \
 # unclutter and minimize the attack surface
 	rm -rf /usr/bin /usr/sbin && \
 # Sanity checks
-	ldd /usr/local/bin/substrate && \
 	/usr/local/bin/substrate --version
 
 USER substrate

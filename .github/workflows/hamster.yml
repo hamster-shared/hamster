@@ -23,5 +23,7 @@ jobs:
           password: ${{ secrets.REGISTRY_PASSWORD }}
       - name: build
         run: |
-          time docker build -f ./docker/substrate_builder.Dockerfile -t mohaijiang/hamster:latest .
+          time docker build -f ./docker/substrate_builder.Dockerfile -t mohaijiang/hamster:`date +%Y%m%d` .
+          docker push mohaijiang/hamster:`date +%Y%m%d`
+          docker tag mohaijiang/hamster:`date +%Y%m%d` mohaijiang/substrate:latest
           docker push mohaijiang/substrate:latest
