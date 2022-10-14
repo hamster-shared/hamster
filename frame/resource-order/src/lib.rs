@@ -587,7 +587,7 @@ pub mod pallet {
 
 				// order status changes to completed
 				order.finish_order();
-				order.agreement_index = Some(resource_index);
+				order.agreement_index = Some(agreement.index);
 				// resource status changed from locked to in use
 				resource_info.update_status(ResourceStatus::Inuse);
 				// usage count+1
