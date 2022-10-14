@@ -1409,13 +1409,6 @@ impl pallet_state_trie_migration::Config for Runtime {
 	type WeightInfo = ();
 }
 
-/// Configure the pallet-template in pallets/template.
-impl pallet_auth_right::Config for Runtime {
-	type Event = Event;
-	type Currency = Balances;
-	type Time = pallet_timestamp::Pallet<Runtime>;
-}
-
 impl pallet_burn::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
@@ -1503,7 +1496,6 @@ construct_runtime!(
 		Utility: pallet_utility,
 		Babe: pallet_babe,
 		Timestamp: pallet_timestamp,
-		AuthRight: pallet_auth_right,
 		// Authorship must be before session in order to note author in the correct session and era
 		// for im-online and staking.
 		Authorship: pallet_authorship,
