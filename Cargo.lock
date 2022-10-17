@@ -4998,7 +4998,6 @@ dependencies = [
  "log 0.4.17",
  "node-primitives",
  "pallet-assets",
- "pallet-auth-right",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
@@ -5486,21 +5485,6 @@ dependencies = [
  "scale-info",
  "sp-application-crypto",
  "sp-consensus-aura",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-auth-right"
-version = "4.0.0-dev"
-dependencies = [
- "frame-support",
- "frame-system",
- "pallet-balances",
- "parity-scale-codec",
- "scale-info",
  "sp-core",
  "sp-io",
  "sp-runtime",

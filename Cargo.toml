@@ -65,7 +65,6 @@ members = [
 	"frame/assets",
 	"frame/atomic-swap",
 	"frame/aura",
-	"frame/auth-right",
 	"frame/authority-discovery",
 	"frame/authorship",
 	"frame/babe",
