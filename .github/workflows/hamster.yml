@@ -4,7 +4,8 @@ on:
   push:
     branches:
       - hamster
-      - update-4.0
+      - develop
+      - develop-2.0
 
 jobs:
   release-build:
@@ -23,7 +24,7 @@ jobs:
           password: ${{ secrets.REGISTRY_PASSWORD }}
       - name: build
         run: |
-          time docker build -f ./docker/substrate_builder.Dockerfile -t mohaijiang/hamster:`date +%Y%m%d` .
-          docker push mohaijiang/hamster:`date +%Y%m%d`
-          docker tag mohaijiang/hamster:`date +%Y%m%d` mohaijiang/substrate:latest
-          docker push mohaijiang/substrate:latest
+          time docker build -f ./docker/substrate_builder.Dockerfile -t hamstershare/hamster:`date +%Y%m%d` .
+          docker push hamstershare/hamster:`date +%Y%m%d`
+          docker tag hamstershare/hamster:`date +%Y%m%d` hamstershare/substrate:latest
+          docker push hamstershare/substrate:latest
