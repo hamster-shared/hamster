@@ -448,7 +448,7 @@ pub fn local_testnet_config() -> ChainSpec {
 	)
 }
 
-fn newtouch_testnet_config_genesis() -> GenesisConfig {
+fn hamster_testnet_config_genesis() -> GenesisConfig {
 	#[rustfmt::skip]
 		// stash, controller,
 		// generated with secret:
@@ -557,14 +557,14 @@ fn newtouch_testnet_config_genesis() -> GenesisConfig {
 }
 
 /// newtouch testnet config.
-pub fn newtouch_testnet_config() -> ChainSpec {
+pub fn hamster_testnet_config() -> ChainSpec {
 	let boot_nodes = vec![
 	];
 	ChainSpec::from_genesis(
-		"Newtouch Testnet",
-		"newtouch_testnet",
+		"Hamster Testnet",
+		"hamster_testnet",
 		ChainType::Live,
-		newtouch_testnet_config_genesis,
+		hamster_testnet_config_genesis,
 		boot_nodes,
 		Some(
 			TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
@@ -586,7 +586,7 @@ pub fn newtouch_mainnet_config() -> ChainSpec {
 		"Newtouch MainNet",
 		"newtouch_mainnet",
 		ChainType::Live,
-		newtouch_testnet_config_genesis,
+		hamster_testnet_config_genesis,
 		boot_nodes,
 		Some(
 			TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
