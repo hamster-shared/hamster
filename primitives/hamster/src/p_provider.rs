@@ -28,6 +28,8 @@ pub struct ComputingResource<BlockNumber, AccountId>
 	pub rental_info: ResourceRentalInfo<BlockNumber>,
 	/// resource lease status
 	pub status: ResourceStatus,
+	/// resource public ip
+	pub public_ip: Vec<u8>,
 }
 
 impl<BlockNumber, AccountId> ComputingResource<BlockNumber, AccountId>
@@ -42,6 +44,7 @@ impl<BlockNumber, AccountId> ComputingResource<BlockNumber, AccountId>
 		rental_statistics: ResourceRentalStatistics,
 		rental_info: ResourceRentalInfo<BlockNumber>,
 		status: ResourceStatus,
+		public_ip: Vec<u8>,
 	) -> Self {
 		ComputingResource {
 			index,
@@ -51,6 +54,7 @@ impl<BlockNumber, AccountId> ComputingResource<BlockNumber, AccountId>
 			rental_statistics,
 			rental_info,
 			status,
+			public_ip,
 		}
 	}
 
