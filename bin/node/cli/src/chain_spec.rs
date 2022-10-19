@@ -553,10 +553,10 @@ fn hamster_testnet_config_genesis() -> GenesisConfig {
 
 	let endowed_accounts: Vec<AccountId> = vec![root_key.clone()];
 
-	newtouch_genesis(initial_authorities, vec![], root_key, Some(endowed_accounts))
+	hamster_genesis(initial_authorities, vec![], root_key, Some(endowed_accounts))
 }
 
-/// newtouch testnet config.
+/// hamster testnet config.
 pub fn hamster_testnet_config() -> ChainSpec {
 	let boot_nodes = vec![
 	];
@@ -578,29 +578,8 @@ pub fn hamster_testnet_config() -> ChainSpec {
 }
 
 
-/// newtouch testnet config.
-pub fn newtouch_mainnet_config() -> ChainSpec {
-	let boot_nodes = vec![
-	];
-	ChainSpec::from_genesis(
-		"Newtouch MainNet",
-		"newtouch_mainnet",
-		ChainType::Live,
-		hamster_testnet_config_genesis,
-		boot_nodes,
-		Some(
-			TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
-				.expect("Staging telemetry url is valid; qed"),
-		),
-		None,
-		None,
-		None,
-		Default::default(),
-	)
-}
-
 /// Helper function to create GenesisConfig for testing
-pub fn newtouch_genesis(
+pub fn hamster_genesis(
 	initial_authorities: Vec<(
 		AccountId,
 		AccountId,
