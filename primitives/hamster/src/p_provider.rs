@@ -30,6 +30,16 @@ pub struct ComputingResource<BlockNumber, AccountId>
 	pub status: ResourceStatus,
 	/// resource public ip
 	pub public_ip: Vec<u8>,
+	/// resource specification
+	pub specification: Specification,
+}
+
+#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum Specification {
+	General,
+	Enhanced,
+	HighRanking,
 }
 
 impl<BlockNumber, AccountId> ComputingResource<BlockNumber, AccountId>
@@ -45,6 +55,7 @@ impl<BlockNumber, AccountId> ComputingResource<BlockNumber, AccountId>
 		rental_info: ResourceRentalInfo<BlockNumber>,
 		status: ResourceStatus,
 		public_ip: Vec<u8>,
+		specification: Specification,
 	) -> Self {
 		ComputingResource {
 			index,
@@ -55,6 +66,7 @@ impl<BlockNumber, AccountId> ComputingResource<BlockNumber, AccountId>
 			rental_info,
 			status,
 			public_ip,
+			specification,
 		}
 	}
 
