@@ -166,7 +166,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// successfully registered resources
-		/// [accountId, index, peerId, cpu, memory, system, cpu_model, price_hour, rent_duration_hour]
+		/// [accountId, index, peerId, cpu, memory, system, cpu_model, price_hour, rent_duration_hour, public_ip]
 		RegisterResourceSuccess(
 			T::AccountId,
 			u64,
@@ -176,6 +176,8 @@ pub mod pallet {
 			Vec<u8>,
 			Vec<u8>,
 			Balance,
+			u32,
+			Vec<u8>,
 			u32,
 		),
 		/// modify the resource unit price successfully [accountId, index, balance]
@@ -302,6 +304,8 @@ pub mod pallet {
 			price: BalanceOf<T>,
 			rent_duration_hour: u32,
 			new_index: u64,
+			public_ip: Vec<u8>,
+			specification: u32,
 		) -> DispatchResult {
 			let who = ensure_signed(account_id)?;
 
@@ -386,6 +390,11 @@ pub mod pallet {
 				rent_blocks,
 				end_of_block,
 			);
+			let spec = match specification {
+				1 => Specification::Enhanced,
+				2 => Specification::HighRanking,
+				_ => Specification::General,
+			};
 			// create the computing resource: include all the info(resource, statistics, rental_info, and source status)
 			let computing_resource = ComputingResource::new(
 				index,
@@ -395,6 +404,8 @@ pub mod pallet {
 				statistics,
 				resource_rental_info,
 				ResourceStatus::Unused,
+				public_ip.clone(),
+				spec,
 			);
 
 			//Associate the block number and the resource id to expire
@@ -438,6 +449,8 @@ pub mod pallet {
 				cpu_model,
 				T::BalanceToNumber::convert(price),
 				rent_duration_hour,
+				public_ip,
+				specification,
 			));
 
 			Ok(())
@@ -790,6 +803,8 @@ impl<T: Config> ProviderInterface<<T as frame_system::Config>::AccountId> for Pa
 		let price = T::NumberToBalance::convert(1_000_000_000_000);
 		let rent_duration_hour = 3 as u32;
 		let staking_amount = T::NumberToBalance::convert(200_000_000_000_000);
+		let public_ip = "127.0.0.1".as_bytes().to_vec();
+		let spec = Specification::General;
 
 		T::MarketInterface::change_stake_amount(
 			who.clone(),
@@ -837,6 +852,8 @@ impl<T: Config> ProviderInterface<<T as frame_system::Config>::AccountId> for Pa
 			statistics,
 			resource_rental_info,
 			ResourceStatus::Unused,
+			public_ip.clone(),
+			spec,
 		);
 
 		//Associate the block number and the resource id to expire
